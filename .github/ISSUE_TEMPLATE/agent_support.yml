@@ -1,0 +1,34 @@
+name: Support a new agent
+description: Ask Kitfold to manage another coding agent.
+labels: [agent-support]
+body:
+  - type: markdown
+    attributes:
+      value: See [docs/adding-an-agent.md](../blob/main/docs/adding-an-agent.md) for what Kitfold needs to know. Links to official docs or source code make this much faster.
+  - type: input
+    id: agent
+    attributes:
+      label: Agent name and version
+    validations:
+      required: true
+  - type: textarea
+    id: skills
+    attributes:
+      label: Where does it look for skills?
+      description: Global and project folders, precedence, whether it follows symlinks, nested SKILL.md…
+  - type: textarea
+    id: instructions
+    attributes:
+      label: Which instruction files does it load?
+      description: Global and project files, fallbacks, overrides, size limits.
+  - type: textarea
+    id: disable
+    attributes:
+      label: Can a single skill be switched off in its settings?
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: Docs URLs, source files at a version tag, or how you tested it.
+    validations:
+      required: true

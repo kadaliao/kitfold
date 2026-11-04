@@ -1,0 +1,48 @@
+name: Bug report
+description: Something Kitfold shows or does is wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If the bug could make Kitfold change or reveal something it shouldn't, please use **Security → Report a vulnerability** instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Ideally in a sandbox home (`scripts/demo/make-demo-home.sh`) or with `kitfold --home <dir>`.
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: "`kitfold status` / `kitfold skills` output"
+      description: Optional. **Review it before pasting.** It contains paths under your home folder. Never paste agent settings files; they can contain API keys.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Kitfold version or commit
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: textarea
+    id: agents
+    attributes:
+      label: Agents involved (with versions)
+      placeholder: Claude Code 2.1.318, Codex 0.164.0, …
