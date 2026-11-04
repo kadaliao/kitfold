@@ -43,3 +43,6 @@ First version.
   - a review sheet with diffs, ⌘K quick open, drag a skill onto an agent, and Settings.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
+
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/f1fb7c2...HEAD
+[0.1.0]: https://github.com/kadaliao/kitfold/commit/f1fb7c2

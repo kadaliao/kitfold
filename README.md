@@ -14,6 +14,13 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kadaliao/kitfold/actions/workflows/ci.yml"><img src="https://github.com/kadaliao/kitfold/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/macOS-15%2B-black?logo=apple" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white" alt="Swift 6.2+">
+</p>
+
+<p align="center">
   <img src="docs/assets/screenshots/01-agents.jpg" alt="The Codex page in Kitfold, listing every skill Codex loads grouped by where it comes from">
 </p>
 
@@ -59,10 +66,10 @@ Each agent is a declarative descriptor, so adding one doesn't touch the core log
 
 ## Getting started
 
-Requirements: macOS 15 or later, Xcode 16 or later (Swift 6).
+Requirements: macOS 15 or later to run; Xcode 26 or later (Swift 6.2+) to build. CI builds with Swift 6.2.
 
 ```bash
-git clone <this repo> kitfold && cd kitfold
+git clone https://github.com/kadaliao/kitfold.git && cd kitfold
 make app          # builds build/Kitfold.app
 open build/Kitfold.app
 ```

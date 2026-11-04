@@ -14,6 +14,13 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kadaliao/kitfold/actions/workflows/ci.yml"><img src="https://github.com/kadaliao/kitfold/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/macOS-15%2B-black?logo=apple" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white" alt="Swift 6.2+">
+</p>
+
+<p align="center">
   <img src="docs/assets/screenshots/01-agents.jpg" alt="Kitfold 的 Codex 页面，按来源分组列出 Codex 加载的每个技能">
 </p>
 
@@ -59,10 +66,10 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 
 ## 开始使用
 
-环境要求：macOS 15 及以上，Xcode 16 及以上（Swift 6）。
+环境要求：运行需要 macOS 15 及以上；构建需要 Xcode 26 及以上（Swift 6.2+）。CI 使用 Swift 6.2 构建。
 
 ```bash
-git clone <本仓库> kitfold && cd kitfold
+git clone https://github.com/kadaliao/kitfold.git && cd kitfold
 make app          # 生成 build/Kitfold.app
 open build/Kitfold.app
 ```

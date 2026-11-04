@@ -13,7 +13,7 @@ Kitfold edits other programs' configuration. Development must never do that by a
 
 ## Setup
 
-Requirements: macOS 15+, Xcode 16+ (Swift 6). No third-party dependencies.
+Requirements: macOS 15+, Xcode 26+ (Swift 6.2+). No third-party dependencies.
 
 ```bash
 make build      # all targets

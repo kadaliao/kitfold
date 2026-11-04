@@ -3,7 +3,7 @@
 ## Requirements
 
 - macOS 15 or later
-- Xcode 16 or later (Swift 6 toolchain)
+- Xcode 26 or later (Swift 6.2+). CI builds with Swift 6.2.
 - No third-party packages. KitfoldCore uses Foundation, CryptoKit and the system `libsqlite3`.
 
 ## Everyday commands
