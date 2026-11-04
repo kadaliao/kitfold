@@ -26,10 +26,11 @@
 Sources/
   KitfoldCore/                  ← 与界面无关，可测试
     Model/        Identifiers (AgentID, Scope, ResourceRef) · Config (kitfold.json) · Resources (SkillEntry, ProfileEntry) · Environment
-    Adapters/     AgentAdapter（声明式描述 + 解析）· BuiltinAgents（4 个 Agent）· NativePolicy（读各 Agent 自己的禁用设置）
+    Adapters/     AgentAdapter（声明式描述 + 解析）· BuiltinAgents（4 个 Agent）· NativePolicy（读各 Agent 自己的禁用设置）· NativeSettings（写这些设置）
     Scan/         Scanner → Snapshot（实际生效视图）· BundledSkills（插件/扩展）· Diagnostics（健康检查）
     Library/      LibraryStore（技能、Profile、导入、Git 源）
-    Sync/         Planner（意图 vs 磁盘 → 计划）· Plan/FileChange · Executor（前置条件、备份、回滚、撤销）· ManagedBlock
+    Sync/         Planner（意图 vs 磁盘 → 计划）· NativePlanner（原生开关）· Plan/FileChange · Executor（前置条件、备份、回滚、撤销）· ManagedBlock
+    Support/      FileSystem · JSONEdit（保留原样的 JSONC 精确编辑）· Frontmatter · LineDiff · Hashing
     State/        SQLite 包装 · StateStore（部署账本 + 操作日志）
     Workspace.swift   统一入口：scan → plan → apply → undo
   kitfold/        CLI
@@ -62,7 +63,7 @@ Tests/KitfoldCoreTests/   假 HOME 中的端到端测试
   - 解析时具体 Agent 的规则优先于 `*`；`*` 也覆盖以后新增的 Agent。
   - Profile 规则为 on 时，Profile 自带的 skills 自动视为 on，除非某条技能规则显式 off。
 - **SkillEntry**（目录）：真实路径、来源（library / source / agentLocal / external / bundled）、frontmatter、问题列表。
-- **Deployment**（账本）：Kitfold 创建的链接或文件，记录 path、target、agents、scope、resource、事务 id。
+- **Deployment**（账本）：Kitfold 创建的链接、文件或设置条目，记录 path、target、agents、scope、resource、事务 id。设置条目的 path 是 `<文件>#<条目>`（如 `~/.claude/settings.json#skillOverrides/pdf`），target 是写入的值。
 - **Transaction / Operation**（日志）：每次 apply 的 FileChange 列表，以及备份路径和 `ownedBefore`（撤销时用来恢复所有权）。
 
 ## 4. Agent 适配器
@@ -87,7 +88,7 @@ AgentDescriptor(
   globalSkillsWin, instructionByteLimit, notes, tint, monogram)
 ```
 
-`AgentAdapter` 把描述解析成具体路径，并计算实际生效的指令文件（处理 fallback / override）。`NativePolicy` 读取各 Agent 自己的禁用设置，只解析相关的那几个键；配置里的其他值（可能含密钥）不保存、不显示。新增一个 Agent 只需要再写一个描述，例如 Antigravity CLI。以后也可以让用户在设置里用 JSON 自定义。
+`AgentAdapter` 把描述解析成具体路径，并计算实际生效的指令文件（处理 fallback / override）。`NativePolicy` 读取各 Agent 自己的禁用设置，只解析相关的那几个键，并记下每条规则来自哪个文件、哪个条目、是不是 Kitfold 写的；配置里的其他值（可能含密钥）不保存、不显示。`requiresName` / `requiresDescription` 描述 Agent 会跳过哪些 frontmatter 不全的技能。新增一个 Agent 只需要再写一个描述，例如 Antigravity CLI。以后也可以让用户在设置里用 JSON 自定义。
 
 **部署策略：隔离优先。** 每个 Agent 都部署到**只有它自己读**的位置：
 
@@ -111,11 +112,27 @@ kitfold.json（草稿） ─┐
 - 每个指令文件：是否存在、是否真的被加载、谁共享它、Kitfold 的块、其他工具的块；
 - 健康问题。
 
-**Planner** 是纯函数，分两轮：
-1. **删除轮**：规则为 off 的、Kitfold 自己部署过但已经没有规则支撑的，删除对应链接。别人创建的链接也可以删，但标为 caution，撤销时会恢复。
+**Planner** 是纯函数，分三轮：
+1. **删除轮**：规则为 off 的、Kitfold 自己部署过但已经没有规则支撑的，删除对应链接。Agent 没有原生开关时，别人创建的链接也可以删，但标为 caution，撤销时会恢复。
 2. **新增轮**：在"删除之后"的视图上判断。已经能看到就跳过（包括共享目录、经由别的 Agent 的目录，以及本次计划里给别的 Agent 新建、恰好落在它也读的目录里的链接）；否则在它自己的目录建链接。
+3. **原生开关轮**（`NativePlanner`）：链接藏不住的，写 Agent 自己的设置，见下文。
 
-必须分两轮的原因：OpenCode 可能正是通过 Claude 目录里的链接看到某个技能，单轮规划会让它静默失去这个技能。
+必须先删后加的原因：OpenCode 可能正是通过 Claude 目录里的链接看到某个技能，单轮规划会让它静默失去这个技能。如果某个 Agent 对这个技能没有规则，链接的增删又会影响到它，规划会给出 `sharedSkillFolder` 提示。
+
+**原生开关**：每个 (Agent, 作用域) 有一个目标文件。Claude 全局写 `settings.json`，项目写 `.claude/settings.local.json`；Codex 只有全局的 `config.toml`；OpenCode 写最后加载的那个 `opencode.json(c)`，项目里没有就新建 `.opencode/opencode.json`；Gemini 写 `settings.json`。
+- Kitfold 拥有的条目每次都根据规则重新算一遍：
+  - 先把"Kitfold 自己写的条目"从策略里去掉，看看这个 Agent 在删链接、建链接之后还会不会加载这个技能，以此决定需不需要隐藏；
+  - 项目作用域在本次计划写出的全局文本之上计算，所以全局刚隐藏的技能不会在项目里重复写；
+  - 规则撤掉了，对应条目自然就不在"需要"的集合里，于是被收回。
+- 规则为 on 但被关着时：
+  - 目标文件里正好有一条点名这个技能的用户条目，就把它删掉（caution，可撤销）；
+  - 否则 Claude 写 `"on"`、OpenCode 写 `"allow"` 去覆盖更宽的规则；
+  - 都做不到（Gemini 的列表按并集合并、Codex 没有项目级），就生成 Issue 说明原因。
+- 写法只改一条：
+  - JSON 用 `JSONEdit`。它记录每个值的字节位置，插入时照抄相邻条目的缩进，删除时连带逗号，被删空的父对象也一起删；其余字节原样保留，注释和尾逗号也一样。
+  - Codex 用 `config.toml` 末尾的托管段（`# kitfold:begin … # kitfold:end`）。段内的条目就是 Kitfold 拥有的；如果文件里的 `skills.config` 写成了会和追加的 `[[skills.config]]` 冲突的形式，就不写，改为报告问题。
+- 预览和 CLI 只显示 `PlannedChange.details`，即语义层面的条目变化（`+ permission.skill › "pdf": "deny"`），从不显示文件原文。日志里仍保存文件前后的全文，用于撤销，所以 `state.sqlite` 的权限是 600。
+- 所有权变化（`OwnershipEdit`）和文件变化放在同一个操作里记入日志。撤销时按相反顺序还原所有权。
 
 **做不到的情况不会假装做了**，而是生成 Issue 说明原因：
 - **stillVisible**：技能在共享目录或别家目录里，删除链接也无法对这个 Agent 隐藏。建议移入库，或使用该 Agent 的原生开关。
@@ -138,14 +155,16 @@ hash 是 Kitfold 写入时正文的指纹，所以只看文件本身就能判断
 - 写入或删除文件前，先备份到 `backups/<tx>/`。
 - 写入是原子的（临时文件 + rename）；如果目标是符号链接（比如 dotfiles 管理的 CLAUDE.md），写到它指向的真实文件，而不是把链接替换成普通文件。
 - `kitfold.json` 的变更和文件变更放在**同一个事务**里，所以撤销会同时撤回意图，下次规划不会把改动又做回来。
-- 撤销 = 逆序执行反向操作，同样先检查前置条件；只要有任何文件在 apply 之后又被改过，就整体拒绝，并列出是哪些文件。
+- 撤销 = 逆序执行反向操作，同样先检查前置条件；只要有任何文件在 apply 之后又被改过，就整体拒绝，并列出是哪些文件。`kitfold.json` 例外：撤销只回退这次改动过的规则，叠加在文件的当前内容上，所以之后保存的设置（项目、来源、偏好）不会挡住撤销。
+- 把技能移回原处（撤销"移入库"）之前，先检查之后有没有别的链接指向库里的这个目录；有就拒绝，以免留下断链。
+- 日志写入失败时，已经做过的文件改动会全部回滚，不会留下无法撤销的修改。
 - 写入的目标如果解析后落在 Kitfold 自己的目录里，直接拒绝，防止自我回写。
 
 **项目文件和 git**：Kitfold 在项目里创建的链接和文件，会通过 `.git/info/exclude` 里的托管段排除。这个文件只在本地生效，不会被提交。
 
 ## 6. 安全边界
 
-- 只做四种文件操作：建链接、删链接、写文件、移动目录。每种都有反操作。
+- 只做四种文件操作：建链接、删链接、写文件、移动目录。每种都有反操作。写 Agent 设置也是"写文件"，只是内容只差一条。
 - 永远不删真实目录，永远不覆盖不认识的目录，永远不整文件覆盖指令文件。
-- 读取各 Agent 的配置时，只取需要的键；不打印、不保存任何其他值。
+- 读取各 Agent 的配置时，只取需要的键；界面和 CLI 不显示其他值。改写时只动那一条，文件原有权限保持不变；备份是 600，日志库 `state.sqlite` 也是 600。
 - "隔离"指的是配置的可见范围和分配范围，**不是**操作系统级沙箱。

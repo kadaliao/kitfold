@@ -13,7 +13,7 @@ Before writing code, find out (for a specific version):
 | On a name clash, who wins: global or project, earlier or later folder? Are both listed? | Root order, `globalSkillsWin` |
 | Does it follow symlinked skill folders? Symlinked `SKILL.md` files? | Kitfold deploys links |
 | Does it load `SKILL.md` files nested inside a skill? How deep? | `nestedSkillDepth` |
-| Which frontmatter fields are required? | Diagnostics |
+| Which frontmatter fields are required? Is a skill without them skipped? | `requiresName` / `requiresDescription` |
 | How can one skill be hidden without deleting it, and in which files and scopes? | `skillDisable` + `NativePolicy` |
 | Which instruction files load, in what order, with which fallbacks and overrides? | `instructionFiles` roles |
 | Is there a file only this agent reads, globally and per project? | Where Kitfold writes profiles |
@@ -44,7 +44,7 @@ public static let example = AgentDescriptor(
                             note: "Read only when EXAMPLE.md is missing.", verified: false),
     ],
     skillDisable: .none, bundledProvider: nil, globalSkillsWin: false,
-    nestedSkillDepth: 0, policyCoversBundled: true,
+    nestedSkillDepth: 0, policyCoversBundled: true, requiresName: true, requiresDescription: true,
     instructionByteLimit: nil, docsURL: "https://example.dev/docs/skills",
     monogram: "EX", tint: "#22A06B",
     notes: ["Anything a user should know about how Example loads skills."])
@@ -72,10 +72,16 @@ Paths may end in `/*.md` or `/**/*.md` to match folders of rule files. Mark anyt
 
 If the agent can hide a skill through its own settings:
 
-1. add a case to `SkillDisableMechanism`;
-2. implement a reader in `NativePolicy.load`.
+1. Add a case to `SkillDisableMechanism`.
+2. Read it in `NativePolicy.read`. Produce one `NativeRule` per entry, with its file, entry key and value. Take **only** the relevant keys: settings files can hold secrets. `JSONEdit.parse` keeps document order and positions; `MiniTOML` reads simple TOML.
+3. Write it in `NativeSettings`:
+   - list the files in precedence order (`files`);
+   - give the file Kitfold edits for each scope, or nil where the agent can't hide a skill there (`target`);
+   - give the entry that hides a skill (`hideEntry`) and, if the agent has one, the entry that forces it on (`showEntry`);
+   - implement `set` / `remove` so only that entry changes;
+   - add a line to `describe`, so the review sheet can show the entry without showing the file.
 
-The reader must take **only** the relevant key: settings files can hold secrets. `JSONC` and `MiniTOML` helpers are there for JSON-with-comments and simple TOML.
+Test it end to end, as `NativeSettingsTests` does for the built-in agents: the exact bytes after writing, undo, clearing the rule, and the user's own entries left alone.
 
 For plugin or extension skills, add a `BundledProvider` case and return each enabled plugin's folder from `BundledSkills`.
 
@@ -91,6 +97,7 @@ Then compare Kitfold's view with the agent's own listing on a real machine, read
 
 ## 5. Finish
 
+- Give it a logo in `Sources/KitfoldApp/AgentLogos.swift`: path data from an SVG, plus the source and license in the header comment. Agents without one get a monogram tile drawn from `monogram` and `tint`.
 - Add the agent to the tables in `README.md` and `README.zh-CN.md`.
 - Add a CHANGELOG entry under **Unreleased**.
 - If the agent needs a demo, extend `scripts/demo/make-demo-home.sh`.

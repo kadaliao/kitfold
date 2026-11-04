@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/01-agents.jpg" alt="Kitfold 的 Codex 页面，按来源分组列出 Codex 加载的每个技能">
+  <img src="docs/assets/kitfold-demo.gif" width="900" alt="Kitfold 的技能矩阵：只对 OpenCode 关掉一个技能，预览里只显示 Kitfold 要写的那一条设置，以及各 Agent 自己的开关">
 </p>
 
 ## 为什么需要 Kitfold
@@ -37,10 +37,11 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 ## 功能
 
 - **实际生效视图**：对每个 Agent、每个项目，算出它真正会加载的内容：自己的目录、共享目录、别的 Agent 的目录、插件、嵌套的 `SKILL.md`，以及被它自己的设置关闭的技能。重复、断链、指令超长都会被标出来。
-- **精确共享与隔离**：可以把技能分配给一个、几个或全部 Agent，全局或按项目都行。Kitfold 只部署到那个 Agent 独有的目录。做不到隔离时（比如技能放在共享目录里），会说明原因，不会假装已经做到。
+- **精确共享与隔离**：可以把技能分配给一个、几个或全部 Agent，全局或按项目都行。Kitfold 把技能链接进那个 Agent 自己的目录；如果别的 Agent 也读这个目录（OpenCode 会读 Claude Code 的），会提醒你。
+- **用 Agent 自己的开关**：链接藏不住的技能（放在共享目录、别的 Agent 的目录里，或者全局开着、只想在某个项目里关掉），Kitfold 会写 Agent 自己的设置：`skillOverrides`、`[[skills.config]]`、`permission.skill`、`skills.disabled`。只改那一条，规则撤掉时也会收回。连这样也做不到时（Codex 没法只在一个项目里隐藏技能），会说明原因。
 - **Profiles**：可复用的指令集，比如 *Code Reviewer*、*Backend Engineer*，可以附带一组技能。每个 Profile 以一个带标记的块写进各 Agent 自己的文件，文件里的其他内容一律不碰。
 - **安全优先**：
-  - 所有改动先给出 diff 预览；
+  - 所有改动先给出 diff 预览；Agent 的设置文件只显示变化的那几条，不显示文件原文（里面可能有 API key）；
   - 写入前重新核对文件；
   - 被覆盖的文件先备份，每次应用都记日志；
   - 任何一次应用都能撤销，连同引起它的分配一起撤回；
@@ -50,17 +51,18 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 
 | | |
 |---|---|
-| ![技能 × Agent 矩阵](docs/assets/screenshots/02-matrix.jpg) | ![带 diff 的变更预览](docs/assets/screenshots/03-review.jpg) |
-| ![技能详情](docs/assets/screenshots/04-skill.jpg) | ![Profile 编辑器](docs/assets/screenshots/05-profiles.jpg) |
+| ![Agent 页面，按来源分组列出它加载的每个技能](docs/assets/screenshots/01-agents.jpg) | ![技能 × Agent 矩阵](docs/assets/screenshots/02-matrix.jpg) |
+| ![带 diff 和设置变更的预览](docs/assets/screenshots/03-review.jpg) | ![技能详情](docs/assets/screenshots/04-skill.jpg) |
+| ![Profile 编辑器](docs/assets/screenshots/05-profiles.jpg) | ![Dashboard](docs/assets/screenshots/06-dashboard.jpg) |
 
 ## 支持的 Agent
 
-| Agent | 验证版本 | Kitfold 把技能部署到 | Profile 写到 | 原生"隐藏技能"设置（只读） |
+| Agent | 验证版本 | Kitfold 把技能部署到 | Profile 写到 | 原生"隐藏技能"设置（读写） |
 |---|---|---|---|---|
-| Claude Code | 2.1.318 | `~/.claude/skills`、`.claude/skills` | `~/.claude/rules/kitfold.md`、`.claude/rules/kitfold.md` | `skillOverrides` |
-| Codex | 0.164.0 | `$CODEX_HOME/skills`、`.codex/skills` | `~/.codex/AGENTS.md`、`AGENTS.md` | `[[skills.config]]` |
-| OpenCode | 1.19.4 | `~/.config/opencode/skills`、`.opencode/skills` | `~/.config/opencode/AGENTS.md`、`AGENTS.md` | `permission.skill` |
-| Gemini CLI | 0.66.0 | `~/.gemini/skills`、`.gemini/skills` | `~/.gemini/GEMINI.md`、`GEMINI.md` | `skills.disabled` |
+| Claude Code | 2.1.318 | `~/.claude/skills`、`.claude/skills` | `~/.claude/rules/kitfold.md`、`.claude/rules/kitfold.md` | `settings.json` 的 `skillOverrides`；项目级写 `.claude/settings.local.json` |
+| Codex | 0.164.0 | `$CODEX_HOME/skills`、`.codex/skills` | `~/.codex/AGENTS.md`、`AGENTS.md` | `config.toml` 里带标记的 `[[skills.config]]` 段（只能全局：Codex 不认项目级） |
+| OpenCode | 1.19.4 | `~/.config/opencode/skills`、`.opencode/skills` | `~/.config/opencode/AGENTS.md`、`AGENTS.md` | `opencode.json` 的 `permission.skill`（全局或项目） |
+| Gemini CLI | 0.66.0 | `~/.gemini/skills`、`.gemini/skills` | `~/.gemini/GEMINI.md`、`GEMINI.md` | `settings.json` 的 `skills.disabled`（全局或项目） |
 
 每个 Agent 都只是一份声明式描述，新增 Agent 不需要改核心逻辑，见[接入新 Agent](docs/adding-an-agent.md)。这些路径背后的调研和来源见 [docs/research.md](docs/research.md)。
 
@@ -103,7 +105,7 @@ kitfold.json（你的意图） ─┐
 ```
 
 - **规则只记录你明确表达过的意图**。你没碰过的技能和 Profile 保持原样，所以首次启动不会改动任何东西。
-- **规划分两轮**：先算删除，再在删除之后的视图上算新增。这样即使某个 Agent 只是通过另一个 Agent 的目录看到某个技能，也不会悄悄失去它。
+- **规划分几轮**：先算删除，再在删除之后的视图上算新增，这样即使某个 Agent 只是通过另一个 Agent 的目录看到某个技能，也不会悄悄失去它。最后一轮为链接藏不住的技能写各 Agent 自己的开关。
 - **执行器只做四种操作**：建链接、删链接、写文件、移动目录。每种都可逆，执行前检查前置条件，并记录在 `~/.kitfold/state.sqlite`。
 
 详见 [docs/architecture.md](docs/architecture.md)。
@@ -122,3 +124,5 @@ kitfold.json（你的意图） ─┐
 ## 许可证
 
 [MIT](LICENSE) © 2026 Kada Liao
+
+Agent 的名称和标志是各自所有者的商标，这里只用来指明 Kitfold 支持的 Agent。

@@ -8,33 +8,8 @@ cd "$(dirname "$0")/../.."
 WORK="$(mktemp -d)/kitfold-shots"
 DEMO="$WORK/home"
 scripts/demo/make-demo-home.sh "$DEMO" >/dev/null
-swift build --product KitfoldApp >/dev/null
-
-# Wrap the binary in a throwaway .app and launch it through LaunchServices, so its window is
-# frontmost and renders as active (colored traffic lights, accent selection).
-APP="$WORK/Kitfold Screenshots.app"
-mkdir -p "$APP/Contents/MacOS"
-cp "$(swift build --show-bin-path)/KitfoldApp" "$APP/Contents/MacOS/Kitfold"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>CFBundleIdentifier</key><string>app.kitfold.Kitfold.screenshots</string>
-  <key>CFBundleName</key><string>Kitfold</string>
-  <key>CFBundleExecutable</key><string>Kitfold</string>
-  <key>CFBundlePackageType</key><string>APPL</string>
-  <key>NSHighResolutionCapable</key><true/>
-</dict></plist>
-PLIST
-
-capture() {  # capture <appearance>; the app quits by itself, the watchdog is a safety net
-  ( sleep 120; pkill -f "$APP/Contents/MacOS/Kitfold" ) >/dev/null 2>&1 &
-  local watchdog=$!
-  open -W -n "$APP" --env KITFOLD_FAKE_HOME="$DEMO" --env PATH="$DEMO/.local/bin:/usr/bin:/bin" \
-    --env KITFOLD_SNAPSHOT_DIR="$WORK/$1" --env KITFOLD_SNAPSHOT_SCRIPT=marketing \
-    --env KITFOLD_SNAPSHOT_APPEARANCE="$1" --env KITFOLD_SNAPSHOT_SIZE=1440x900 || true
-  pkill -P "$watchdog" 2>/dev/null || true
-  { kill "$watchdog" && wait "$watchdog"; } >/dev/null 2>&1 || true
+capture() {  # capture <appearance>
+  scripts/lib/snapshot-app.sh "$DEMO" marketing "$1" "$WORK/$1"
 }
 capture dark
 capture light

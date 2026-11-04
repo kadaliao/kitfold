@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/01-agents.jpg" alt="The Codex page in Kitfold, listing every skill Codex loads grouped by where it comes from">
+  <img src="docs/assets/kitfold-demo.gif" width="900" alt="Kitfold's skill grid: switching a skill off for OpenCode only, the review showing the single settings entry Kitfold will write, and each agent's own switch">
 </p>
 
 ## Why Kitfold
@@ -37,10 +37,11 @@ Kitfold answers them, and lets you change the answer with a click, safely.
 ## Features
 
 - **Effective view.** For every agent and project, Kitfold resolves what the agent really loads: its own folders, shared folders, other agents' folders, plugins, nested `SKILL.md` files, and skills switched off in the agent's own settings. Duplicates, broken links and oversized instructions are flagged.
-- **Precise sharing and isolation.** Assign a skill to one agent, several, or all, globally or per project. Kitfold deploys into the folder only that agent reads. When isolation isn't possible (for example, a skill that lives in a shared folder), it tells you why instead of pretending.
+- **Precise sharing and isolation.** Assign a skill to one agent, several, or all, globally or per project. Kitfold links it into that agent's own folder and tells you when another agent reads that folder too (OpenCode reads Claude Code's).
+- **Each agent's own switch.** When a link can't hide a skill (it lives in a shared folder, in another agent's folder, or is enabled globally and you want it off in one project), Kitfold writes the agent's own setting: `skillOverrides`, `[[skills.config]]`, `permission.skill` or `skills.disabled`. Only that entry changes, and Kitfold takes it back when the rule goes away. Where even that isn't possible (Codex can't hide a skill in a single project), it tells you why.
 - **Profiles.** Reusable instruction sets such as *Code Reviewer* or *Backend Engineer*, each bundled with its skills. Kitfold writes them into each agent's own file as one marked block per profile and never touches the rest of the file.
 - **Safe by design.**
-  - Every change is previewed as a diff first.
+  - Every change is previewed as a diff first. For agent settings files, the preview lists only the entries that change, never the file (it may hold API keys).
   - Each file is re-checked right before it's written.
   - Overwritten files are backed up, and every apply is journaled.
   - Any apply can be undone, along with the assignment that caused it.
@@ -50,17 +51,18 @@ Kitfold answers them, and lets you change the answer with a click, safely.
 
 | | |
 |---|---|
-| ![Skill × agent matrix](docs/assets/screenshots/02-matrix.jpg) | ![Review sheet with a diff](docs/assets/screenshots/03-review.jpg) |
-| ![Skill detail](docs/assets/screenshots/04-skill.jpg) | ![Profile editor](docs/assets/screenshots/05-profiles.jpg) |
+| ![An agent's page, listing every skill it loads grouped by where it comes from](docs/assets/screenshots/01-agents.jpg) | ![Skill × agent matrix](docs/assets/screenshots/02-matrix.jpg) |
+| ![Review sheet with diffs and a settings change](docs/assets/screenshots/03-review.jpg) | ![Skill detail](docs/assets/screenshots/04-skill.jpg) |
+| ![Profile editor](docs/assets/screenshots/05-profiles.jpg) | ![Dashboard](docs/assets/screenshots/06-dashboard.jpg) |
 
 ## Supported agents
 
-| Agent | Verified version | Kitfold deploys skills to | Profiles go to | Native "hide skill" setting (read) |
+| Agent | Verified version | Kitfold deploys skills to | Profiles go to | Native "hide skill" setting (read and written) |
 |---|---|---|---|---|
-| Claude Code | 2.1.318 | `~/.claude/skills`, `.claude/skills` | `~/.claude/rules/kitfold.md`, `.claude/rules/kitfold.md` | `skillOverrides` |
-| Codex | 0.164.0 | `$CODEX_HOME/skills`, `.codex/skills` | `~/.codex/AGENTS.md`, `AGENTS.md` | `[[skills.config]]` |
-| OpenCode | 1.19.4 | `~/.config/opencode/skills`, `.opencode/skills` | `~/.config/opencode/AGENTS.md`, `AGENTS.md` | `permission.skill` |
-| Gemini CLI | 0.66.0 | `~/.gemini/skills`, `.gemini/skills` | `~/.gemini/GEMINI.md`, `GEMINI.md` | `skills.disabled` |
+| Claude Code | 2.1.318 | `~/.claude/skills`, `.claude/skills` | `~/.claude/rules/kitfold.md`, `.claude/rules/kitfold.md` | `skillOverrides` in `settings.json`; per project in `.claude/settings.local.json` |
+| Codex | 0.164.0 | `$CODEX_HOME/skills`, `.codex/skills` | `~/.codex/AGENTS.md`, `AGENTS.md` | `[[skills.config]]` in a marked section of `config.toml` (global only: Codex ignores it per project) |
+| OpenCode | 1.19.4 | `~/.config/opencode/skills`, `.opencode/skills` | `~/.config/opencode/AGENTS.md`, `AGENTS.md` | `permission.skill` in `opencode.json` (global or project) |
+| Gemini CLI | 0.66.0 | `~/.gemini/skills`, `.gemini/skills` | `~/.gemini/GEMINI.md`, `GEMINI.md` | `skills.disabled` in `settings.json` (global or project) |
 
 Each agent is a declarative descriptor, so adding one doesn't touch the core logic. See [Adding an agent](docs/adding-an-agent.md). The research behind these paths, with sources, is in [docs/research.md](docs/research.md) (Chinese).
 
@@ -103,7 +105,7 @@ disk (scanned Snapshot)  ───┘
 ```
 
 - **Rules record only explicit intent.** A skill or profile you never touched is left exactly as found, which is why the first launch changes nothing.
-- **The planner works in two passes,** removals first, then additions on the post-removal view. That way an agent never silently loses a skill it only saw through another agent's folder.
+- **The planner works in passes:** removals first, then additions on the post-removal view, so an agent never silently loses a skill it only saw through another agent's folder. A last pass writes the agents' own switches for whatever links can't hide.
 - **The executor does only four things:** create a link, remove a link, write a file, move a folder. Each one is reversible, precondition-checked and journaled in `~/.kitfold/state.sqlite`.
 
 Details are in [docs/architecture.md](docs/architecture.md) (Chinese).
@@ -122,3 +124,5 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first;
 ## License
 
 [MIT](LICENSE) © 2026 Kada Liao
+
+Agent names and logos are trademarks of their owners and are used only to identify the agents Kitfold works with.

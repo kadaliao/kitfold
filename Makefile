@@ -3,7 +3,7 @@
 SWIFT ?= swift
 BIN = $(shell $(SWIFT) build --show-bin-path)
 
-.PHONY: help build test run cli app demo screenshots format lint clean
+.PHONY: help build test run cli app demo screenshots video format lint clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -28,6 +28,9 @@ demo: ## Build the fictional demo home, e.g. make demo DIR=/tmp/kf-demo
 
 screenshots: ## Regenerate release screenshots
 	scripts/screenshots/make.sh
+
+video: ## Render the launch video and GIFs, e.g. make video MUSIC=~/music.mp3
+	scripts/video/make.sh $(MUSIC)
 
 format: ## Format sources in place with swift-format
 	$(SWIFT) format --in-place --recursive Sources Tests Package.swift

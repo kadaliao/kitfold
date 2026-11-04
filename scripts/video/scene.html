@@ -1,0 +1,419 @@
+<!doctype html>
+<!--
+  Kitfold launch video, as one deterministic timeline: seek(t) puts every element where it
+  belongs at t seconds. scripts/video/render.mjs steps through it frame by frame.
+  Assets (app screenshots and agent logos rendered by the app itself) come from ?assets=<dir>.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #08080b; }
+  body { font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif; color: #f5f5f7;
+         -webkit-font-smoothing: antialiased; }
+  .abs { position: absolute; left: 0; top: 0; }
+  #bg { position: absolute; inset: 0; overflow: hidden;
+        background: radial-gradient(1200px 700px at 50% 120%, #15142a 0%, #0b0b10 60%, #08080b 100%); }
+  .glow { position: absolute; width: 900px; height: 900px; border-radius: 50%; filter: blur(140px); }
+  .grid { position: absolute; inset: 0; opacity: .05;
+          background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+          background-size: 64px 64px; mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 70%); }
+
+  .cap { position: absolute; left: 0; width: 1920px; top: 64px; text-align: center; opacity: 0; z-index: 20; }
+  #scrim { position: absolute; left: 0; top: 0; width: 1920px; height: 260px; z-index: 15; opacity: 0; pointer-events: none;
+           background: linear-gradient(to bottom, rgba(8,8,11,.94) 0, rgba(8,8,11,.84) 175px, rgba(8,8,11,0) 260px); }
+  .cap h1 { margin: 0; font-size: 64px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .cap p { margin: 18px auto 0; max-width: 1400px; font-size: 29px; font-weight: 400; color: #a5a5b4; letter-spacing: -0.005em; }
+  em { font-style: normal; background: linear-gradient(90deg, #c4b5fd, #7dd3fc); -webkit-background-clip: text; color: transparent; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .92em; color: #e4e4ec; }
+
+  /* title & end cards */
+  .card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .card .icon { width: 240px; height: 240px; filter: drop-shadow(0 30px 60px rgba(90, 70, 200, .45)); }
+  .card .name { font-size: 132px; font-weight: 800; letter-spacing: -0.045em; margin-top: 6px; line-height: 1; }
+  .card .tag { font-size: 44px; font-weight: 500; color: #c9c9d6; margin-top: 26px; letter-spacing: -0.01em; }
+  .logos { display: flex; gap: 34px; margin-top: 54px; align-items: center; }
+  .logos img { width: 64px; height: 64px; }
+  .logos .sep { width: 1px; height: 40px; background: rgba(255,255,255,.14); }
+  .card .for { font-size: 24px; color: #8a8a99; margin-top: 18px; letter-spacing: .01em; }
+  .pill { margin-top: 40px; padding: 16px 30px; border-radius: 999px; background: rgba(255,255,255,.07);
+          border: 1px solid rgba(255,255,255,.12); font-size: 32px; font-weight: 600; letter-spacing: -0.01em; }
+  .pill span { color: #9a9aaa; font-weight: 500; }
+
+  /* diagram */
+  #diagram { position: absolute; inset: 0; opacity: 0; }
+  .node { position: absolute; width: 220px; margin-left: -110px; text-align: center; }
+  .node img { width: 96px; height: 96px; display: block; margin: 0 auto; }
+  .node div { font-size: 25px; font-weight: 600; margin-top: 12px; }
+  .folder { position: absolute; transform: translateX(-50%); padding: 12px 22px; border-radius: 14px; white-space: nowrap;
+            background: rgba(22,22,30,.92); border: 1px solid rgba(255,255,255,.14);
+            font: 500 22px ui-monospace, "SF Mono", Menlo, monospace; color: #e8e8f0; }
+  .folder.shared { background: rgba(14, 30, 40, .95); border-color: rgba(125, 211, 252, .5); }
+  .folder b { font: 600 15px -apple-system, sans-serif; color: #7dd3fc; text-transform: uppercase; letter-spacing: .08em; margin-left: 10px; }
+  .chip { position: absolute; transform: translateX(-50%); padding: 9px 18px; border-radius: 999px; font-size: 20px; font-weight: 600;
+          white-space: nowrap; background: rgba(20,20,28,.9); border: 1px solid rgba(255,255,255,.16); color: #d4d4de; }
+  #diagram svg { position: absolute; inset: 0; }
+  .note { position: absolute; font-size: 21px; font-weight: 600; line-height: 1.3; color: #f0c27b; white-space: nowrap; }
+
+  /* app window */
+  #win { position: absolute; z-index: 5; border-radius: 14px; overflow: hidden; background: #1e1e1e;
+         box-shadow: 0 50px 140px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.09); opacity: 0; }
+  #win img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+  #dim { position: absolute; inset: 0; background: #000; opacity: 0; }
+  #sheet { position: absolute; z-index: 6; border-radius: 14px; overflow: hidden; opacity: 0; background: #1e1e1e;
+           box-shadow: 0 40px 120px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.12); }
+  #sheet div { position: relative; overflow: hidden; }
+  #sheet img { position: absolute; left: 0; width: 100%; }
+  #hl { position: absolute; z-index: 7; border-radius: 10px; border: 3px solid #fbbf77; opacity: 0;
+        box-shadow: 0 0 0 6px rgba(251,191,119,.18), 0 0 50px rgba(251,191,119,.55); }
+
+  #switches { position: absolute; inset: 0; opacity: 0; z-index: 8; }
+  .sw { position: absolute; width: 760px; height: 132px; margin-left: -380px; border-radius: 22px; display: flex; align-items: center;
+        gap: 26px; padding: 0 34px; box-sizing: border-box; background: rgba(28,28,36,.92); border: 1px solid rgba(255,255,255,.12);
+        box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .sw img { width: 64px; height: 64px; }
+  .sw .t { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+  .sw .k { font: 500 23px ui-monospace, "SF Mono", Menlo, monospace; color: #a5f3c4; margin-top: 8px; }
+
+  #cursor { position: absolute; z-index: 31; width: 34px; height: 34px; opacity: 0; transform-origin: 6px 4px; }
+  .ring { position: absolute; z-index: 30; border-radius: 50%; border: 3px solid #fff; opacity: 0; }
+  .callout { position: absolute; z-index: 30; padding: 12px 20px; border-radius: 14px; background: #f5f5f7; color: #111; font-size: 23px;
+             font-weight: 650; white-space: nowrap; opacity: 0; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+
+  /* terminal */
+  #term { position: absolute; left: 400px; top: 330px; width: 1120px; height: 470px; border-radius: 16px; overflow: hidden; opacity: 0;
+          background: #121217; box-shadow: 0 50px 140px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.1); }
+  #term .bar { height: 46px; background: #1d1d24; display: flex; align-items: center; gap: 9px; padding-left: 18px; }
+  #term .bar i { width: 13px; height: 13px; border-radius: 50%; display: block; }
+  #term pre { margin: 0; padding: 30px 38px; font: 500 25px/1.55 ui-monospace, "SF Mono", Menlo, monospace; color: #e4e4ec; white-space: pre; }
+  .g { color: #86efac; } .y { color: #fcd34d; } .d { color: #8b8b9a; } .r { color: #fca5a5; } .p { color: #c4b5fd; }
+  .caret { display: inline-block; width: 13px; height: 27px; background: #e4e4ec; vertical-align: -5px; }
+</style>
+</head>
+<body>
+<div id="bg">
+  <div class="glow" id="g1" style="background:#d97757"></div>
+  <div class="glow" id="g2" style="background:#6d5dfc"></div>
+  <div class="glow" id="g3" style="background:#2f80ed"></div>
+  <div class="grid"></div>
+</div>
+
+<!-- cover -->
+<div class="card" id="cover">
+  <img class="icon" data-src="icon.png">
+  <div class="name">Kitfold</div>
+  <div class="tag">One library. Every agent. Your rules.</div>
+  <div class="logos">
+    <img data-src="logo-claude-code.png"><img data-src="logo-codex.png"><img data-src="logo-opencode.png"><img data-src="logo-gemini-cli.png">
+  </div>
+  <div class="for">Skills &amp; instructions for Claude Code, Codex, OpenCode and Gemini CLI</div>
+</div>
+
+<!-- the problem -->
+<div id="diagram">
+  <svg width="1920" height="1080" id="lines"></svg>
+  <div class="node" style="left:360px;top:512px"><img data-src="logo-claude-code.png"><div>Claude Code</div></div>
+  <div class="node" style="left:760px;top:512px"><img data-src="logo-codex.png"><div>Codex</div></div>
+  <div class="node" style="left:1160px;top:512px"><img data-src="logo-opencode.png"><div>OpenCode</div></div>
+  <div class="node" style="left:1560px;top:512px"><img data-src="logo-gemini-cli.png"><div>Gemini CLI</div></div>
+  <div class="folder shared" id="f-shared" style="left:960px;top:300px">~/.agents/skills<b>shared</b></div>
+  <div class="folder" id="f-claude" style="left:360px;top:790px">~/.claude/skills</div>
+  <div class="folder" id="f-codex" style="left:760px;top:790px">~/.codex/skills</div>
+  <div class="folder" id="f-opencode" style="left:1160px;top:790px">~/.config/opencode/skills</div>
+  <div class="folder" id="f-gemini" style="left:1560px;top:790px">~/.gemini/skills</div>
+  <div class="note" id="n-foreign" style="left:812px;top:728px">OpenCode also reads<br>Claude Code’s folder</div>
+  <div class="chip" id="c-plugins" style="left:510px;top:930px">+ plugins</div>
+  <div class="chip" id="c-nested" style="left:800px;top:930px">+ nested SKILL.md</div>
+  <div class="chip" id="c-dupes" style="left:1115px;top:930px">+ the same skill twice</div>
+  <div class="chip" id="c-off" style="left:1445px;top:930px">+ switched off in settings</div>
+</div>
+
+<!-- captions -->
+<div id="scrim"></div>
+<div class="cap" id="c1"><h1>Every coding agent loads skills <em>its own way</em>.</h1>
+  <p>Its own folders, shared folders, other agents’ folders, plugins — and settings that switch skills off.</p></div>
+<div class="cap" id="c2"><h1>See what every agent <em>actually</em> loads.</h1>
+  <p>Every skill traced to where it comes from.</p></div>
+<div class="cap" id="c3"><h1>One grid. Every agent.</h1>
+  <p>Click a cell to give a skill to one agent, a few, or all of them.</p></div>
+<div class="cap" id="c4"><h1>Hide a skill from <em>one</em> agent — even in a shared folder.</h1>
+  <p>Kitfold writes the agent’s own setting. Only that entry changes.</p></div>
+<div class="cap" id="c5"><h1>Preview every change. <em>Undo</em> any of them.</h1>
+  <p>Backed up first, checked right before writing, journaled for undo.</p></div>
+<div class="cap" id="c6"><h1>Profiles that bring their skills along.</h1>
+  <p>Reusable instructions, written into each agent’s own file — one marked block per profile.</p></div>
+<div class="cap" id="c7"><h1>Scriptable, too.</h1>
+  <p>The same core powers the <code>kitfold</code> command line.</p></div>
+
+<!-- app window -->
+<div id="win">
+  <img id="i-codex" data-src="v02-agent-codex.png">
+  <img id="i-matrix" data-src="v03-matrix.png">
+  <img id="i-pending" data-src="v04-matrix-pending.png">
+  <img id="i-opencode" data-src="v07-agent-opencode.png">
+  <img id="i-history" data-src="v08-history.png">
+  <img id="i-profile" data-src="v10-profile.png">
+  <div id="dim"></div>
+</div>
+<div id="sheet">
+  <div id="sheet-top"><img data-src="v05-review.png"></div>
+  <div id="sheet-foot"><img data-src="v05-review.png"></div>
+</div>
+<div id="hl"></div>
+
+<div id="switches">
+  <div class="sw" style="left:540px;top:520px"><img data-src="logo-claude-code.png"><div><div class="t">Claude Code</div><div class="k">skillOverrides › "off"</div></div></div>
+  <div class="sw" style="left:1380px;top:520px"><img data-src="logo-codex.png"><div><div class="t">Codex</div><div class="k">[[skills.config]] enabled = false</div></div></div>
+  <div class="sw" style="left:540px;top:690px"><img data-src="logo-opencode.png"><div><div class="t">OpenCode</div><div class="k">permission.skill › "deny"</div></div></div>
+  <div class="sw" style="left:1380px;top:690px"><img data-src="logo-gemini-cli.png"><div><div class="t">Gemini CLI</div><div class="k">skills.disabled</div></div></div>
+</div>
+
+<div class="callout" id="call">Off for OpenCode only</div>
+<div class="ring" id="ring"></div>
+<svg id="cursor" viewBox="0 0 34 34"><path d="M6 3 L6 27 L12 21 L16 31 L20 29 L16 19 L24 19 Z" fill="#fff" stroke="#000" stroke-width="2" stroke-linejoin="round"/></svg>
+
+<!-- terminal -->
+<div id="term"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><pre id="tty"></pre></div>
+
+<!-- end card -->
+<div class="card" id="end" style="opacity:0">
+  <img class="icon" data-src="icon.png" style="width:200px;height:200px">
+  <div class="name" style="font-size:112px">Kitfold</div>
+  <div class="tag">One library. Every agent. Your rules.</div>
+  <div class="pill">github.com/kadaliao/kitfold <span>· free &amp; open source · macOS 15+</span></div>
+  <div class="logos" style="margin-top:46px">
+    <img data-src="logo-claude-code.png"><img data-src="logo-codex.png"><img data-src="logo-opencode.png"><img data-src="logo-gemini-cli.png">
+  </div>
+</div>
+
+<script>
+const A = new URLSearchParams(location.search).get('assets') || '.';
+const $ = id => document.getElementById(id);
+
+// ---------- timing helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const easeInOut = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const easeOut = k => 1 - Math.pow(1 - k, 3);
+const prog = (t, a, b, ease = easeInOut) => ease(clamp((t - a) / (b - a)));
+/** Fade in over [a, a+fi], out over [b-fo, b]. */
+const span = (t, a, b, fi = .5, fo = .4) => Math.min(prog(t, a, a + fi, easeOut), 1 - prog(t, b - fo, b));
+/** Keyframes [[t, {..}], ...] → interpolated object (eased between neighbours). */
+function kf(t, frames) {
+  if (t <= frames[0][0]) return { ...frames[0][1] };
+  for (let i = 1; i < frames.length; i++) {
+    const [t1, v1] = frames[i], [t0, v0] = frames[i - 1];
+    if (t <= t1) {
+      const k = easeInOut((t - t0) / Math.max(t1 - t0, 1e-6));
+      const o = {};
+      for (const key in v1) o[key] = lerp(v0[key] ?? v1[key], v1[key], k);
+      return o;
+    }
+  }
+  return { ...frames[frames.length - 1][1] };
+}
+const set = (el, styles) => Object.assign((typeof el === 'string' ? $(el) : el).style, styles);
+
+// ---------- the problem: lines between agents and folders ----------
+const AG = { claude: [360, '#D97757'], codex: [760, '#7C8CF8'], opencode: [1160, '#E0A030'], gemini: [1560, '#4C8BF5'] };
+const LINES = [  // [agent, folder, start, dashed]
+  ['claude', 'own', 4.0], ['codex', 'own', 4.2], ['opencode', 'own', 4.4], ['gemini', 'own', 4.6],
+  ['codex', 'shared', 5.5], ['opencode', 'shared', 5.7], ['gemini', 'shared', 5.9],
+  ['opencode', 'claude', 6.8, true],
+];
+function curve(a, f) {
+  const x = AG[a][0];
+  if (f === 'own') return `M${x},658 L${x},786`;                       // straight down to its own folder
+  if (f === 'shared') return `M${x},500 C${x},420 960,440 960,362`;      // up to the shared folder
+  return `M${x - 40},652 C${x - 120},760 520,700 410,786`;               // across to Claude Code's folder
+}
+const svg = $('lines');
+for (const [a, f, , dashed] of LINES) {
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', curve(a, f));
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', AG[a][1]);
+  p.setAttribute('stroke-width', dashed ? 4 : 3);
+  p.setAttribute('stroke-linecap', 'round');
+  if (dashed) p.setAttribute('stroke-opacity', '1'); else p.setAttribute('stroke-opacity', '.8');
+  svg.appendChild(p);
+}
+const paths = [...svg.querySelectorAll('path')];
+paths.forEach(p => { const L = p.getTotalLength(); p.dataset.len = L; p.style.strokeDasharray = `${L} ${L}`; });
+
+// ---------- the window camera ----------
+const W0 = 1344, H0 = 840;                    // window size at zoom 1 (2880×1800 screenshots)
+function camera(t) {
+  return kf(t, [
+    [10.6, { s: 1, u: .5, v: .5, x: 960, y: 1450 }],
+    [11.5, { s: 1, u: .5, v: .5, x: 960, y: 655 }],
+    [12.5, { s: 1, u: .5, v: .5, x: 960, y: 655 }],
+    [15.6, { s: 1.55, u: .56, v: .42, x: 960, y: 660 }],
+    [16.6, { s: 1.55, u: .56, v: .42, x: 960, y: 660 }],
+    [17.6, { s: 1, u: .5, v: .5, x: 960, y: 655 }],
+    [18.3, { s: 1, u: .5, v: .5, x: 960, y: 655 }],
+    [20.0, { s: 1.6, u: .5, v: .36, x: 960, y: 640 }],
+    [23.2, { s: 1.6, u: .5, v: .36, x: 960, y: 640 }],
+    [24.6, { s: 1, u: .5, v: .5, x: 960, y: 655 }],
+    [34.4, { s: 1, u: .5, v: .5, x: 960, y: 655 }],
+    [36.4, { s: 1.7, u: .58, v: .37, x: 960, y: 640 }],
+    [37.5, { s: 1.7, u: .58, v: .37, x: 960, y: 640 }],
+    [38.6, { s: 1.4, u: .52, v: .2, x: 960, y: 560 }],
+    [41.0, { s: 1.4, u: .52, v: .2, x: 960, y: 560 }],
+    [41.9, { s: 1.12, u: .55, v: .42, x: 960, y: 650 }],
+    [45.8, { s: 1.4, u: .56, v: .3, x: 960, y: 640 }],
+    [46.6, { s: 1.3, u: .56, v: .3, x: 960, y: 780 }],
+  ]);
+}
+/** Screen position of image point (u, v) under camera c. */
+function onScreen(c, u, v) {
+  const w = W0 * c.s, h = H0 * c.s;
+  return [c.x - c.u * w + u * w, c.y - c.v * h + v * h];
+}
+
+// content of the window over time: [id, in, out]
+const PAGES = [['i-codex', 10.6, 17.3], ['i-matrix', 17.0, 21.0], ['i-pending', 20.75, 34.6], ['i-opencode', 34.3, 37.9],
+               ['i-history', 37.6, 41.5], ['i-profile', 41.2, 47]];
+
+// sheet: the top of the review sheet plus its footer (1440×1280 capture)
+const SH = { w: 1440, h: 1280, top: 520, foot: [1168, 1280] };
+const SW = 960;  // on-screen width at zoom 1
+const sk = SW / SH.w, topH = SH.top * sk, footH = (SH.foot[1] - SH.foot[0]) * sk, sheetH = topH + footH;
+set('sheet-top', { height: topH + 'px' }); set('sheet-foot', { height: footH + 'px' });
+document.querySelector('#sheet-top img').style.top = '0px';
+document.querySelector('#sheet-foot img').style.top = (-SH.foot[0] * sk) + 'px';
+// the "+ permission.skill …" row inside the sheet, in sheet-local px at zoom 1
+const ROW = { x: 88 * sk, y: 374 * sk, w: (1408 - 88) * sk, h: (403 - 374) * sk };
+
+const TTY = [
+  ['$ ', 'p'], ['kitfold assign deep-research opencode --off\n', 'type'],
+  ['  ~ edit ', 'y'], ['~/.config/opencode/opencode.json\n', ''],
+  ['    Hide deep-research from OpenCode\n', 'd'],
+  ['    + permission.skill › "deep-research": "deny"\n', 'g'],
+  ['  ~ edit ', 'y'], ['~/.kitfold/kitfold.json\n', ''],
+  ['    Save assignments to kitfold.json\n', 'd'],
+  ['\nApply 2 change(s)? Re-run with --yes to apply.', ''],
+];
+
+function seek(t) {
+  // background drift
+  set('g1', { left: (-220 + 60 * Math.sin(t * .21)) + 'px', top: (520 + 40 * Math.cos(t * .17)) + 'px', opacity: .16 });
+  set('g2', { left: (620 + 80 * Math.sin(t * .13 + 1)) + 'px', top: (-520 + 50 * Math.sin(t * .19)) + 'px', opacity: .22 });
+  set('g3', { left: (1260 + 70 * Math.cos(t * .15)) + 'px', top: (480 + 60 * Math.sin(t * .11 + 2)) + 'px', opacity: .16 });
+
+  // cover: fully visible from the first frame
+  const cOut = prog(t, 2.9, 3.5);
+  set('cover', { opacity: 1 - cOut, transform: `scale(${1 + .025 * prog(t, .8, 3.0, k => k) + .05 * cOut})`, filter: `blur(${10 * cOut}px)` });
+
+  // captions
+  for (const [id, a, b] of [['c1', 3.3, 10.5], ['c2', 10.8, 17.2], ['c3', 17.3, 24.4], ['c4', 24.6, 34.2], ['c5', 34.4, 41.2],
+                            ['c6', 41.4, 46.3], ['c7', 46.5, 50.4]]) {
+    const o = span(t, a, b, .6, .35);
+    set(id, { opacity: o, transform: `translateY(${(1 - prog(t, a, a + .6, easeOut)) * 26 - prog(t, b - .35, b) * 14}px)` });
+  }
+
+  // the problem
+  set('diagram', { opacity: span(t, 3.5, 10.5, .5, .5) });
+  LINES.forEach(([, , start], i) => {
+    const L = +paths[i].dataset.len;
+    paths[i].style.strokeDashoffset = L * (1 - prog(t, start, start + .9));
+  });
+  set(paths[7], { strokeDasharray: t > 7.7 ? '10 10' : paths[7].style.strokeDasharray });
+  if (t > 7.7) paths[7].style.strokeDashoffset = -((t - 7.7) * 40);
+  set('n-foreign', { opacity: span(t, 7.4, 10.5, .4, .3) });
+  [['c-plugins', 8.2], ['c-nested', 8.4], ['c-dupes', 8.6], ['c-off', 8.8]].forEach(([id, a]) =>
+    set(id, { opacity: span(t, a, 10.5, .35, .3), transform: `translateX(-50%) translateY(${(1 - prog(t, a, a + .35, easeOut)) * 14}px)` }));
+  for (const f of ['f-claude', 'f-codex', 'f-shared', 'f-opencode', 'f-gemini'])
+    set(f, { opacity: prog(t, 3.7, 4.2) });
+
+  // window
+  const c = camera(t);
+  const winOn = span(t, 10.6, 46.8, .7, .6);
+  set('win', { opacity: winOn, left: (c.x - c.u * W0 * c.s) + 'px', top: (c.y - c.v * H0 * c.s) + 'px',
+               width: W0 * c.s + 'px', height: H0 * c.s + 'px', borderRadius: 14 * c.s + 'px' });
+  set('scrim', { opacity: winOn * clamp((c.s - 1.04) / .25) });
+  for (const [id, a, b] of PAGES) set(id, { opacity: Math.min(prog(t, a, a + .45), 1 - prog(t, b - .01, b)) });
+
+  // matrix: cursor clicks OpenCode × deep-research
+  const cell = [.5285, .356];
+  let cur = null, curOn = 0, press = 0;
+  if (t >= 18.8 && t < 23.4) {
+    const p = kf(t, [[18.8, { u: .78, v: .62 }], [20.4, { u: cell[0] + .004, v: cell[1] + .008 }]]);
+    cur = onScreen(c, p.u, p.v); curOn = span(t, 18.8, 23.3, .3, .4);
+    press = Math.min(prog(t, 20.55, 20.65), 1 - prog(t, 20.7, 20.82));
+  }
+  if (t >= 38.6 && t < 41.3) {   // history: point at Undo
+    const p = kf(t, [[38.6, { u: .8, v: .42 }], [39.9, { u: .9725, v: .095 }]]);
+    cur = onScreen(c, p.u, p.v); curOn = span(t, 38.6, 41.2, .3, .3);
+  }
+  if (cur) set('cursor', { left: cur[0] - 6 + 'px', top: cur[1] - 4 + 'px', opacity: curOn, transform: `scale(${1 - .15 * press})` });
+  else set('cursor', { opacity: 0 });
+  const [cx, cy] = onScreen(c, cell[0], cell[1]);
+  const rk = prog(t, 20.65, 21.3, easeOut);
+  set('ring', { left: cx - 20 - 40 * rk + 'px', top: cy - 20 - 40 * rk + 'px', width: 40 + 80 * rk + 'px', height: 40 + 80 * rk + 'px',
+                opacity: t > 20.65 && t < 21.3 ? (1 - rk) * .9 : 0 });
+  set('call', { left: cx + 46 + 'px', top: cy - 70 + 'px', opacity: span(t, 21.2, 23.2, .3, .3),
+                transform: `translateY(${(1 - prog(t, 21.2, 21.5, easeOut)) * 10}px)` });
+  if (t > 39.9 && t < 41.2) {
+    const [ux, uy] = onScreen(c, .9725, .092);
+    const k = (Math.sin((t - 39.9) * 6) + 1) / 2;
+    set('ring', { left: ux - 34 + 'px', top: uy - 34 + 'px', width: '68px', height: '68px', opacity: .35 + .4 * k });
+  }
+
+  // review sheet with OpenCode's setting
+  set('dim', { opacity: .62 * Math.min(prog(t, 24.8, 25.4), 1 - prog(t, 33.9, 34.5)) });
+  const sc = kf(t, [[25.3, { s: 1, fx: .5, fy: .5, x: 960, y: 640 }], [27.0, { s: 1, fx: .5, fy: .5, x: 960, y: 640 }],
+                    [28.9, { s: 1.45, fx: .5, fy: ROW.y / sheetH, x: 960, y: 640 }], [30.9, { s: 1.45, fx: .5, fy: ROW.y / sheetH, x: 960, y: 640 }],
+                    [31.7, { s: 1.35, fx: .5, fy: ROW.y / sheetH, x: 960, y: 600 }]]);
+  const sOn = Math.min(prog(t, 25.3, 25.9, easeOut), 1 - prog(t, 31.0, 31.6));
+  const sw = SW * sc.s, sh = sheetH * sc.s, sl = sc.x - sc.fx * sw, st = sc.y - sc.fy * sh + (1 - prog(t, 25.3, 25.9, easeOut)) * -40;
+  set('sheet', { opacity: sOn, left: sl + 'px', top: st + 'px', width: sw + 'px', height: sh + 'px', borderRadius: 14 * sc.s + 'px' });
+  set('sheet-top', { height: topH * sc.s + 'px' }); set('sheet-foot', { height: footH * sc.s + 'px' });
+  document.querySelector('#sheet-foot img').style.top = (-SH.foot[0] * sk * sc.s) + 'px';
+  const pulse = (Math.sin((t - 29) * 5) + 1) / 2;
+  set('hl', { left: sl + ROW.x * sc.s - 10 + 'px', top: st + ROW.y * sc.s - 8 + 'px', width: ROW.w * sc.s + 20 + 'px',
+              height: ROW.h * sc.s + 16 + 'px', opacity: Math.min(prog(t, 28.9, 29.3), 1 - prog(t, 30.9, 31.4)) * (.75 + .25 * pulse) });
+
+  // each agent's own switch
+  set('switches', { opacity: Math.min(prog(t, 31.5, 32.0), 1 - prog(t, 33.8, 34.3)) });
+  [...document.querySelectorAll('.sw')].forEach((el, i) => {
+    const a = 31.6 + i * .14;
+    el.style.opacity = prog(t, a, a + .4, easeOut);
+    el.style.transform = `translateY(${(1 - prog(t, a, a + .4, easeOut)) * 30}px)`;
+  });
+
+  // terminal
+  set('term', { opacity: span(t, 46.6, 50.6, .5, .4), transform: `translateY(${(1 - prog(t, 46.6, 47.1, easeOut)) * 30}px)` });
+  let html = '';
+  const typed = clamp((t - 47.2) / 1.5) ;
+  let revealAt = 48.9;
+  for (const [text, cls] of TTY) {
+    if (cls === 'type') {
+      const n = Math.round(text.length * typed);
+      html += text.slice(0, n);
+      if (typed < 1) { html += '<span class="caret"></span>'; break; }
+      continue;
+    }
+    if (text.startsWith('$')) { html += `<span class="${cls}">${text}</span>`; continue; }
+    if (t < revealAt) break;
+    revealAt += .09;
+    html += cls ? `<span class="${cls}">${text}</span>` : text;
+  }
+  $('tty').innerHTML = html;
+
+  // end card
+  const e = prog(t, 50.4, 51.2, easeOut);
+  set('end', { opacity: e, transform: `scale(${.97 + .03 * e + .015 * prog(t, 51.2, 56, k => k)})` });
+}
+
+window.ready = (async () => {
+  await Promise.all([...document.querySelectorAll('img[data-src]')].map(img => {
+    img.src = `file://${A}/${img.dataset.src}`;
+    return img.decode().catch(() => console.error('missing ' + img.dataset.src));
+  }));
+  seek(0);
+  return true;
+})();
+</script>
+</body>
+</html>

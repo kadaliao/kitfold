@@ -6,6 +6,54 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Native switches.** When a link can't hide a skill from an agent, Kitfold writes the agent's own setting instead:
+  - Claude Code `skillOverrides` (`settings.json`; per project, `.claude/settings.local.json`);
+  - Codex `[[skills.config]]`, kept in a marked section at the end of `config.toml` (global only: Codex ignores it per project);
+  - OpenCode `permission.skill` (`opencode.json`, global or project);
+  - Gemini CLI `skills.disabled` (`settings.json`, global or project).
+
+  This covers skills in shared folders, in another agent's folder (OpenCode reading `~/.claude/skills`), nested skills, and global skills switched off in one project.
+  - Only the entry involved changes. The rest of the file keeps every byte, including comments and formatting, and its permissions.
+  - The review sheet and the CLI list the entries that change and never show the file, which may hold API keys.
+  - Kitfold records which entries it wrote. Clearing the rule takes them back, a file it created is removed once empty, and undo restores both the entries and that record.
+  - An explicit "on" can remove the user's own entry that switches a skill off. It's marked caution and can be undone.
+- **Agent logos.** Each agent is shown with its own logo, drawn as vectors.
+- **New warnings:**
+  - a link made for one agent also reaches another agent, or another agent stops seeing a skill (OpenCode reads Claude Code's folder);
+  - a non-empty `AGENTS.override.md` means a Codex profile has no effect;
+  - an agent skips a skill because its SKILL.md lacks required frontmatter. OpenCode needs `name`, Codex `description`, Gemini CLI both. The effective view now leaves these out.
+- **Launch video:** `scripts/video/make.sh` renders the launch video and GIFs from the demo home.
+
+### Changed
+- OpenCode permission rules are applied in file order. Before, the order was guessed.
+- Switching a skill off no longer deletes another tool's link when the agent has its own switch. The skill is hidden through that switch instead, so other agents reading the same folder keep it.
+- A history entry for a single switch says what it did, e.g. "Take deep-research from OpenCode".
+- CLI:
+  - unknown options, extra arguments and options without a value are errors (`--of` no longer means "on");
+  - `--project` accepts relative paths;
+  - `undo` without an id steps back instead of redoing what was just undone;
+  - `kitfold.json`'s own diff isn't printed.
+
+### Fixed
+- Saving settings (projects, sources, preferences) no longer blocks undoing an earlier apply. Undo now reverts only that apply's rules.
+- Undoing "move into library" is refused while links made later still point into the moved folder.
+- Switching off skill `pdf` no longer removes a link named `pdf` that holds a different skill.
+- Project paths in `kitfold.json` are expanded (`~`) and must be absolute. Relative ones could resolve against the current folder.
+- Backslashes in profile names and descriptions no longer double on every save.
+- If the journal can't be written, the files are put back instead of being left changed with no undo.
+- Line diffs no longer repeat lines when two changes are close together.
+- App:
+  - applying a one-off review (editing a file, adopting a skill) keeps unapplied toggles;
+  - a rescan requested during a scan runs afterwards instead of being dropped;
+  - Apply waits for the latest plan;
+  - planning no longer reads shared state off the main thread.
+- A skill switched off in an agent's settings is listed once on the agent page, even when the agent finds it in two folders.
+
+### Security
+- `state.sqlite` keeps before/after copies of the files Kitfold edits, so it is now owner-only (0600).
+- `KITFOLD_FAKE_HOME` no longer follows the real `CODEX_HOME` / `CLAUDE_CONFIG_DIR` out of the fake home.
+
 ## [0.1.0] - 2026-11-05
 
 First version.

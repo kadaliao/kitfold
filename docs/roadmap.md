@@ -19,15 +19,26 @@
 
 已知差异：OpenCode 在代码里注册的内置技能 `customize-opencode` 没有建模（磁盘上没有文件），所以上下文估算会少算一个。
 
+## 0.2.0（开发中）
+
+| 模块 | 内容 |
+|---|---|
+| 原生开关写入 | 链接藏不住的技能，写 Agent 自己的设置：Claude `skillOverrides`（项目级写 `settings.local.json`）、Codex `[[skills.config]]`（`config.toml` 末尾的托管段，只能全局）、OpenCode `permission.skill`、Gemini `skills.disabled`。只改那一条，其余字节不动、权限不变；预览只显示变化的条目；Kitfold 写过的条目记在账本里，规则撤掉时收回，撤销时连同所有权一起恢复。设计见 [architecture §5](architecture.md) |
+| 界面 | 每个 Agent 用自己的标志；单个开关的历史记录写明做了什么 |
+| 诊断 | 链接同时影响别的 Agent 时提示；Codex 的 `AGENTS.override.md` 让 Profile 失效时提示；按各 Agent 要求的 frontmatter 判断技能是否会被跳过 |
+| 修复 | 一轮全面排查后的修复，见 [CHANGELOG](../CHANGELOG.md) |
+| 工具 | `scripts/video/make.sh` 生成发布视频和 GIF |
+
+已知限制：Codex 只认 `$CODEX_HOME/config.toml` 里的 `[[skills.config]]`，所以没法只在一个项目里对 Codex 隐藏技能，Kitfold 会说明这一点。
+
 ## 下一步
 
-1. **原生开关写入**：直接写 Claude `skillOverrides`（项目级写 `settings.local.json`）、Codex `[[skills.config]]`（托管 TOML 段）、OpenCode `permission.skill`、Gemini `skills.disabled`。
-   - 效果：放在共享目录里的技能也能对单个 Agent 隐藏；"全局开、某项目关"在 Claude 上真正生效；可以提供 `name-only` 这类上下文瘦身模式。
-   - 安全要求：只改动对应的那个键，其余内容逐字节保留；保留文件原有权限；预览里只显示语义层面的变化，不展示配置文件原文（里面可能有密钥）；备份文件权限设为 600。
+1. **上下文瘦身模式**：Claude `skillOverrides` 的 `name-only` / `user-invocable-only`，OpenCode 的 `ask`。需要在"开/关"之外给规则加第三种状态。
 2. **OpenCode/Codex 项目级 Profile 隔离**：用 OpenCode 的 `instructions[]` 指向 Kitfold 自己的文件，避免和 Codex 共用 AGENTS.md。
 3. **FSEvents 监听**：取代手动重新扫描，实时提示外部修改和断链；只在窗口打开时运行，不常驻后台。
 4. **CLI `--json` 和 `kitfold check`**：有漂移时返回非零退出码，方便 CI，也方便以后接跨平台外壳。
 5. **Git 源更新**：pull 时检测本地修改，冲突时让用户选择保留哪一方。
+6. **清理过期的原生条目**：比如 Codex 里指向已删除技能的 `[[skills.config]]`（调研时一台机器上 65 条里只有 5 条还有效），给出一键清理（可撤销）。
 
 ## 以后
 

@@ -17,6 +17,7 @@
 | `make app` | Release build in `build/Kitfold.app` (with icon and bundled CLI) |
 | `make demo DIR=/tmp/kf` | Build the fictional demo home |
 | `make screenshots` | Regenerate release screenshots |
+| `make video` | Render the launch video and GIFs, e.g. `make video MUSIC=~/music.mp3` |
 | `make format` | Format sources with `swift format` |
 | `make clean` | Remove `.build` and `build` |
 
@@ -25,10 +26,10 @@
 | Variable | Effect |
 |---|---|
 | `KITFOLD_HOME=<dir>` | Where Kitfold keeps its own data (config, state DB, backups, library). Default `~/.kitfold`. Use it to inspect your real agents read-only without creating `~/.kitfold`. |
-| `KITFOLD_FAKE_HOME=<dir>` | Treat `<dir>` as `$HOME`: agent folders, Kitfold's data, everything. The CLI's `--home <dir>` does the same. |
+| `KITFOLD_FAKE_HOME=<dir>` | Treat `<dir>` as `$HOME`: agent folders, Kitfold's data, everything. `CODEX_HOME`, `CLAUDE_CONFIG_DIR` and similar are ignored unless they point inside it. The CLI's `--home <dir>` does the same. |
 | `CLAUDE_CONFIG_DIR`, `CODEX_HOME` | Honored like the agents themselves honor them. |
 | `KITFOLD_SNAPSHOT_DIR=<dir>` | App only: render pages to PNGs, then quit (see below). |
-| `KITFOLD_SNAPSHOT_SCRIPT=marketing` | Use the curated release-screenshot sequence instead of the page tour. |
+| `KITFOLD_SNAPSHOT_SCRIPT=marketing\|video` | Use the release-screenshot or launch-video sequence instead of the page tour. `video` applies its change, but only inside a fake home. |
 | `KITFOLD_SNAPSHOT_APPEARANCE=light\|dark` | Force an appearance for snapshots. |
 | `KITFOLD_SNAPSHOT_SIZE=1440x900` | Window size in points for snapshots. |
 
@@ -71,9 +72,25 @@ KITFOLD_SNAPSHOT_DIR=/tmp/shots KITFOLD_HOME=/tmp/kf-scratch swift run KitfoldAp
 ls /tmp/shots
 ```
 
-Snapshot mode makes draft changes only for the review sheet and never applies them. `scripts/screenshots/make.sh` builds the demo home, captures dark and light sets, and frames them with `scripts/screenshots/frame.swift`:
+Snapshot mode makes draft changes only for the review sheet and never applies them (except the `video` script, and only in a fake home). `scripts/lib/snapshot-app.sh` wraps the binary in a throwaway `.app` and runs one snapshot script against a demo home.
+
+`scripts/screenshots/make.sh` builds the demo home, captures dark and light sets, and frames them with `scripts/screenshots/frame.swift`:
 - full-size PNGs go to `build/screenshots/`;
 - README JPEGs go to `docs/assets/screenshots/`.
+
+## Launch video
+
+`scripts/video/make.sh [music.mp3]` renders the launch video from the demo home. It needs Google Chrome, Node 22+ and ffmpeg.
+1. The app's `video` snapshot script captures the states the story needs. It also exports the agents' logos as transparent PNGs.
+2. `scripts/video/scene.html` is the whole video as one deterministic timeline: `seek(t)` places every element.
+3. `scripts/video/render.mjs` steps through it in headless Chrome, using the DevTools protocol over Node's built-in WebSocket, and pipes the frames into ffmpeg.
+
+The first frame is the title card. Output goes to `build/video/`:
+- `kitfold-launch.mp4` (1080p60) and a smaller `kitfold-launch-small.mp4`;
+- `kitfold-launch.gif` (the whole video);
+- `kitfold-demo.gif` (the short cut used in the README; copy it to `docs/assets/` when it changes).
+
+To check one moment, render a single frame: `node scripts/video/render.mjs --assets <dir> --still 29.5 --out frame.png`. Music isn't in the repository. The published cut uses "Focus on Yourself" by Eugenio Mininni, under the Mixkit Stock Music Free License.
 
 ## Release build
 
@@ -89,6 +106,8 @@ make app            # build/Kitfold.app, ad-hoc signed
 |---|---|
 | change how an agent is detected or where it looks | `Sources/KitfoldCore/Adapters/BuiltinAgents.swift` |
 | read an agent's own disable settings | `Adapters/NativePolicy.swift` |
+| write them (target files, entries, Codex's managed section) | `Adapters/NativeSettings.swift`, `Sync/NativePlanner.swift`, `Support/JSONEdit.swift` |
+| change an agent's logo | `Sources/KitfoldApp/AgentLogos.swift` |
 | change what counts as loaded / health checks | `Scan/Scanner.swift`, `Scan/Snapshot.swift`, `Scan/Diagnostics.swift` |
 | change what gets written | `Sync/Planner.swift`, `Sync/ManagedBlock.swift` |
 | change how it gets written / undone | `Sync/Executor.swift`, `State/StateStore.swift` |
