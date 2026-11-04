@@ -25,6 +25,25 @@ public enum FileChange: Codable, Hashable, Sendable {
     }
 }
 
+/// A settings entry Kitfold takes or gives up ownership of (recorded in the ledger, reversed on undo).
+public struct OwnershipEdit: Codable, Hashable, Sendable {
+    /// `<settings file>#<entry key>` (see `NativeSettings.ledgerKey`).
+    public var key: String
+    /// The value Kitfold wrote.
+    public var value: String
+    public var skill: String
+    public var ownedBefore: Bool
+    public var ownedAfter: Bool
+
+    public init(key: String, value: String, skill: String, ownedBefore: Bool, ownedAfter: Bool) {
+        self.key = key; self.value = value; self.skill = skill; self.ownedBefore = ownedBefore; self.ownedAfter = ownedAfter
+    }
+
+    public var inverse: OwnershipEdit {
+        OwnershipEdit(key: key, value: value, skill: skill, ownedBefore: ownedAfter, ownedAfter: ownedBefore)
+    }
+}
+
 public struct PlannedChange: Identifiable, Hashable, Sendable {
     public enum Risk: Int, Sendable, Hashable, Comparable {
         /// Touches only things Kitfold created, or creates new things.
@@ -41,17 +60,22 @@ public struct PlannedChange: Identifiable, Hashable, Sendable {
     public var resource: ResourceRef?
     public var risk: Risk
     public var note: String?
+    /// Shown instead of a line diff: the settings entries this change adds or removes. When set,
+    /// the file's text is never displayed — agent settings files can hold secrets.
+    public var details: [String]?
+    public var ownership: [OwnershipEdit]
 
     public init(
         _ change: FileChange, summary: String, agents: [AgentID], scope: Scope, resource: ResourceRef? = nil,
-        risk: Risk = .safe, note: String? = nil
+        risk: Risk = .safe, note: String? = nil, details: [String]? = nil, ownership: [OwnershipEdit] = []
     ) {
         self.change = change; self.summary = summary; self.agents = agents; self.scope = scope
-        self.resource = resource; self.risk = risk; self.note = note
+        self.resource = resource; self.risk = risk; self.note = note; self.details = details; self.ownership = ownership
     }
 
+    /// Line diff of a file edit; nil for settings files (see `details`).
     public var diff: [LineDiff.Op]? {
-        guard case .writeFile(_, let b, let a) = change else { return nil }
+        guard details == nil, case .writeFile(_, let b, let a) = change else { return nil }
         return LineDiff.diff(b ?? "", a ?? "")
     }
 }

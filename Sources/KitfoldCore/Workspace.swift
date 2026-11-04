@@ -22,7 +22,8 @@ public final class Workspace: @unchecked Sendable {
         try library.ensureLayout()
         store = try StateStore(path: env.stateDatabase)
         executor = Executor(env: env, store: store)
-        if let c = try KitfoldConfig.load(from: env.configFile) {
+        if var c = try KitfoldConfig.load(from: env.configFile) {
+            c.resolvePaths(env)
             config = c
             isFirstRun = false
         } else {
@@ -54,14 +55,18 @@ public final class Workspace: @unchecked Sendable {
     // MARK: scan / plan / apply
 
     public func scan(probeVersions: Bool = true) -> Snapshot {
-        Scanner(env: env, adapters: adapters).scan(config: config, ownedPaths: store.ownedPaths(), probeVersions: probeVersions)
+        Scanner(env: env, adapters: adapters).scan(
+            config: config, ownedPaths: store.ownedPaths(), ownedSettings: store.ownedSettings(), probeVersions: probeVersions)
     }
 
     /// Plan for a (possibly edited) config. Includes the kitfold.json write itself, so an undo
     /// rolls back the intent together with the files.
-    public func plan(_ draft: KitfoldConfig, snapshot: Snapshot, overwriteDrift: Set<String> = []) -> Plan {
+    /// `current` is the saved config to compare with (pass it when planning off the main thread).
+    public func plan(
+        _ draft: KitfoldConfig, snapshot: Snapshot, overwriteDrift: Set<String> = [], current: KitfoldConfig? = nil
+    ) -> Plan {
         var plan = Planner(snapshot: snapshot, config: draft, overwriteDrift: overwriteDrift).plan()
-        if draft != config, let change = configChange(to: draft) { plan.changes.append(change) }
+        if draft != (current ?? config), let change = configChange(to: draft) { plan.changes.append(change) }
         return plan
     }
 
@@ -94,15 +99,44 @@ public final class Workspace: @unchecked Sendable {
 
     @discardableResult
     public func undo(_ txID: String) throws -> TransactionRecord {
-        let tx = try executor.undo(txID)
+        let tx = try executor.undo(txID) { self.mergedConfigUndo($0) }
         try reloadConfig()
         return tx
+    }
+
+    /// Undo only the rules a transaction changed, on top of kitfold.json as it is now, so saving
+    /// settings (projects, sources, preferences) after an apply doesn't block undoing it.
+    func mergedConfigUndo(_ change: PlannedChange) -> PlannedChange {
+        guard case .writeFile(let path, .some(let from), .some(let to)) = change.change, path == env.configFile,
+            let current = FS.read(path), current != from
+        else { return change }
+        let decode = { (s: String) in try? JSONDecoder().decode(KitfoldConfig.self, from: Data(s.utf8)) }
+        guard let a = decode(from), let b = decode(to), var now = decode(current) else { return change }
+        struct Key: Hashable {
+            var resource: ResourceRef
+            var scope: Scope
+            var agent: AgentSelector
+        }
+        let keys = Set((a.rules + b.rules).map { Key(resource: $0.resource, scope: $0.scope, agent: $0.agent) })
+        for k in keys {
+            let wanted = b.rule(k.resource, agent: k.agent, scope: k.scope)?.state
+            if a.rule(k.resource, agent: k.agent, scope: k.scope)?.state != wanted {
+                now.setRule(k.resource, agent: k.agent, scope: k.scope, state: wanted)
+            }
+        }
+        guard let text = try? Workspace.encode(now) else { return change }
+        var c = change
+        c.change = .writeFile(path: path, before: current, after: text)
+        return c
     }
 
     public func history(limit: Int = 100) -> [TransactionRecord] { store.transactions(limit: limit) }
 
     public func reloadConfig() throws {
-        if let c = try KitfoldConfig.load(from: env.configFile) { config = c }
+        if var c = try KitfoldConfig.load(from: env.configFile) {
+            c.resolvePaths(env)
+            config = c
+        }
     }
 
     /// Settings that don't touch agent files (sources, projects list, preferences) are saved directly.
@@ -219,7 +253,8 @@ public final class Workspace: @unchecked Sendable {
 
     public func addingProject(_ path: String, to c: KitfoldConfig) -> KitfoldConfig {
         var c = c
-        let root = FS.gitRoot(from: path) ?? path
+        let abs = FS.absolute(env.expand(path), relativeTo: FileManager.default.currentDirectoryPath)
+        let root = FS.gitRoot(from: abs) ?? abs
         if !c.projects.contains(where: { $0.path == FS.standardize(root) }) { c.projects.append(ProjectConfig(path: root)) }
         return c
     }

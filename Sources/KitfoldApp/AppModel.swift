@@ -105,16 +105,29 @@ final class AppModel {
         }
     }
 
+    /// A rescan asked for while one is running (e.g. right after an apply) runs once it finishes,
+    /// so the app never settles on a snapshot taken before the change.
+    private var rescanQueued = false
+
     func rescan(probeVersions: Bool = true) {
-        guard let ws = workspace, !isScanning else { return }
+        guard let ws = workspace else { return }
+        if isScanning {
+            rescanQueued = true
+            return
+        }
         isScanning = true
         let config = draft
         Task.detached(priority: .userInitiated) {
             let snap = Scanner(env: ws.env, adapters: ws.adapters).scan(
-                config: config, ownedPaths: ws.store.ownedPaths(), probeVersions: probeVersions)
+                config: config, ownedPaths: ws.store.ownedPaths(), ownedSettings: ws.store.ownedSettings(), probeVersions: probeVersions)
             await MainActor.run {
-                self.snapshot = snap
                 self.isScanning = false
+                if self.rescanQueued {
+                    self.rescanQueued = false
+                    self.rescan(probeVersions: false)
+                    return
+                }
+                self.snapshot = snap
                 self.replan()
             }
         }
@@ -128,11 +141,12 @@ final class AppModel {
     func replan() {
         guard let ws = workspace, let snap = snapshot else { return }
         let draft = self.draft
+        let saved = ws.config  // read here, on the main actor; the workspace isn't thread-safe
         planGeneration += 1
         let generation = planGeneration
         isPlanning = true
         Task.detached(priority: .userInitiated) {
-            let p = ws.plan(draft, snapshot: snap)
+            let p = ws.plan(draft, snapshot: snap, current: saved)
             await MainActor.run {
                 guard generation == self.planGeneration else { return }
                 self.plan = p
@@ -152,13 +166,23 @@ final class AppModel {
         perform(plan, summary: summaryForDraft(), using: ws)
     }
 
-    func perform(_ plan: Plan, summary: String, using ws: Workspace? = nil) {
+    /// `keepDraft`: a one-off review (edit a file, adopt a skill…) leaves unapplied toggles pending.
+    func perform(_ plan: Plan, summary: String, using ws: Workspace? = nil, keepDraft: Bool = false) {
         guard let ws = ws ?? workspace else { return }
+        let before = ws.config
+        let pending = draft
         do {
             if let tx = try ws.apply(plan, summary: summary) {
                 toast = "Applied \(tx.operations.count) change\(tx.operations.count == 1 ? "" : "s"). Undo anytime from History."
             }
             draft = ws.config
+            if keepDraft {
+                // Re-apply the toggles that were pending on top of what was just saved.
+                for r in Set(pending.rules).symmetricDifference(Set(before.rules)) {
+                    let state = pending.rule(r.resource, agent: r.agent, scope: r.scope)?.state
+                    draft.setRule(r.resource, agent: r.agent, scope: r.scope, state: state)
+                }
+            }
             showReview = false
             reviewPlan = nil
             rescan(probeVersions: false)
@@ -187,6 +211,21 @@ final class AppModel {
         let added = after.subtracting(before), removed = before.subtracting(after)
         let names = Set((added.union(removed)).map(\.resource.id)).sorted()
         if names.isEmpty { return "Update configuration" }
+        // One switch flipped: say exactly what it does, as the CLI does.
+        let keys = Set(added.union(removed).map { "\($0.resource)|\($0.scope)|\($0.agent)" })
+        if keys.count == 1, let r = added.first ?? removed.first {
+            let what = r.resource.kind == .profile ? "profile \(r.resource.id)" : r.resource.id
+            let who: String = {
+                if case .agent(let id) = r.agent { return snapshot?.agent(id)?.name ?? id.rawValue }
+                return "all agents"
+            }()
+            let place = r.scope.isGlobal ? "" : " in \(projectName(r.scope))"
+            switch draft.rule(r.resource, agent: r.agent, scope: r.scope)?.state {
+            case .on: return "Give \(what) to \(who)\(place)"
+            case .off: return "Take \(what) from \(who)\(place)"
+            case nil: return "Reset \(what) for \(who)\(place)"
+            }
+        }
         let head = names.prefix(3).joined(separator: ", ")
         return "Update \(head)\(names.count > 3 ? " +\(names.count - 3)" : "")"
     }

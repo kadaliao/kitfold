@@ -199,7 +199,26 @@ public struct Frontmatter: Sendable, Hashable {
         if t.count >= 2, let f = t.first, let l = t.last, (f == "\"" && l == "\"") || (f == "'" && l == "'") {
             t = String(t.dropFirst().dropLast())
             if f == "\"" {
-                t = t.replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\n", with: "\n")
+                // One pass, so an escaped backslash before `n` or `"` isn't decoded twice.
+                var out = ""
+                var escaping = false
+                for c in t {
+                    if escaping {
+                        switch c {
+                        case "n": out.append("\n")
+                        case "t": out.append("\t")
+                        case "\"", "\\", "/": out.append(c)
+                        default: out.append("\\"); out.append(c)
+                        }
+                        escaping = false
+                    } else if c == "\\" {
+                        escaping = true
+                    } else {
+                        out.append(c)
+                    }
+                }
+                if escaping { out.append("\\") }
+                t = out
             } else {
                 t = t.replacingOccurrences(of: "''", with: "'")
             }

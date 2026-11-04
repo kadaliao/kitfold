@@ -47,7 +47,12 @@ public final class Executor: @unchecked Sendable {
                     undoneOps.append(original)
                 }
                 done.append(
-                    (planned, OperationRecord(seq: i, change: c, summary: planned.summary, backupPath: backup, ownedBefore: ownedBefore)))
+                    (
+                        planned,
+                        OperationRecord(
+                            seq: i, change: c, summary: planned.summary, backupPath: backup, ownedBefore: ownedBefore,
+                            ownership: planned.ownership)
+                    ))
             }
         } catch {
             // Roll back in reverse order; report the original error.
@@ -89,19 +94,40 @@ public final class Executor: @unchecked Sendable {
             case .writeFile, .moveItem:
                 break
             }
+            for edit in op.ownership {
+                let skill = edit.skill.isEmpty ? nil : ResourceRef(.skill, edit.skill)
+                ledger.append(
+                    edit.ownedAfter
+                        ? (
+                            Deployment(
+                                path: edit.key, kind: .setting, target: edit.value, agents: planned.agents, scope: planned.scope,
+                                resource: skill, txID: txID, updatedAt: Date()), nil
+                        ) : (nil, edit.key))
+            }
         }
-        try store.record(tx, ledger: ledger)
+        do {
+            try store.record(tx, ledger: ledger)
+        } catch {
+            // Without a journal entry the change couldn't be undone: put the files back.
+            for (_, op) in done.reversed() { try? Executor.perform(op.change.inverse) }
+            throw error
+        }
         return tx
     }
 
-    /// Undo a transaction by applying its inverse operations in reverse order.
+    /// Undo a transaction by applying its inverse operations in reverse order. `adjust` may rewrite
+    /// an inverse change first (Workspace uses it to merge kitfold.json instead of restoring it).
     @discardableResult
-    public func undo(_ txID: String) throws -> TransactionRecord {
+    public func undo(_ txID: String, adjust: (PlannedChange) -> PlannedChange = { $0 }) throws -> TransactionRecord {
         guard let tx = store.transaction(id: txID) else { throw KitfoldError.notFound("transaction \(txID)") }
         guard tx.undoneBy == nil else { throw KitfoldError.invalid("Already undone") }
+        let deployments = Dictionary(store.deployments().map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
         let inverse = tx.operations.reversed().map { op in
-            PlannedChange(op.change.inverse, summary: "Undo: " + op.summary, agents: [], scope: .global)
-        }
+            let original = op.ownership.first.flatMap { deployments[$0.key] }
+            return PlannedChange(
+                op.change.inverse, summary: "Undo: " + op.summary, agents: original?.agents ?? [], scope: original?.scope ?? .global,
+                ownership: op.ownership.reversed().map(\.inverse))
+        }.map(adjust)
         // Dry-run every precondition first so an undo is all-or-nothing in the common case.
         var conflicts: [String] = []
         var simulated: [String: FS.Kind] = [:]
@@ -113,6 +139,25 @@ public final class Executor: @unchecked Sendable {
         guard conflicts.isEmpty else {
             throw KitfoldError.precondition(
                 "These files changed after the original apply, so undo would overwrite newer edits: " + conflicts.joined(separator: ", "))
+        }
+        // Moving a skill back out of the library must not strand links made to it since.
+        let removedByUndo = Set(
+            inverse.compactMap { c -> String? in
+                if case .removeSymlink(let p, _) = c.change { return p }
+                return nil
+            })
+        for c in inverse {
+            guard case .moveItem(let from, _) = c.change else { continue }
+            let dependents = store.deployments().filter { d in
+                guard d.kind == .symlink, let t = d.target, !removedByUndo.contains(d.path) else { return false }
+                return FS.isInside(FS.absolute(t, relativeTo: (d.path as NSString).deletingLastPathComponent), from)
+            }
+            if !dependents.isEmpty {
+                throw KitfoldError.precondition(
+                    "Links made later still point into \(env.abbreviate(from)): "
+                        + dependents.map { env.abbreviate($0.path) }.joined(separator: ", ")
+                        + ". Switch that skill off for those agents first.")
+            }
         }
         return try apply(inverse, summary: "Undo “\(tx.summary)”", kind: "undo", undoes: tx.id)
     }

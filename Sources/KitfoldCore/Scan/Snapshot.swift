@@ -18,13 +18,15 @@ public struct ObservedSkill: Identifiable, Hashable, Sendable {
     public var native: NativeSkillState = .enabled
     /// Found inside another skill's folder (Codex/OpenCode load nested SKILL.md files).
     public var nestedIn: String?
+    /// The agent ignores this SKILL.md (missing frontmatter it requires).
+    public var skipReason: String?
 
     public var name: String { skill?.name ?? entryName }
     public var isSymlink: Bool { linkTarget != nil }
     public var isBroken: Bool { realPath == nil }
     public var isReadable: Bool { skill != nil }
     /// Actually reaches the agent's context.
-    public var isActive: Bool { isReadable && !native.isDisabled }
+    public var isActive: Bool { isReadable && skipReason == nil && !native.isDisabled }
     public var skillFile: String? { realPath.map { $0 + "/SKILL.md" } }
 }
 
@@ -134,6 +136,8 @@ public struct Issue: Identifiable, Hashable, Sendable {
     public enum Kind: String, Sendable, Hashable {
         case brokenLink, duplicateName, invalidSkill, blockDrift, foreignBlock, sizeLimit, nestedSkill
         case conflict, sharedInstructionFile, fallbackChange, missingResource, stillVisible, unsupported, disabledNatively
+        /// A link for one agent lands in a folder another agent reads too.
+        case sharedSkillFolder
     }
     public var id: String
     public var severity: Severity
@@ -169,6 +173,8 @@ public struct Snapshot: Sendable {
     public var issues: [Issue]
     /// Paths Kitfold deployed (from the state DB).
     public var ownedPaths: Set<String>
+    /// Settings entries Kitfold wrote: ledger key → value.
+    public var ownedSettings: [String: String] = [:]
     public var scannedAt: Date
     /// Precomputed lookups (the matrix asks for hundreds of cells per render).
     var exposureIndex: [String: [Exposure]] = [:]
@@ -234,7 +240,7 @@ public struct Snapshot: Sendable {
     func computeExposures(agent a: AgentState, scope: Scope) -> [Exposure] {
         a.reachableSkills(in: scope).compactMap { pair -> Exposure? in
             let s = pair.skill
-            guard s.isReadable else { return nil }
+            guard s.isReadable, s.skipReason == nil else { return nil }
             let via: Exposure.Via
             if let parent = s.nestedIn { return Exposure(via: .nested(parent), observed: s, inherited: pair.inherited) }
             switch s.root.spec.role {

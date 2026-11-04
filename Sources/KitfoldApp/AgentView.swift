@@ -112,6 +112,11 @@ struct AgentView: View {
         }
     }
 
+    func uniqueByName(_ items: [Reach]) -> [Reach] {
+        var seen = Set<String>()
+        return items.filter { seen.insert($0.skill.name).inserted }
+    }
+
     func skills(_ a: AgentState, _ snap: Snapshot) -> some View {
         let reach = a.reachableSkills(in: scope).filter { $0.skill.isReadable }
         let q = filter.lowercased()
@@ -142,7 +147,8 @@ struct AgentView: View {
                 }
             }
             ForEach(SkillGroup.allCases, id: \.self) { g in
-                if let items = groups[g], !items.isEmpty {
+                // A switched-off skill is off however many folders it's found in: list it once.
+                if let all = groups[g], case let items = g == .disabled ? uniqueByName(all) : all, !items.isEmpty {
                     DisclosureGroup(isExpanded: Binding(get: { expanded[g] ?? (items.count <= 6) }, set: { expanded[g] = $0 })) {
                         ForEach(items.sorted { $0.skill.name < $1.skill.name }, id: \.skill.id) { r in
                             skillRow(
@@ -179,8 +185,8 @@ struct AgentView: View {
             if let note { Text(note).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
             Spacer()
             let native = a.reachableSkills(in: scope).first(where: { $0.skill.name == name })?.skill.native ?? .enabled
-            if case .disabled(let src) = native {
-                Text("off in \(src)").font(.caption).foregroundStyle(.secondary)
+            if case .disabled(let src, let byKitfold) = native {
+                Text(byKitfold ? "hidden by Kitfold in \(src)" : "off in \(src)").font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.leading, 4)

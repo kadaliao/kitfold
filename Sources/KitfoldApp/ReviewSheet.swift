@@ -19,6 +19,11 @@ struct ReviewSheet: View {
         }
     }
 
+    var isDraft: Bool {
+        if case .draft = mode { return true }
+        return false
+    }
+
     var title: String {
         switch mode {
         case .draft: return "Review changes"
@@ -37,7 +42,7 @@ struct ReviewSheet: View {
                             let ordered =
                                 plan.changes.filter { !$0.change.path.hasSuffix("/kitfold.json") }
                                 + plan.changes.filter { $0.change.path.hasSuffix("/kitfold.json") }
-                            let fileEdits = ordered.filter { $0.diff != nil && !$0.change.path.hasSuffix("/kitfold.json") }.count
+                            let fileEdits = ordered.filter { $0.isExpandable && !$0.change.path.hasSuffix("/kitfold.json") }.count
                             ForEach(ordered) { c in
                                 // Few file edits: show their diffs right away.
                                 ChangeRow(change: c, startExpanded: fileEdits <= 3 && !c.change.path.hasSuffix("/kitfold.json"))
@@ -96,13 +101,14 @@ struct ReviewSheet: View {
             Button("Apply") {
                 switch mode {
                 case .draft: model.applyDraft()
-                case .oneOff(let r): model.perform(r.plan, summary: r.summary)
+                case .oneOff(let r): model.perform(r.plan, summary: r.summary, keepDraft: true)
                 }
                 dismiss()
             }
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
-            .disabled(plan?.changes.isEmpty ?? true)
+            // While a newer plan is being computed, the one on screen may be stale.
+            .disabled((plan?.changes.isEmpty ?? true) || (isDraft && model.isPlanning))
         }
         .padding(16)
     }
@@ -115,7 +121,7 @@ struct ChangeRow: View {
 
     init(change: PlannedChange, startExpanded: Bool = false) {
         self.change = change
-        _expanded = State(initialValue: startExpanded && change.diff != nil)
+        _expanded = State(initialValue: startExpanded && change.isExpandable)
     }
 
     var body: some View {
@@ -134,17 +140,19 @@ struct ChangeRow: View {
                     }
                 }
                 if change.risk == .caution { Pill(text: "caution", color: .orange, systemImage: "hand.raised") }
-                if change.diff != nil {
+                if change.isExpandable {
                     Button {
                         withAnimation(.snappy) { expanded.toggle() }
                     } label: {
                         Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                     }
                     .buttonStyle(.borderless)
-                    .help("Show diff")
+                    .help(change.details == nil ? "Show diff" : "Show the settings that change")
                 }
             }
-            if expanded, case .writeFile(_, let before, let after) = change.change {
+            if expanded, let details = change.details {
+                SettingsChangeView(lines: details).padding(.leading, 28)
+            } else if expanded, case .writeFile(_, let before, let after) = change.change {
                 DiffView(
                     old: before ?? "", new: after ?? "", oldLabel: before == nil ? "(new file)" : "current",
                     newLabel: after == nil ? "(deleted)" : "after apply"
@@ -164,6 +172,7 @@ struct ChangeRow: View {
     }
 
     var icon: String {
+        if change.details != nil { return "slider.horizontal.3" }
         switch change.change {
         case .createSymlink: return "link.badge.plus"
         case .removeSymlink: return "link"
@@ -180,6 +189,41 @@ struct ChangeRow: View {
         case .removeSymlink, .writeFile(_, _, nil): return .red
         default: return .orange
         }
+    }
+}
+
+extension PlannedChange {
+    var isExpandable: Bool { diff != nil || !(details ?? []).isEmpty }
+}
+
+/// The entries a settings change adds or removes. The file itself is never shown: agent settings
+/// can hold API keys and tokens.
+struct SettingsChangeView: View {
+    let lines: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Label("Only these entries change; the rest of the file is kept as is.", systemImage: "lock")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            Divider()
+            ForEach(Array(lines.enumerated()), id: \.offset) { item in
+                let added = item.element.hasPrefix("+")
+                Text(item.element)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 6)
+                    .background((added ? Color.green : Color.red).opacity(0.12))
+            }
+        }
+        .font(.system(size: 11.5, design: .monospaced))
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+        .textSelection(.enabled)
     }
 }
 

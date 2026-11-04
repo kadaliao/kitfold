@@ -6,7 +6,9 @@ import SwiftUI
 /// Development aid: with KITFOLD_SNAPSHOT_DIR set, the app walks through its pages and renders
 /// its own window into PNGs (no screen-recording permission needed), then quits.
 ///
-/// - KITFOLD_SNAPSHOT_SCRIPT=marketing  curated states for release screenshots (see scripts/screenshots.sh)
+/// - KITFOLD_SNAPSHOT_SCRIPT=marketing  curated states for release screenshots (see scripts/screenshots/make.sh)
+/// - KITFOLD_SNAPSHOT_SCRIPT=video      states for the launch video (see scripts/video); applies its
+///   draft only inside a fake home (KITFOLD_FAKE_HOME)
 /// - KITFOLD_SNAPSHOT_APPEARANCE=light|dark
 /// - KITFOLD_SNAPSHOT_SIZE=1440x900     window size in points
 /// Draft changes made by a script are never applied.
@@ -41,6 +43,8 @@ enum DebugSnapshots {
         }
         if env["KITFOLD_SNAPSHOT_SCRIPT"] == "marketing" {
             await marketing(model: model, dir: dir)
+        } else if env["KITFOLD_SNAPSHOT_SCRIPT"] == "video" {
+            await video(model: model, dir: dir)
         } else {
             await tour(model: model, dir: dir)
         }
@@ -94,9 +98,10 @@ enum DebugSnapshots {
         }
         await show(model, .dashboard, then: "dashboard", dir: dir)
 
-        // A pending change, then its review sheet.
+        // Pending changes (one of them through OpenCode's own settings), then the review sheet.
         model.toggleProfile("researcher", agent: .geminiCLI, scope: .global)
         model.toggle(skill: "playwright-e2e", agent: .claudeCode, scope: .global)
+        model.toggle(skill: "deep-research", agent: .openCode, scope: .global)
         await show(model, .agent(.geminiCLI), wait: 1200, then: "pending", dir: dir)
         model.showReview = true
         try? await Task.sleep(for: .milliseconds(1400))
@@ -105,6 +110,50 @@ enum DebugSnapshots {
         }
         model.showReview = false
         model.discardDraft()
+    }
+
+    /// The launch video's states, in story order: what an agent loads, the grid, hiding a skill
+    /// from one agent through its own settings, the review, the result and the undo history.
+    @MainActor
+    static func video(model: AppModel, dir: String) async {
+        guard let snap = model.snapshot else { return }
+        // The agents' marks as transparent PNGs (dark appearance), for title cards.
+        for a in model.agents {
+            guard let logo = AgentLogo(a.id) else { continue }
+            let r = ImageRenderer(content: logo.frame(width: 256, height: 256).environment(\.colorScheme, .dark))
+            r.scale = 2
+            if let cg = r.cgImage {
+                try? NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])?
+                    .write(to: URL(fileURLWithPath: "\(dir)/logo-\(a.id.rawValue).png"))
+            }
+        }
+        await show(model, .dashboard, then: "v01-dashboard", dir: dir)
+        await show(model, .agent(.codex), then: "v02-agent-codex", dir: dir)
+        model.skillsMatrix = true
+        await show(model, .skills, then: "v03-matrix", dir: dir)
+        model.toggle(skill: "deep-research", agent: .openCode, scope: .global)
+        await show(model, .skills, wait: 1200, then: "v04-matrix-pending", dir: dir)
+        model.showReview = true
+        try? await Task.sleep(for: .milliseconds(1400))
+        if let sheet = NSApp.windows.first(where: { $0.isVisible && $0.sheetParent != nil }) {
+            capture(window: sheet, to: "\(dir)/v05-review.png")
+        }
+        capture(to: "\(dir)/v05-review-window.png")
+        model.showReview = false
+        try? await Task.sleep(for: .milliseconds(600))
+        // Applying is only allowed against a throwaway home.
+        guard env["KITFOLD_FAKE_HOME"] != nil else { return model.discardDraft() }
+        model.applyDraft()
+        model.toast = nil
+        for _ in 0..<60 where model.isScanning || model.isPlanning { try? await Task.sleep(for: .milliseconds(100)) }
+        await show(model, .skills, wait: 1200, then: "v06-matrix-applied", dir: dir)
+        await show(model, .agent(.openCode), then: "v07-agent-opencode", dir: dir)
+        await show(model, .history, then: "v08-history", dir: dir)
+        model.skillsMatrix = false
+        model.selectedSkillPath = snap.skill(named: "code-review")?.path
+        await show(model, .skills, then: "v09-skill", dir: dir)
+        model.selectedProfileID = "code-reviewer"
+        await show(model, .profiles, then: "v10-profile", dir: dir)
     }
 
     @MainActor

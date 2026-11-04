@@ -33,6 +33,9 @@ public struct Planner {
         for agent in snapshot.managedAgents {
             for scope in snapshot.scopes { planSkills(agent, scope, additions: true, removed: removed, &plan) }
         }
+        // Pass 3: what links can't hide, the agent's own settings do.
+        planNativeSettings(&plan)
+        noteSharedFolders(&plan)
         for scope in snapshot.scopes { planProfiles(scope, &plan) }
         planGitExcludes(&plan)
         // Stable, readable order: removals before creations on the same path.
@@ -98,10 +101,20 @@ public struct Planner {
                             detail: "Plugin skills are managed by the agent's plugin system.", agent: a.id, scope: scope, key: name))
                     continue
                 }
+                if let why = a.descriptor.skipReason(entry) {
+                    plan.issues.append(
+                        Issue(
+                            .invalidSkill, .warning, "\(a.name) can't load “\(name)”",
+                            detail: "\(why). Fix \(ab(entry.skillFile)) first.", paths: [entry.skillFile], agent: a.id, scope: scope,
+                            key: name))
+                    continue
+                }
                 let same = exposures.filter { $0.observed.realPath == entry.path }
                 if same.contains(where: \.isActive) { continue }  // already visible
                 if willBeVisible(entry, to: a, scope: scope, given: plan) { continue }  // via a link planned for another agent
-                if let blocked = same.first, case .disabled(let source) = blocked.observed.native {
+                if let blocked = same.first, case .disabled(let source, _) = blocked.observed.native {
+                    // The settings pass switches it back on, or explains why it can't.
+                    if hasNativeSwitch(a) { continue }
                     plan.issues.append(
                         Issue(
                             .disabledNatively, .warning, "“\(name)” is switched off in \(a.name)'s settings",
@@ -151,13 +164,20 @@ public struct Planner {
                 }
 
             case .off:
-                for e in exposures where e.isActive || !e.inherited {
+                // A link named `pdf` may hold a skill called something else; that one stays.
+                for e in exposures where (e.isActive || !e.inherited) && e.observed.name == name {
                     let o = e.observed
+                    // Links Kitfold made here are taken back; anything else (including a global
+                    // skill seen from a project) is hidden through the agent's own settings when
+                    // it has them — see planNativeSettings.
+                    let isPlugin = e.via == .bundled
+                    let ownLink = e.via == .link(ownedByKitfold: true) && !e.inherited
+                    if hasNativeSwitch(a) && !isPlugin && !ownLink { continue }
                     if e.inherited {
                         plan.issues.append(
                             Issue(
                                 .stillVisible, .warning, "“\(name)” stays visible to \(a.name) in this project",
-                                detail: "It's enabled globally (\(ab(o.entryPath))). \(disableHint(a))",
+                                detail: "It's enabled globally (\(ab(o.entryPath))).",
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                         continue
                     }
@@ -181,14 +201,14 @@ public struct Planner {
                             Issue(
                                 .stillVisible, .warning, "“\(name)” stays visible to \(a.name)",
                                 detail:
-                                    "It lives in \(ab(o.root.path)), which \(a.name) reads directly. Move it into the Kitfold library to control it per agent. \(disableHint(a))",
+                                    "It lives in \(ab(o.root.path)), which \(a.name) reads directly. Move it into the Kitfold library to control it per agent.",
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     case .foreignDir(let owner):
                         let ownerName = owner.flatMap { snapshot.agent($0)?.adapter.name } ?? "another agent"
                         plan.issues.append(
                             Issue(
                                 .stillVisible, .warning, "“\(name)” stays visible to \(a.name)",
-                                detail: "\(a.name) also reads \(ownerName)'s folder \(ab(o.root.path)). \(disableHint(a))",
+                                detail: "\(a.name) also reads \(ownerName)'s folder \(ab(o.root.path)).",
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     case .bundled:
                         plan.issues.append(
@@ -200,7 +220,7 @@ public struct Planner {
                             Issue(
                                 .stillVisible, .warning, "“\(name)” stays visible to \(a.name)",
                                 detail:
-                                    "It's a SKILL.md nested inside “\(parent)” (\(ab(o.entryPath))), and \(a.name) loads nested skills on its own. Switch off “\(parent)”, or move the inner file out. \(disableHint(a))",
+                                    "It's a SKILL.md nested inside “\(parent)” (\(ab(o.entryPath))), and \(a.name) loads nested skills on its own. Switch off “\(parent)”, or move the inner file out.",
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     }
                 }
@@ -228,13 +248,62 @@ public struct Planner {
         }
     }
 
-    func disableHint(_ a: AgentAdapter) -> String {
-        switch a.descriptor.skillDisable {
-        case .none: return ""
-        case .claudeSettings: return "Claude Code can also hide it with `skillOverrides` in settings (coming to Kitfold)."
-        case .codexConfig: return "Codex can also hide it with `[[skills.config]] enabled = false` (coming to Kitfold)."
-        case .openCodePermission: return "OpenCode can also deny it via `permission.skill` (coming to Kitfold)."
-        case .geminiSettings: return "Gemini CLI can also disable it in settings (coming to Kitfold)."
+    func hasNativeSwitch(_ a: AgentAdapter) -> Bool { a.descriptor.skillDisable != .none }
+
+    /// A link Kitfold adds to (or removes from) one agent's folder also changes what an agent that
+    /// reads that folder sees — OpenCode reads ~/.claude/skills. Say so when that agent has no rule
+    /// of its own for the skill (with a rule, the planner already handles it).
+    func noteSharedFolders(_ plan: inout Plan) {
+        let created = Set(
+            plan.changes.compactMap { c -> String? in
+                if case .createSymlink(let p, _) = c.change { return p }
+                return nil
+            })
+        let removed = Set(
+            plan.changes.compactMap { c -> String? in
+                if case .removeSymlink(let p, _) = c.change { return p }
+                return nil
+            })
+        for c in plan.changes {
+            guard let ref = c.resource, ref.kind == .skill, let owner = c.agents.first, c.agents.count == 1 else { continue }
+            let adding: Bool
+            let path: String
+            switch c.change {
+            case .createSymlink(let p, _): adding = true; path = p
+            case .removeSymlink(let p, _) where !created.contains(p): adding = false; path = p
+            default: continue
+            }
+            let dir = (path as NSString).deletingLastPathComponent
+            let ownerName = snapshot.agent(owner)?.adapter.name ?? owner.rawValue
+            for other in snapshot.managedAgents where other.id != owner {
+                for scope in snapshot.scopes where scope == c.scope || (c.scope.isGlobal && !scope.isGlobal) {
+                    guard desiredSkill(ref.id, agent: other.id, scope: scope).state == nil else { continue }
+                    var roots = other.adapter.skillRoots(scope, env)
+                    if !scope.isGlobal { roots += other.adapter.skillRoots(.global, env) }
+                    guard roots.contains(where: { $0.path == dir && $0.spec.role != .primary }) else { continue }
+                    let seen = snapshot.exposures(skill: ref.id, agent: other.id, scope: scope)
+                        .filter { $0.isActive && !removed.contains($0.observed.entryPath) }
+                    if adding && seen.isEmpty {
+                        plan.issues.append(
+                            Issue(
+                                .sharedSkillFolder, .warning, "\(other.adapter.name) will load “\(ref.id)” too",
+                                detail:
+                                    "\(other.adapter.name) also reads \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” off for \(other.adapter.name) to keep it to \(ownerName).",
+                                paths: [path], agent: other.id, scope: scope, key: ref.id))
+                    } else if !adding && seen.isEmpty
+                        && snapshot.exposures(skill: ref.id, agent: other.id, scope: scope).contains(where: {
+                            $0.isActive && $0.observed.entryPath == path
+                        })
+                    {
+                        plan.issues.append(
+                            Issue(
+                                .sharedSkillFolder, .warning, "\(other.adapter.name) will stop loading “\(ref.id)”",
+                                detail:
+                                    "\(other.adapter.name) found it only in \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” on for \(other.adapter.name) to keep it there.",
+                                paths: [path], agent: other.id, scope: scope, key: ref.id))
+                    }
+                }
+            }
         }
     }
 
@@ -312,7 +381,26 @@ public struct Planner {
             if after == current { continue }
 
             let names = profiles.map(\.name).joined(separator: ", ")
-            let agentNames = target.agents.compactMap { snapshot.agent($0)?.adapter.name }.joined(separator: ", ")
+            // An override file (Codex's AGENTS.override.md) replaces this one while it isn't empty.
+            var overridden: [AgentID] = []
+            for agentID in target.agents where !profiles.isEmpty {
+                guard let ag = snapshot.agent(agentID),
+                    let o = ag.adapter.instructionFiles(scope, env).first(where: {
+                        $0.spec.role == .override && $0.related.contains(file)
+                            && !(FS.read($0.path) ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    })
+                else { continue }
+                overridden.append(agentID)
+                plan.issues.append(
+                    Issue(
+                        .fallbackChange, .warning,
+                        "\(ag.adapter.name) won't read \((file as NSString).lastPathComponent) while \((o.path as NSString).lastPathComponent) exists",
+                        detail:
+                            "\(ab(o.path)) replaces \(ab(file)), so the profile has no effect on \(ag.adapter.name). Empty or remove the override file, or move its text into a profile.",
+                        paths: [o.path, file], agent: agentID, scope: scope, key: o.path))
+            }
+            let agentNames = target.agents.filter { !overridden.contains($0) }.compactMap { snapshot.agent($0)?.adapter.name }
+                .joined(separator: ", ")
             let summary: String
             if profiles.isEmpty {
                 summary = "Remove Kitfold profiles from \(ab(file))"

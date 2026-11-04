@@ -29,10 +29,17 @@ public struct KitfoldEnvironment: Sendable, Hashable {
     }
 
     public static func current() -> KitfoldEnvironment {
-        let env = ProcessInfo.processInfo.environment
+        var env = ProcessInfo.processInfo.environment
         let home = env["KITFOLD_FAKE_HOME"] ?? NSHomeDirectory()
+        if let fake = env["KITFOLD_FAKE_HOME"] {
+            // A fake home must not reach the real agents' folders through their own variables.
+            for key in agentDirVariables where env[key].map({ !FS.isInside($0, fake) }) ?? false { env[key] = nil }
+        }
         return KitfoldEnvironment(home: home, kitfoldHome: env["KITFOLD_HOME"].map { FS.expandTilde($0, home: home) }, variables: env)
     }
+
+    /// Variables that move an agent's config folder.
+    static let agentDirVariables = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "OPENCODE_CONFIG_DIR", "GEMINI_CLI_HOME"]
 
     public func expand(_ p: String) -> String { FS.standardize(FS.expandTilde(p, home: home)) }
     public func abbreviate(_ p: String) -> String { FS.abbreviate(p, home: home) }

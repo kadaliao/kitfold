@@ -58,7 +58,8 @@ extension Workspace {
         } else {
             draft.setRule(ref, agent: agent, scope: scope, state: state)
         }
-        let snap = Scanner(env: env, adapters: adapters).scan(config: draft, ownedPaths: store.ownedPaths(), probeVersions: false)
+        let snap = Scanner(env: env, adapters: adapters).scan(
+            config: draft, ownedPaths: store.ownedPaths(), ownedSettings: store.ownedSettings(), probeVersions: false)
         let plan = self.plan(draft, snapshot: snap)
         try apply(plan, summary: "test")
         return plan

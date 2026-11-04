@@ -141,13 +141,16 @@ import Testing
         #expect(ws.snap().agent(.openCode)!.visibleSkills(in: .global).map(\.name) == ["gamma"])
     }
 
-    @Test func offForSharedDirIsReportedNotFaked() throws {
+    @Test func offForSharedDirInOneProjectIsReportedForCodex() throws {
+        // Codex reads [[skills.config]] only from $CODEX_HOME/config.toml: no per-project hiding.
         let h = FakeHome()
         h.installAgents()
         h.skill(".agents/skills/shared-one")
+        try FileManager.default.createDirectory(atPath: h.path("proj/.git"), withIntermediateDirectories: true)
         let ws = try h.workspace()
-        var draft = ws.config
-        draft.setRule(ResourceRef(.skill, "shared-one"), agent: .agent(.codex), scope: .global, state: .off)
+        var draft = ws.addingProject(h.path("proj"), to: ws.config)
+        try ws.saveConfigDirectly(draft)
+        draft.setRule(ResourceRef(.skill, "shared-one"), agent: .agent(.codex), scope: .project(h.path("proj")), state: .off)
         let plan = ws.plan(draft, snapshot: ws.snap())
         #expect(plan.changes.allSatisfy { $0.change.path == h.path(".kitfold/kitfold.json") })
         #expect(plan.issues.contains { $0.kind == .stillVisible && $0.agent == .codex })

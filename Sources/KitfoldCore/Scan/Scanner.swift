@@ -10,7 +10,9 @@ public struct Scanner: Sendable {
         self.adapters = adapters
     }
 
-    public func scan(config: KitfoldConfig, ownedPaths: Set<String>, probeVersions: Bool = true) -> Snapshot {
+    public func scan(
+        config: KitfoldConfig, ownedPaths: Set<String>, ownedSettings: [String: String] = [:], probeVersions: Bool = true
+    ) -> Snapshot {
         var env = self.env
         for (k, v) in config.agents { if let dir = v.configDir { env.configDirOverrides[AgentID(k)] = dir } }
         let library = LibraryStore(env: env)
@@ -31,12 +33,15 @@ public struct Scanner: Sendable {
             let inst = probes.value[i]!
             var scopeStates: [Scope: AgentScopeState] = [:]
             for scope in scopes {
-                let policy = NativePolicy.load(adapter: adapter, scope: scope, env: env)
+                let policy = NativePolicy.load(adapter: adapter, scope: scope, env: env, ledger: ownedSettings)
                 var skills =
                     adapter.skillRoots(scope, env).flatMap { observe(root: $0, nestedDepth: adapter.descriptor.nestedSkillDepth) }
                     + BundledSkills.observe(adapter: adapter, scope: scope, env: env)
-                for i in skills.indices where skills[i].root.spec.role != .bundled || adapter.descriptor.policyCoversBundled {
-                    skills[i].native = policy.state(name: skills[i].name, skillFile: skills[i].skillFile)
+                for i in skills.indices {
+                    if let s = skills[i].skill { skills[i].skipReason = adapter.descriptor.skipReason(s) }
+                    if skills[i].root.spec.role != .bundled || adapter.descriptor.policyCoversBundled {
+                        skills[i].native = policy.state(name: skills[i].name, skillFile: skills[i].skillFile)
+                    }
                 }
                 let effective = Set(adapter.effectiveInstructionFiles(scope, env).map(\.path))
                 let files = adapter.instructionFiles(scope, env).map { f in
@@ -94,6 +99,7 @@ public struct Scanner: Sendable {
         var snapshot = Snapshot(
             env: env, config: config, agents: agents, catalog: catalog, profiles: library.profiles(), issues: [],
             ownedPaths: ownedPaths, scannedAt: Date())
+        snapshot.ownedSettings = ownedSettings
         snapshot.buildIndex()
         snapshot.issues = Diagnostics.issues(in: snapshot)
         return snapshot

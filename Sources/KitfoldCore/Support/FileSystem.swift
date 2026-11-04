@@ -76,6 +76,8 @@ public enum FS {
     public static func abbreviate(_ p: String, home: String) -> String {
         if p == home { return "~" }
         if p.hasPrefix(home + "/") { return "~" + String(p.dropFirst(home.count)) }
+        // macOS spells some folders two ways (/var and /private/var, /tmp and /private/tmp).
+        if home.hasPrefix("/private/") { return abbreviate(p, home: String(home.dropFirst("/private".count))) }
         return p
     }
 

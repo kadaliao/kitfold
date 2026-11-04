@@ -21,7 +21,8 @@ func flag(_ name: String) -> Bool {
     return false
 }
 func option(_ name: String) -> String? {
-    guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+    guard let i = args.firstIndex(of: name) else { return nil }
+    guard i + 1 < args.count, !args[i + 1].hasPrefix("--") else { fail("\(name) needs a value") }
     let v = args[i + 1]
     args.removeSubrange(i...(i + 1))
     return v
@@ -47,6 +48,12 @@ if let home = option("--home") {
 }
 let yes = flag("--yes") || flag("-y")
 let projectArg = option("--project")
+let showAll = flag("--all")
+let clearFlag = flag("--clear")
+let offFlag = flag("--off")
+// Anything else that looks like an option is a typo; never guess (`--of` must not mean "on").
+if let unknown = args.first(where: { $0.hasPrefix("-") }) { fail("unknown option \(unknown). Try kitfold help") }
+if clearFlag && offFlag { fail("use either --off or --clear") }
 
 let ws: Workspace
 do { ws = try Workspace(env: env) } catch { fail("\(error)") }
@@ -81,7 +88,10 @@ func printPlan(_ plan: Plan) {
         }
         print("  \(verb)\(risk)")
         print("    " + dim(ch.summary + (ch.note.map { " — \($0)" } ?? "")))
-        if let d = ch.diff, case .writeFile(_, .some, .some) = ch.change {
+        // Settings files: only the entries involved, never the file (it may hold secrets).
+        for line in ch.details ?? [] { print(line.hasPrefix("+") ? green("    \(line)") : red("    \(line)")) }
+        // kitfold.json's own diff is noise here: the summary lines above say what changed.
+        if let d = ch.diff, case .writeFile(let p, .some, .some) = ch.change, p != env.configFile {
             for h in LineDiff.hunks(d, context: 1).prefix(3) {
                 for l in h.lines.prefix(12) {
                     switch l {
@@ -115,8 +125,14 @@ func confirmAndApply(_ plan: Plan, summary: String) {
 
 func scope() -> Scope {
     guard let p = projectArg else { return .global }
-    let root = FS.gitRoot(from: FS.standardize(FS.expandTilde(p, home: env.home))) ?? p
-    return .project(FS.standardize(root))
+    let abs = FS.absolute(FS.expandTilde(p, home: env.home), relativeTo: FileManager.default.currentDirectoryPath)
+    guard FS.isDirectoryFollowing(abs) else { fail("no such folder: \(p)") }
+    return .project(FS.gitRoot(from: abs) ?? abs)
+}
+
+/// Commands take a fixed number of arguments; extra ones are mistakes.
+func expectArgs(_ n: ClosedRange<Int>, usage: String) {
+    if !n.contains(args.count) { fail("usage: kitfold \(usage)") }
 }
 
 func selector(_ s: String) -> AgentSelector {
@@ -132,6 +148,7 @@ if !args.isEmpty { args.removeFirst() }
 
 switch command {
 case "status":
+    expectArgs(0...0, usage: "status")
     let snap = ws.scan()
     print(
         bold("Kitfold")
@@ -151,7 +168,7 @@ case "status":
     printIssues(issues, limit: 25)
 
 case "skills":
-    let showAll = flag("--all")
+    expectArgs(0...0, usage: "skills [--all] [--project <path>]")
     let snap = ws.scan(probeVersions: false)
     let sc = scope()
     let agents = snap.managedAgents
@@ -191,6 +208,7 @@ case "skills":
         ))
 
 case "agents":
+    expectArgs(0...0, usage: "agents")
     let snap = ws.scan()
     let sc = scope()
     for a in snap.agents {
@@ -210,24 +228,27 @@ case "agents":
     }
 
 case "plan":
+    expectArgs(0...0, usage: "plan")
     let snap = ws.scan(probeVersions: false)
     printPlan(ws.plan(ws.config, snapshot: snap))
 
 case "apply":
+    expectArgs(0...0, usage: "apply")
     let snap = ws.scan(probeVersions: false)
     confirmAndApply(ws.plan(ws.config, snapshot: snap), summary: "Apply kitfold.json")
 
 case "assign", "profile":
-    guard args.count >= 2 else { fail("usage: kitfold \(command) <name> <agent|*> [--off|--clear] [--project <path>] [--yes]") }
+    expectArgs(2...2, usage: "\(command) <name> <agent|*> [--off|--clear] [--project <path>] [--yes]")
     let kind: ResourceKind = command == "assign" ? .skill : .profile
     let ref = ResourceRef(kind, args[0])
     let sel = selector(args[1])
-    let state: RuleState? = flag("--clear") ? nil : (flag("--off") ? .off : .on)
+    let state: RuleState? = clearFlag ? nil : (offFlag ? .off : .on)
     var draft = ws.config
     let sc = scope()
     if case .project(let p) = sc, !draft.projects.contains(where: { $0.path == p }) { draft.projects.append(ProjectConfig(path: p)) }
     if sel == .all { draft.setAll(ref, scope: sc, state: state) } else { draft.setRule(ref, agent: sel, scope: sc, state: state) }
-    let snap = Scanner(env: env, adapters: ws.adapters).scan(config: draft, ownedPaths: ws.store.ownedPaths(), probeVersions: false)
+    let snap = Scanner(env: env, adapters: ws.adapters).scan(
+        config: draft, ownedPaths: ws.store.ownedPaths(), ownedSettings: ws.store.ownedSettings(), probeVersions: false)
     let who: String = {
         if case .agent(let id) = sel { return ws.adapters.first { $0.id == id }?.name ?? id.rawValue }
         return "all agents"
@@ -243,13 +264,16 @@ case "assign", "profile":
     confirmAndApply(ws.plan(draft, snapshot: snap), summary: summary)
 
 case "history":
+    expectArgs(0...0, usage: "history")
     for tx in ws.history() {
         let undone = tx.undoneBy != nil ? dim(" (undone)") : ""
         print("\(tx.id)  \(tx.summary)\(undone)  \(dim("\(tx.operations.count) ops"))")
     }
 
 case "undo":
-    guard let id = args.first ?? ws.history().first(where: \.canUndo)?.id else { fail("nothing to undo") }
+    expectArgs(0...1, usage: "undo [<tx-id>] [--yes]")
+    // The newest apply that's still in effect (undoing an undo would redo it).
+    guard let id = args.first ?? ws.history().first(where: { $0.canUndo && $0.kind != "undo" })?.id else { fail("nothing to undo") }
     guard let tx = ws.store.transaction(id: id) else { fail("no transaction \(id)") }
     print("Undo “\(tx.summary)” (\(tx.operations.count) operations)")
     for op in tx.operations.reversed() { print(dim("  \(op.summary)")) }

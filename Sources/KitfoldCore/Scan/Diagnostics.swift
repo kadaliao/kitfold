@@ -27,6 +27,12 @@ enum Diagnostics {
                                 .invalidSkill, .warning, "“\(o.entryName)” has no SKILL.md",
                                 detail: "\(ab(o.entryPath)) is in a skills folder but isn't a skill.",
                                 paths: [o.entryPath], agent: a.id, scope: scope))
+                    } else if let why = o.skipReason {
+                        out.append(
+                            Issue(
+                                .invalidSkill, .warning, "\(a.name) ignores “\(o.name)”",
+                                detail: "\(why). Add it to \(ab(o.skillFile ?? o.entryPath)).", paths: [o.entryPath], agent: a.id,
+                                scope: scope))
                     }
                 }
 

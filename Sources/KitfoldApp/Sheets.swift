@@ -62,7 +62,7 @@ struct InstructionEditor: View {
                     Button("Apply") {
                         guard let ws = model.workspace else { return }
                         let plan = ws.planEdit(path: target.path, newText: text, agents: target.agents, scope: target.scope)
-                        model.perform(plan, summary: "Edit \(model.ab(target.path))")
+                        model.perform(plan, summary: "Edit \(model.ab(target.path))", keepDraft: true)
                         dismiss()
                     }
                     .buttonStyle(.borderedProminent)

@@ -14,23 +14,29 @@ extension AgentAdapter {
     var tint: Color { Color(hex: descriptor.tint) }
 }
 
-/// Rounded-square monogram, the visual identity of an agent everywhere in the app.
+/// The agent's own logo (or a monogram tile for agents without one), its identity everywhere in the app.
 struct AgentBadge: View {
     let adapter: AgentAdapter
     var size: CGFloat = 22
     var dimmed = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-            .fill(adapter.tint.gradient)
-            .frame(width: size, height: size)
-            .overlay(
-                Text(adapter.descriptor.monogram)
-                    .font(.system(size: size * 0.38, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            )
-            .opacity(dimmed ? 0.35 : 1)
-            .help(adapter.name)
+        Group {
+            if let logo = AgentLogo(adapter.id) {
+                logo
+            } else {
+                RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                    .fill(adapter.tint.gradient)
+                    .overlay(
+                        Text(adapter.descriptor.monogram)
+                            .font(.system(size: size * 0.38, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    )
+            }
+        }
+        .frame(width: size, height: size)
+        .opacity(dimmed ? 0.35 : 1)
+        .help(adapter.name)
     }
 }
 

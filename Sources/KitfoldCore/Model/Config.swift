@@ -180,6 +180,22 @@ public struct KitfoldConfig: Hashable, Sendable, Codable {
         rules = out
     }
 
+    /// Project paths must be absolute: expand `~`; projects and rules with a relative path are dropped
+    /// (they would resolve against whatever the current directory happens to be).
+    public mutating func resolvePaths(_ env: KitfoldEnvironment) {
+        projects = projects.compactMap { p in
+            var p = p
+            p.path = env.expand(p.path)
+            return p.path.hasPrefix("/") ? p : nil
+        }
+        rules = rules.compactMap { r in
+            guard case .project(let path) = r.scope else { return r }
+            var r = r
+            r.scope = .project(env.expand(path))
+            return r.scope.projectPath!.hasPrefix("/") ? r : nil
+        }
+    }
+
     public func isAgentEnabled(_ id: AgentID, detected: Bool) -> Bool {
         agents[id.rawValue]?.enabled ?? detected
     }

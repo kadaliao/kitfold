@@ -69,44 +69,31 @@ public enum LineDiff {
         return ops
     }
 
-    /// Group a full diff into hunks with `context` unchanged lines around each change.
+    /// Group a full diff into hunks with `context` unchanged lines around each change. Changes
+    /// closer than twice the context share one hunk, so no line is shown twice.
     public static func hunks(_ ops: [Op], context: Int = 3) -> [Hunk] {
-        var result: [Hunk] = []
-        var oldLine = 1, newLine = 1
-        var current: Hunk?
-        var trailingSame = 0
-        var recentSame: [(Op, Int, Int)] = []
+        var oldNo: [Int] = [], newNo: [Int] = []
+        var o = 1, n = 1
         for op in ops {
+            oldNo.append(o)
+            newNo.append(n)
             switch op {
-            case .same:
-                if var h = current {
-                    if trailingSame < context {
-                        h.lines.append(op)
-                        current = h
-                        trailingSame += 1
-                    } else {
-                        result.append(h)
-                        current = nil
-                    }
-                }
-                recentSame.append((op, oldLine, newLine))
-                if recentSame.count > context { recentSame.removeFirst() }
-                oldLine += 1; newLine += 1
-            case .added, .removed:
-                if current == nil {
-                    let start = recentSame.first
-                    current = Hunk(
-                        oldStart: start?.1 ?? oldLine, newStart: start?.2 ?? newLine,
-                        lines: recentSame.map { $0.0 })
-                }
-                current?.lines.append(op)
-                trailingSame = 0
-                recentSame.removeAll()
-                if case .added = op { newLine += 1 } else { oldLine += 1 }
+            case .same: o += 1; n += 1
+            case .added: n += 1
+            case .removed: o += 1
             }
         }
-        if let h = current { result.append(h) }
-        return result
+        var ranges: [ClosedRange<Int>] = []
+        for i in ops.indices {
+            if case .same = ops[i] { continue }
+            let r = max(0, i - context)...min(ops.count - 1, i + context)
+            if let last = ranges.last, r.lowerBound <= last.upperBound + 1 {
+                ranges[ranges.count - 1] = last.lowerBound...max(last.upperBound, r.upperBound)
+            } else {
+                ranges.append(r)
+            }
+        }
+        return ranges.map { Hunk(oldStart: oldNo[$0.lowerBound], newStart: newNo[$0.lowerBound], lines: Array(ops[$0])) }
     }
 
     public static func stats(_ ops: [Op]) -> (added: Int, removed: Int) {

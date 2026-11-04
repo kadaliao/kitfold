@@ -188,11 +188,8 @@ struct AvailabilityGrid: View {
             GridRow {
                 Text("").gridColumnAlignment(.leading)
                 ForEach(model.managedAgents) { a in
-                    VStack(spacing: 3) {
-                        AgentBadge(adapter: a.adapter, size: 20)
-                        Text(a.adapter.descriptor.monogram).font(.caption2).foregroundStyle(.secondary)
-                    }
-                    .gridColumnAlignment(.center)
+                    AgentBadge(adapter: a.adapter, size: 22)
+                        .gridColumnAlignment(.center)
                 }
                 Text("")
             }
@@ -346,7 +343,9 @@ struct SkillDetail: View {
     }
 
     func viaPill(_ ex: Exposure) -> some View {
-        if case .disabled(let src) = ex.observed.native { return Pill(text: "off in \(src)", color: .secondary, systemImage: "nosign") }
+        if case .disabled(let src, let byKitfold) = ex.observed.native {
+            return Pill(text: byKitfold ? "hidden by Kitfold in \(src)" : "off in \(src)", color: .secondary, systemImage: "nosign")
+        }
         if ex.observed.realPath != entry.path { return Pill(text: "different folder", color: .orange) }
         switch ex.via {
         case .link(let owned): return Pill(text: owned ? "Kitfold link" : "link", color: .accentColor)

@@ -111,6 +111,21 @@ public struct AgentDescriptor: Sendable, Hashable, Codable, Identifiable {
     public var nestedSkillDepth: Int
     /// The agent's own disable settings also apply to plugin/bundled skills.
     public var policyCoversBundled: Bool
+    /// Frontmatter the agent insists on; a SKILL.md without it is skipped.
+    public var requiresName = false
+    public var requiresDescription = false
+
+    /// Why the agent would skip this skill, if it would.
+    public func skipReason(_ skill: SkillEntry) -> String? {
+        let noName = requiresName && (skill.frontmatter["name"] ?? "").isEmpty
+        let noDescription = requiresDescription && skill.description.isEmpty
+        switch (noName, noDescription) {
+        case (true, true): return "\(name) skips skills without a name and description"
+        case (true, false): return "\(name) skips skills without a name in SKILL.md"
+        case (false, true): return "\(name) skips skills without a description in SKILL.md"
+        default: return nil
+        }
+    }
     /// Max bytes of instructions the agent reads (nil = unknown/unbounded).
     public var instructionByteLimit: Int?
     public var docsURL: String

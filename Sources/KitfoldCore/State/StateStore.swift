@@ -3,7 +3,8 @@ import Foundation
 /// Something Kitfold placed on disk and therefore may later take back.
 public struct Deployment: Hashable, Sendable, Identifiable {
     public var id: String { path }
-    public enum Kind: String, Sendable { case symlink, file }
+    /// `setting`: an entry in an agent's settings file; `path` is `<file>#<entry key>`, `target` the value written.
+    public enum Kind: String, Sendable { case symlink, file, setting }
     public var path: String
     public var kind: Kind
     public var target: String?
@@ -22,6 +23,8 @@ public struct OperationRecord: Hashable, Sendable, Identifiable {
     public var backupPath: String?
     /// Whether Kitfold owned `change.path` before this operation (restored on undo).
     public var ownedBefore: Bool
+    /// Settings entries whose ownership this operation changed.
+    public var ownership: [OwnershipEdit] = []
 }
 
 public struct TransactionRecord: Hashable, Sendable, Identifiable {
@@ -43,6 +46,10 @@ public final class StateStore: @unchecked Sendable {
 
     public init(path: String) throws {
         db = try SQLiteDB(path: path)
+        // The journal keeps before/after copies of the files Kitfold edits: owner-only.
+        for f in [path, path + "-wal", path + "-shm"] where FS.exists(f) {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: f)
+        }
         try db.exec(
             """
             CREATE TABLE IF NOT EXISTS transactions(
@@ -56,6 +63,8 @@ public final class StateStore: @unchecked Sendable {
               path TEXT PRIMARY KEY, kind TEXT NOT NULL, target TEXT, agents TEXT NOT NULL, scope TEXT NOT NULL,
               resource TEXT, tx_id TEXT NOT NULL, updated_at REAL NOT NULL);
             """)
+        let columns = try db.query("PRAGMA table_info(operations)").compactMap { $0["name"] ?? nil }
+        if !columns.contains("ownership_json") { try db.exec("ALTER TABLE operations ADD COLUMN ownership_json TEXT") }
     }
 
     // MARK: ledger
@@ -80,7 +89,15 @@ public final class StateStore: @unchecked Sendable {
         }
     }
 
-    public func ownedPaths() -> Set<String> { Set(deployments().map(\.path)) }
+    /// Links and files Kitfold placed.
+    public func ownedPaths() -> Set<String> { Set(deployments().filter { $0.kind != .setting }.map(\.path)) }
+
+    /// Settings entries Kitfold wrote: ledger key → value written.
+    public func ownedSettings() -> [String: String] {
+        var out: [String: String] = [:]
+        for d in deployments() where d.kind == .setting { out[d.path] = d.target ?? "" }
+        return out
+    }
 
     // MARK: journal
 
@@ -93,11 +110,15 @@ public final class StateStore: @unchecked Sendable {
                 let enc = JSONEncoder()
                 for op in tx.operations {
                     let json = String(decoding: try enc.encode(op.change), as: UTF8.self)
+                    let ownership = op.ownership.isEmpty ? nil : String(decoding: try enc.encode(op.ownership), as: UTF8.self)
                     try db.run(
-                        "INSERT INTO operations(tx_id, seq, change_json, summary, backup_path, owned_before) VALUES(?,?,?,?,?,?)",
+                        """
+                        INSERT INTO operations(tx_id, seq, change_json, summary, backup_path, owned_before, ownership_json)
+                        VALUES(?,?,?,?,?,?,?)
+                        """,
                         [
                             .text(tx.id), .int(Int64(op.seq)), .text(json), .text(op.summary), .text(op.backupPath),
-                            .int(op.ownedBefore ? 1 : 0),
+                            .int(op.ownedBefore ? 1 : 0), .text(ownership),
                         ])
                 }
                 for entry in ledger {
@@ -138,9 +159,13 @@ public final class StateStore: @unchecked Sendable {
                 guard let json = o["change_json"] ?? nil,
                     let change = try? JSONDecoder().decode(FileChange.self, from: Data(json.utf8))
                 else { return nil }
+                let ownership = (o["ownership_json"] ?? nil).flatMap {
+                    try? JSONDecoder().decode([OwnershipEdit].self, from: Data($0.utf8))
+                }
                 return OperationRecord(
                     seq: Int((o["seq"] ?? nil) ?? "0") ?? 0, change: change, summary: (o["summary"] ?? nil) ?? "",
-                    backupPath: o["backup_path"] ?? nil, ownedBefore: ((o["owned_before"] ?? nil) ?? "0") == "1")
+                    backupPath: o["backup_path"] ?? nil, ownedBefore: ((o["owned_before"] ?? nil) ?? "0") == "1",
+                    ownership: ownership ?? [])
             }
             return TransactionRecord(
                 id: id, createdAt: Date(timeIntervalSince1970: Double((r["created_at"] ?? nil) ?? "0") ?? 0),

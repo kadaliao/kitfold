@@ -102,7 +102,7 @@ public enum BuiltinAgents {
                 note: "Shared: OpenCode reads it too, and Claude Code when there's no CLAUDE.md."),
         ],
         skillDisable: .codexConfig, bundledProvider: .codexPlugins, globalSkillsWin: false,
-        nestedSkillDepth: 6, policyCoversBundled: true,
+        nestedSkillDepth: 6, policyCoversBundled: true, requiresDescription: true,
         instructionByteLimit: 32 * 1024, docsURL: "https://developers.openai.com/codex",
         monogram: "CX", tint: "#7C8CF8",
         notes: [
@@ -151,7 +151,7 @@ public enum BuiltinAgents {
                 note: "Used only when no AGENTS.md exists up the tree."),
         ],
         skillDisable: .openCodePermission, bundledProvider: nil, globalSkillsWin: false,
-        nestedSkillDepth: 8, policyCoversBundled: true,
+        nestedSkillDepth: 8, policyCoversBundled: true, requiresName: true,
         instructionByteLimit: nil, docsURL: "https://opencode.ai/docs/skills",
         monogram: "OC", tint: "#E0A030",
         notes: [
@@ -186,7 +186,7 @@ public enum BuiltinAgents {
                 note: "Gemini walks up to the .git root; trusted folders only. `context.fileName` can add AGENTS.md."),
         ],
         skillDisable: .geminiSettings, bundledProvider: .geminiExtensions, globalSkillsWin: false,
-        nestedSkillDepth: 0, policyCoversBundled: true,
+        nestedSkillDepth: 0, policyCoversBundled: true, requiresName: true, requiresDescription: true,
         instructionByteLimit: nil, docsURL: "https://geminicli.com/docs/cli/skills",
         monogram: "GM", tint: "#4C8BF5",
         notes: [
