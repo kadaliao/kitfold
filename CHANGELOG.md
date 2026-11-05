@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-05
+
 ### Added
 - **Delete a skill.** **Delete…** on a skill's page (or in the Skills list's context menu), and `kitfold delete <skill>` in the CLI.
   - Kitfold takes back every link to the skill's folder, the entries it wrote for it in the agents' own settings, and its assignments; drops it from the profiles that bundle it; and moves the folder to `~/.kitfold/backups/trash/`.
@@ -133,6 +135,7 @@ First version.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
 
-[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kadaliao/kitfold/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kadaliao/kitfold/compare/f1fb7c2...v0.2.0
 [0.1.0]: https://github.com/kadaliao/kitfold/commit/f1fb7c2

@@ -4,7 +4,7 @@
 
 复现一律在沙盒里做：`scripts/demo/make-demo-home.sh <dir>`，然后 `kitfold --home <dir> …` 或 `KITFOLD_FAKE_HOME=<dir> …/KitfoldApp`。
 
-写教程时（2026-11-05）发现的问题都已修好，见 CHANGELOG 的 Unreleased 部分；对应的回归测试在 `Tests/KitfoldCoreTests/TutorialFindingsTests.swift`。
+写教程时（2026-11-05）发现的问题都已修好，见 CHANGELOG 的 0.2.0 部分；对应的回归测试在 `Tests/KitfoldCoreTests/TutorialFindingsTests.swift`。
 
 ## 界面交互
 
