@@ -55,9 +55,9 @@ To use your own editor instead, click **Open** below the skill's name. The `SKIL
 
 Saving works differently from an assignment:
 
-- **It's written straight away, without a review.** The file changes at once. The save doesn't appear in **History** and can't be undone there.
-- **The previous version is kept.** Before each save, Kitfold copies the old text to `~/.kitfold/backups/skills/<folder>/`, so you can get it back.
-- **Every agent that uses the skill gets the new text.** Agents' folders hold links to this folder, so the next time an agent loads its skills it reads the new version. Nothing needs applying.
+- **It's applied straight away, without a review.** The file changes at once, and a message says "Applied 1 file change. Undo anytime from History."
+- **It can be undone from History.** Each save is a History entry like any other apply, such as "Edit SKILL.md of “api-changelog”", and the old text is backed up with it in `~/.kitfold/backups/<id>/`.
+- **Every agent that uses the skill gets the new text.** Agents' folders hold links to this folder, so the next time an agent loads its skills it reads the new version. Nothing more needs applying.
 - **Folders managed by another tool.** If the skill's source belongs to the skills CLI or Magpie, the editor warns that the tool's next update may replace your edits. To change such a skill for good, move it into the library first (see below).
 - **Plugin skills are read-only.** They have no **Edit** button.
 
@@ -127,7 +127,7 @@ When something is wrong with a skill's `SKILL.md`, an orange exclamation mark ap
 |---|---|---|
 | SKILL.md has no frontmatter (name/description) | The file doesn't start with a frontmatter block between `---` lines | Add `name` and `description`, as in the template above |
 | Missing description — agents use it to decide when to load the skill | `description` is missing or empty | Write one sentence on when to use it. Codex and Gemini CLI skip skills without one |
-| Name “…” should be lowercase letters, digits and hyphens | `name` has capitals, spaces or other characters | Use a name like `api-changelog` |
+| Name “…” should be at most 64 characters: lowercase letters, digits, “-”, “_” or “:” | `name` is too long, or has capitals, spaces or other characters | Use a name like `api-changelog` |
 | Frontmatter is not closed with --- / Frontmatter has no readable keys / Unreadable frontmatter line: … | The frontmatter can't be read | Fix its format against the template |
 | 2 folders are named “…”. Agents pick one; Kitfold assigns the library copy first. | Skills with the same name live in different places | The card lists the other folder's path. Keep one, or rename one of them |
 

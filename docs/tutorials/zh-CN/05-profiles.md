@@ -43,7 +43,7 @@ Profile 是一段可以复用的指令，比如“代码审查时该怎么做”
 
 新 Profile 的正文只有一行 `## <名称>` 标题，顺序是 100，还没有分配给任何 Agent。
 
-Kitfold 会根据名称生成一个 id，比如 Code Reviewer 的 id 是 `code-reviewer`。它是库里的文件名，也是块标记里的 `profile=`，之后改名称也不会变。历史记录和命令行用的都是 id。
+Kitfold 会根据名称生成一个 id，比如 Code Reviewer 的 id 是 `code-reviewer`。它是库里的文件名，也是块标记里的 `profile=`，之后改名称也不会变。命令行用的是 id（`kitfold profiles` 会列出来），App 的预览和历史记录里显示的是名称。
 
 ## 4. 编辑
 
@@ -60,14 +60,14 @@ Kitfold 会根据名称生成一个 id，比如 Code Reviewer 的 id 是 `code-r
 
 改完点**保存**（⌘S）。保存会立刻写进库里的 Profile 文件，旧版本也会留下来（在 `~/.kitfold/backups/profiles/<id>/`），可以在**对比**里找到。
 
-**Agent 的文件要等应用之后才会更新。** 注意，待应用栏只在分配变化时才出现，只改了 Profile 内容不会出现。这时按 ⌘K，选**预览变更**，看一遍每个文件的 diff，再点**应用**。命令行里是 `kitfold apply`。
+**Agent 的文件要等应用之后才会更新。** 保存一个已经分配出去的 Profile 后，底部会出现待应用栏，比如“1 处文件变更待应用”。点**预览并应用…**（⌘↩），看一遍每个文件的 diff，再点**应用**。分配没变，所以栏上没有**放弃**。命令行里是 `kitfold apply`。
 
 ### 附带的技能是怎么给出去的
 
 Profile 分配给某个 Agent 后，它附带的技能也会在同一个作用域里分给这个 Agent，和你自己打开一样：
 
 - Agent 已经能看到这个技能（比如在共享目录里），就什么都不做；
-- 看不到，就链接进它自己的技能目录，预览里写成：为 Claude Code 链接 data-viz（通过 Profile“researcher”）；
+- 看不到，就链接进它自己的技能目录，预览里写成：为 Claude Code 链接 data-viz（通过 Profile“Researcher”）；
 - 你为这个 Agent 明确关掉过这个技能，就以你关掉的为准。
 
 取消分配 Profile 时，Kitfold 会收回当时因为它建的链接。
@@ -112,7 +112,7 @@ diff 比较的是所选的版本和**编辑器中的内容**，也就是你正�
 > ~/work/payments-api/AGENTS.md 是共享的，所以 OpenCode 也会看到 Backend Engineer。同一个文件里无法按 Agent 隔离。
 
 > Claude Code 也会读取 AGENTS.md
-> ~/work/payments-api/AGENTS.md 是共享的，所以 Claude Code 也会看到 Backend Engineer, Researcher。同一个文件里无法按 Agent 隔离。
+> ~/work/payments-api/AGENTS.md 是共享的，所以 Claude Code 也会看到 Backend Engineer、Researcher。同一个文件里无法按 Agent 隔离。
 
 新建一个文件可能会改变别的 Agent 读什么。比如第一次给 OpenCode 分配全局 Profile 会新建 `~/.config/opencode/AGENTS.md`，预览会提醒“OpenCode 将不再读取 CLAUDE.md”，因为 OpenCode 只在这个文件不存在时才回退读取 `~/.claude/CLAUDE.md`。
 
@@ -122,12 +122,12 @@ diff 比较的是所选的版本和**编辑器中的内容**，也就是你正�
 
 你或者别的工具改了某个块里面的文字，指纹就对不上了。Kitfold 会在几个地方提示：
 
-- 概览的**健康检查**和 Agent 页的**问题**里，会出现 **Profile“code-reviewer”在 Kitfold 之外被修改过**；
-- Agent 页的**指令文件**里，这个块的标签变成橙色，下面多了一行提示（“code-reviewer”在 Kitfold 之外被修改过。）和两个按钮：
-  - **保留修改**：把文件里改过的文字存回 Profile（原来的正文会作为一个保存过的版本留在**对比**里），然后打开预览，重新写入这个块。这个 Profile 如果还写在别的文件里，那些文件会在同一次预览里一起更新成新文字。
+- 概览的**健康检查**和 Agent 页的**问题**里，会出现 **Profile“Code Reviewer”在 Kitfold 之外被修改过**；
+- Agent 页的**指令文件**里，这个块的标签变成橙色，下面多了一行提示（“Code Reviewer”在 Kitfold 之外被修改过。）和两个按钮：
+  - **保留修改**：打开预览，里面除了重新写入这个块，还有一项“把修改写回 Profile“Code Reviewer””。这个 Profile 如果还写在别的文件里，那些文件会在同一次预览里一起更新成新文字。点**应用**之后 Profile 才会改；点**取消**什么都不变；撤销这次应用，Profile 也会恢复原样。
   - **覆盖…**：打开预览，用 Profile 里的文字盖掉外面的修改。这一行会标上**注意**，写明“会覆盖在 Kitfold 之外做的修改”；原文件先备份，也可以撤销。
 
-在你选择之前，Kitfold 不会写这个文件。之后的每次预览都会在**需要注意**里列出“kitfold.md 在 Kitfold 之外被修改过”，同一次应用里的其他变更照常执行。
+在你选择之前，Kitfold 不会写这个文件。之后的每次预览都会把它列在**这次不会写入**下，比如“这次不会写入 ~/.claude/rules/kitfold.md”，同一次应用里的其他变更照常执行。命令行的输出里也有同样的“这次不会写入”。
 
 只改了标记外面的内容，不算外部修改，Kitfold 也不会管。
 
@@ -162,13 +162,13 @@ $ kitfold profile code-reviewer codex
   ~ 修改 ~/.kitfold/kitfold.json
     把分配保存到 kitfold.json
 
-要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 1 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
-- 用的是 id，不是名称。
+- 用的是 id，不是名称。`kitfold profiles` 会列出每个 Profile 的 id 和名称；写错 id 会直接报错，什么都不保存（加 `--force` 仍会保存）。
 - `'*'` 表示所有 Agent，`--project <路径>` 只在一个项目里分配，`--clear` 去掉这条规则，`--yes` 才真正应用。
 - `kitfold agents` 会在含有 Kitfold 块的文件后面标出 `[kitfold: code-reviewer]`。
-- 在 App 里保存了 Profile 的修改后，`kitfold apply` 会把新内容写进已经分配的文件。
+- 在 App 里保存了 Profile 的修改，也可以用 `kitfold apply` 把新内容写进已经分配的文件。
 
 ---
 

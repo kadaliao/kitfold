@@ -35,7 +35,7 @@
 
 ## 已知问题
 
-写教程时发现、还没修的问题见 [known-issues](known-issues.md)，优先修第一部分（可能丢改动的那几条）。
+写教程时发现的问题都已修好，见 [CHANGELOG](../CHANGELOG.md)。新发现、还没修的问题记在 [known-issues](known-issues.md)。
 
 ## 下一步
 

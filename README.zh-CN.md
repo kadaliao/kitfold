@@ -94,6 +94,7 @@ swift run kitfold agents                          # 每个 Agent 扫描的目录
 swift run kitfold assign pdf-tools codex          # 预览：把技能给 Codex
 swift run kitfold assign pdf-tools codex --yes    # ……并应用
 swift run kitfold profile code-reviewer '*' --project ~/work/app --yes
+swift run kitfold profiles                        # Profile 的 id，供 `kitfold profile` 使用
 swift run kitfold history
 swift run kitfold undo --yes                      # 撤销最近一次应用
 swift run kitfold --home /tmp/sandbox status      # 在沙盒 $HOME 里随便试

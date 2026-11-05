@@ -7,9 +7,9 @@ Every problem Kitfold finds comes with a title and a short explanation. This tut
 - **Dashboard › Health** lists errors and warnings. Turn on **Show notes** at the top right of the card to see notes too.
 - **Issues** at the bottom of an agent's page lists the issues that concern that agent. An orange triangle next to an agent in the sidebar means it has errors or warnings.
 - **Issues in this project** on a project's page lists the issues in that project.
-- **Needs attention — not changed automatically** in the review lists issues that only come up when you flip a switch. "N to check" on the pending bar counts the errors and warnings among them.
+- **Needs attention — not changed automatically** in the review lists issues that only come up when you flip a switch. **Not written this time**, above it, lists files Kitfold leaves out of this apply. "N to check" on the pending bar counts the errors and warnings among them.
 - The **Problems** card in a skill's details is about the skill's own `SKILL.md`; see [07 Your skill library](07-skill-library.md).
-- **On the command line**, `kitfold status` lists errors and warnings, and the output of `assign`, `profile` and `plan` has a "Needs attention" section.
+- **On the command line**, `kitfold status` lists errors and warnings, and the output of `assign`, `profile` and `plan` has "Not written this time" and "Needs attention" sections when there's something to list.
 
 There are three levels: errors (a red icon in the app, `✗` on the command line), warnings (an orange triangle, `!`) and notes (a gray ⓘ, `·`).
 
@@ -69,17 +69,17 @@ This is a note.
 
 **What to do:** if the inner one is just an example or a template, rename the file or move it out. If it really is a skill of its own, give it its own top-level skill folder. To keep one agent from loading it, switch it off for that agent on the **Skills** page; Kitfold writes that agent's own setting.
 
-### Profile “code-reviewer” was edited outside Kitfold
+### Profile “Code Reviewer” was edited outside Kitfold
 
 > ~/.claude/rules/kitfold.md: Kitfold won't overwrite it until you keep or discard the edit.
 
-In the review, the matching error is "kitfold.md was edited outside Kitfold".
+In the review, the file is listed under **Not written this time** as "~/.claude/rules/kitfold.md won't be written".
 
 **What it means:** someone changed a profile block that Kitfold wrote into an instruction file. Until you decide what to do, Kitfold leaves that file alone; other changes are applied as usual.
 
 **What to do:** open the agent's page and find the file under **Instruction files**. Choose one:
 
-- **Keep edit** copies the edit into the profile (keeping the profile's previous version), then opens a review that rewrites the block;
+- **Keep edit** opens a review that copies the edit into the profile and rewrites the block; nothing changes until you apply, and undo puts the old profile back;
 - **Overwrite…** opens a review that writes the profile's text over the edit.
 
 See [05 Profiles](05-profiles.md) for details.
@@ -140,9 +140,9 @@ The opposite case is "OpenCode will stop loading “release-notes”":
 
 > OpenCode found it only in Claude Code's folder ~/.claude/skills. Switch “release-notes” on for OpenCode to keep it there.
 
-**What it means:** Kitfold links the skill into Claude Code's folder, and OpenCode reads that folder too, so OpenCode gets it as well. The other way round, removing the link takes the skill from OpenCode if that's the only place OpenCode found it.
+**What it means:** Kitfold links the skill into Claude Code's folder, and OpenCode reads that folder too, so OpenCode gets it as well. The other way round, removing the link takes the skill from OpenCode if that's the only place OpenCode found it. For a link in a project, the title names the project, as in "OpenCode will load “test-writer” too in acme-web".
 
-**What to do:** follow the message. To keep the skill to Claude Code, also switch it off for OpenCode (Kitfold writes OpenCode's setting). To let OpenCode keep it, switch it on for OpenCode. You can also leave it; the result is what the message says.
+**What to do:** follow the message. To keep the skill to Claude Code, also switch it off for OpenCode (Kitfold writes OpenCode's setting). To let OpenCode keep it, switch it on for OpenCode. Either way OpenCode then has its own rule for the skill, and the warning goes away. You can also leave it; the result is what the message says.
 
 ### OpenCode also reads AGENTS.md
 
@@ -188,17 +188,17 @@ When you switch it off, the explanation reads "Disable the plugin in Claude Code
 
 ### A folder named “test-writer” already exists for Gemini CLI
 
-> ~/.gemini/skills/test-writer isn't managed by Kitfold, so it won't be replaced. Import it into the library or rename one of them.
+> ~/.gemini/skills/test-writer is a real folder Kitfold didn't create, so it won't be replaced. If it's a copy of this skill, delete it and apply again; otherwise rename one of the two.
 
 **What it means:** where the link should go, there's already a real folder with the same name. Kitfold never deletes or replaces a real folder.
 
-**What to do:** first check whether they're the same skill. If they're two different skills, rename one. If the folder is an old copy, delete or move it yourself. To have Kitfold take it over, select it on the **Skills** page and click **Move into Library** (not possible while the library has a skill with that name).
+**What to do:** first check whether they're the same skill. If the folder is a copy of this skill, delete or move it yourself, then apply again. If they're two different skills, rename one.
 
 ### Other issues
 
 | Title | What it means | What to do |
 |---|---|---|
-| Skill “…” isn't in the library | The skill is assigned, but no folder with that name exists anywhere; it may have been deleted or renamed | Bring it back, or clear the assignment with `kitfold assign <skill> <agent> --clear --yes` |
+| Skill “…” isn't in the library | The skill is assigned, but no folder with that name exists anywhere; it may have been deleted or renamed. The explanation names the agents, the project and any profile that includes it | Bring it back, or clear the assignment with `kitfold assign <skill> <agent> --clear --yes`, or drop it from the profile |
 | Profile “…” doesn't exist | The assigned profile's file is gone | Remove the assignment or restore the profile file. Deleted profiles are in `~/.kitfold/backups/trash/` |
 | Kitfold can't read … | An agent's settings file isn't valid JSON or TOML, so Kitfold won't edit it | Fix the file and try again |
 | Kitfold can't add skill settings to … | `config.toml` defines `skills.config` in a form that an appended `[[skills.config]]` table would break | Use `[[skills.config]]` tables there |
@@ -236,9 +236,11 @@ Only the entry involved changes; every other byte of the file stays as it was. T
 
 ### Why does OpenCode see Claude Code's skills?
 
-For compatibility with Claude Code, OpenCode reads `~/.claude/skills` and a project's `.claude/skills` as well as its own folders (unless the `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` environment variable is set; Kitfold shows the default behavior and doesn't check for it). So every skill linked into Claude Code's folder is loaded by OpenCode too. That's what the **Via another agent** icon in OpenCode's column of the matrix means, and the `◇` in `kitfold skills`.
+For compatibility with Claude Code, OpenCode reads `~/.claude/skills` and a project's `.claude/skills` as well as its own folders. So every skill linked into Claude Code's folder is loaded by OpenCode too. That's what the **Via another agent** icon in OpenCode's column of the matrix means, and the `◇` in `kitfold skills`.
 
 To keep a skill to Claude Code, switch it off for OpenCode under **Who gets it**. Kitfold adds a `permission.skill` entry to `opencode.json` that hides it, and Claude Code isn't affected. "OpenCode will load “…” too" in the review is the reminder.
+
+OpenCode skips Claude Code's folders when `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` or `OPENCODE_DISABLE_CLAUDE_CODE` is set to 1, true, yes, on or y. Kitfold checks these too: with one of them set, OpenCode is shown not reading `~/.claude/skills` or a project's `.claude/skills`, and the related warnings go away. Kitfold only sees the variables in its own environment. The command line gets your shell's; the app opened from Finder doesn't see variables exported in a shell profile.
 
 ### How do I try things without touching my setup?
 
@@ -258,9 +260,8 @@ All in `~/.kitfold`:
 
 | Where | What |
 |---|---|
-| `~/.kitfold/backups/<history ID>/` | Copies of the files an apply overwrote or deleted. Expand an entry in **History** and click **Backup** to see it in Finder |
+| `~/.kitfold/backups/<history ID>/` | Copies of the files an apply overwrote or deleted, including a `SKILL.md` saved in the app. Expand an entry in **History** and click **Backup** to see it in Finder |
 | `~/.kitfold/state.sqlite` | The history itself, including the before and after text of the files Kitfold changed. Undo uses this, not the backup folders |
-| `~/.kitfold/backups/skills/` | Previous versions of a `SKILL.md` saved in the app |
 | `~/.kitfold/backups/profiles/` | Saved versions of profiles, the ones **Compare** uses |
 | `~/.kitfold/backups/trash/` | Deleted profiles |
 
@@ -271,7 +272,7 @@ How long backups are kept is set in **Settings › General** ("Keep backups for 
 - **In the app:** open **Settings › General › Language** and pick **Same as macOS** or a language. The app switches at once; menus and panels drawn by macOS itself follow the next time Kitfold opens. You can also set Kitfold's language under **System Settings › General › Language & Region › Applications**; both are the same setting.
 - **On the command line:** add `--lang en` or `--lang zh-Hans`, or set the `KITFOLD_LANG` environment variable. With neither, the system's language is used.
 
-Two things don't change with the language: history summaries keep the language they were written in, and source names (such as "Shared (~/.agents/skills)") are written to `kitfold.json` on the first launch and stay as they are.
+History summaries don't change with the language: they keep the language they were written in. The sources registered on the first launch, "Shared (~/.agents/skills)" and "Magpie library", are shown in the current language unless you've renamed them.
 
 ---
 

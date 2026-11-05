@@ -8,7 +8,7 @@ The examples continue from [the previous tutorial](03-assign-skills.md): give `t
 
 Click a cell in the matrix, in a skill's detail or on an agent's page, and it gets a dashed outline with a ＋ (switched on when you apply) or a − (switched off). Nothing on disk has changed yet; only the draft has.
 
-While the draft differs from your saved assignments, the pending bar sits at the bottom of the window:
+While the draft differs from your saved assignments, or files are out of date with them (after you save a profile that's assigned to an agent, say), the pending bar sits at the bottom of the window:
 
 ![The matrix with two pending switches and the pending bar](../images/en/pending.jpg)
 
@@ -18,7 +18,7 @@ While the draft differs from your saved assignments, the pending bar sits at the
 | "Working out changes…" | Kitfold is recalculating after a switch; give it a moment |
 | "Assignments changed — no files need to change" | The rules changed but the disk already matches, e.g. you chose **All agents on** for a skill every agent already sees. Applying just saves the rules |
 | "N to check" | The review has N warnings or errors worth a look first |
-| **Discard** | Puts every switch back to its saved state |
+| **Discard** | Puts every switch back to its saved state. Shown only when you've flipped switches |
 | **Review & Apply…** (⌘↩) | Opens the review |
 
 A few things to know:
@@ -33,7 +33,7 @@ Press ⌘↩, or click **Review & Apply…**:
 
 ![Review changes: a link, an OpenCode setting, kitfold.json](../images/en/review.jpg)
 
-Under the title is a count such as "3 changes". When something needs care, it goes on with "N touch files Kitfold didn't create" and "N to check".
+Under the title is a count such as "2 file changes". When something needs care, it goes on with "N touch files Kitfold didn't create" and "N to check", as in "2 file changes · 1 to check". When no file needs to change, it says "Only the assignments are saved".
 
 ### One row per change
 
@@ -53,7 +53,9 @@ Click › at the end of a row to expand it. With three file changes or fewer, th
 
 - **Instruction files** expand to a line diff headed "current → after apply" ("(new file) → after apply" for a new file), with the number of lines added and removed.
 - **Agent settings files** (`settings.json`, `config.toml`, `opencode.json` and the like) expand to only the entries that change, such as `+ permission.skill › "deep-research": "deny"` in the screenshot, under the line "Only these entries change; the rest of the file is kept as is." The file itself is never shown, because it may hold API keys and tokens. The write changes only that entry too: comments, formatting and every other byte stay as they were.
-- **The kitfold.json row** ("Save assignments to kitfold.json") always comes last. It saves your rules in the same apply as the file changes, so undoing the apply takes the rules back too. That's why the bar said 2 file changes while the review says 3 changes.
+- **The kitfold.json row** ("Save assignments to kitfold.json") always comes last. It saves your rules in the same apply as the file changes, so undoing the apply takes the rules back too.
+
+The pending bar, the review's header and the command line count the same way: file changes only, without the kitfold.json row, and "to check" counts only warnings and errors. Notes are listed but not counted.
 
 ### Changes marked caution
 
@@ -66,13 +68,22 @@ When a change touches something Kitfold didn't create, the row gets an orange **
 
 These are backed up like everything else, and undo puts them back.
 
+### Not written this time
+
+When a profile block in an instruction file was edited outside Kitfold, the review leaves that file out and lists it in its own section, **Not written this time**:
+
+> **~/.claude/rules/kitfold.md won't be written**
+>
+> Its block for “Code Reviewer” was edited outside Kitfold. On the agent's page, keep the edit (copy it into the profile) or overwrite it, then apply again.
+
+The rest of the changes are applied. See [05](05-profiles.md) for keeping or overwriting the edit.
+
 ### Needs attention — not changed automatically
 
 The section **Needs attention — not changed automatically** lists what Kitfold won't do or can't do, each with the reason. Errors come first, then warnings and notes. Some examples:
 
 - **OpenCode will load “data-viz” too**: the link goes into `~/.claude/skills`, which OpenCode reads as well. To keep the skill to Claude Code, switch it off for OpenCode too.
 - **“code-review” stays visible to Codex in this project**: Codex has no per-project switch; see [06](06-projects.md).
-- **kitfold.md was edited outside Kitfold**: Kitfold won't write that file until you keep or overwrite the edit; see [05](05-profiles.md).
 
 These don't block the apply. **Apply** carries out the changes listed above them and leaves these alone.
 
@@ -90,7 +101,7 @@ Editing an instruction file, moving a skill into the library and resolving an ou
 3. **It writes.** Files are written atomically (a temporary file, then a rename). If the target is a symlink, such as a `CLAUDE.md` managed by your dotfiles, Kitfold writes the real file it points to rather than replacing the link with a plain file.
 4. **It records the change.** Each change, with the content before and after, goes into `~/.kitfold/state.sqlite`. That's what undo uses. If the record can't be written, the files are put back, so nothing is left changed without a way to undo it.
 
-When it's done, a message at the top says "Applied 3 changes. Undo anytime from History.", Kitfold rescans, and the dashed cells turn solid.
+When it's done, a message at the top says "Applied 2 file changes. Undo anytime from History.", Kitfold rescans, and the dashed cells turn solid.
 
 ## 4. History
 
@@ -100,7 +111,7 @@ Click **History** in the sidebar, or press ⌘4:
 
 Each apply is one entry, newest first:
 
-- **The title** says what it did. For a single switch it's specific: "Give test-writer to Codex", "Give design-tokens to Claude Code in acme-web". For several it reads "Update deep-research, test-writer". Profiles appear by their id, as in "Give profile code-reviewer to Claude Code".
+- **The title** says what it did. For a single switch it's specific: "Give test-writer to Codex", "Give design-tokens to Claude Code in acme-web". For several it reads "Update deep-research, test-writer". Profiles appear by name, as in "Give profile Researcher to Gemini CLI".
 - **The line below** has the time and the number of operations.
 - Click › on the left to see each operation. Next to a file that was overwritten or deleted there's **Backup**, which shows that backup in Finder.
 - An **undo** tag means the entry is itself an undo; **undone** means it has been undone.
@@ -152,10 +163,10 @@ $ kitfold assign test-writer codex
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 2 change(s)? Re-run with --yes to apply.
+Apply 1 file change? Re-run with --yes to apply.
 ```
 
-The command line counts `kitfold.json` too, so its number is one more than the app's pending bar. As in the app, a settings file shows only the entries that change:
+The command line counts like the app: the link is the one file change, and saving `kitfold.json` isn't counted. As in the app, a settings file shows only the entries that change:
 
 ```console
 $ kitfold assign deep-research opencode --off --yes
@@ -185,9 +196,9 @@ Undo “Take deep-research from OpenCode” (2 operations)
 Undone.
 
 $ kitfold history
-20261105-113855-d1df66  Undo “Take deep-research from OpenCode”  2 ops
-20261105-113855-3ac539  Take deep-research from OpenCode (undone)  2 ops
-20261105-113855-f60052  Give test-writer to Codex  2 ops
+20261105-113855-d1df66  Undo “Take deep-research from OpenCode”  2 operations
+20261105-113855-3ac539  Take deep-research from OpenCode (undone)  2 operations
+20261105-113855-f60052  Give test-writer to Codex  2 operations
 …
 ```
 

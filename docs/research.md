@@ -63,7 +63,7 @@
 ### Skills [已验证：`sst/opencode@v1.19.4` 源码 + 实机 `opencode debug skill`]
 扫描顺序：`~/.claude/skills` → `~/.agents/skills` → 从 cwd 到 worktree 根每层的 `.claude/skills`、`.agents/skills` → 每个配置目录下的 `skill(s)/`（`~/.config/opencode`、各层 `.opencode/`、`~/.opencode`、`$OPENCODE_CONFIG_DIR`）→ 配置里的 `skills.paths[]`、`skills.urls[]`。
 
-- **会读 Claude Code 的技能目录**；`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` 可以关掉。
+- **会读 Claude Code 的技能目录**；`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` 或 `OPENCODE_DISABLE_CLAUDE_CODE` 设为真值时不读，全局的 `~/.claude/skills` 和项目里的 `.claude/skills` 都不读。真值是 `1`、`true`、`yes`、`on`、`y`；`0`、`false`、`no`、`off`、`n` 为假；其他值（包括空串、大写的 `FALSE`）直接报错退出（2026-11-05 在沙盒 HOME 里用 `opencode debug skill` 实测）。Kitfold 按同样的规则判断，但只能看到它自己进程里的环境变量。
 - **只按名字去重，最后解析到的赢**。解析是并发的，所以哪份胜出不可预测。实测一台机器上有 77 个名字同时出现在 `~/.claude/skills` 和 `~/.agents/skills`。
 - 递归扫描所有子目录，`references/` 里的 SKILL.md 也会变成独立技能（实测一个技能的 `references/` 里带出了 3 个）。
 - 必须有 `name`，否则丢弃；`description` 可选。文档要求的命名规则在代码里并未强制。

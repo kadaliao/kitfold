@@ -32,7 +32,7 @@
 
 ## 4. 技能：按到达途径分组
 
-**技能**卡片回答“它加载了哪些技能，各自是怎么到它手里的”。同一个技能可能经由不同的路到达，Kitfold 按途径分组：
+**技能**卡片回答“它加载了哪些技能，各自是怎么到它手里的”。Kitfold 按到达途径分组，每个技能只列一次，放在它实际生效的那条途径下：
 
 | 分组 | 含义 |
 |---|---|
@@ -50,9 +50,9 @@
 几点细节：
 
 - 分组标题后面是数量，右边是这些技能所在的目录。超过 6 项的分组默认收起，点标题展开。
-- 同一个技能如果经由两个目录到达，会在两个分组里各出现一次，但 Agent 只加载一次，页头的技能数也只算一次。
+- 同一个技能如果在别的目录里也能找到，它那一行会注明，比如“也在 ~/.agents/skills 中”。Agent 只加载一次，页头的技能数也只算一次。
 - 点技能名会跳到技能页，打开它的详情。
-- 右上角的**筛选**按名称过滤；**添加**从这台 Mac 上找到的技能里搜索（插件技能除外），点一下就给这个 Agent 打开。也可以把技能从技能页的列表拖到这个页面上。新加的技能在应用之前显示为“将添加”。
+- 右上角的**筛选**按名称过滤；**添加**从这台 Mac 上找到的技能里搜索（插件技能除外），点一下就给这个 Agent 打开。也可以把技能名从技能页的列表或矩阵拖到这个页面上，用的是**显示**里选的作用域。新加的技能在应用之前显示为“将添加”。
 
 ### 格子的含义
 
@@ -69,6 +69,7 @@
 | 空白，⊘ | 存在，但被 Agent 自己的设置关闭 |
 | 空白 | 没有加载 |
 | 虚线框，＋ 或 － | 待应用：应用后会打开或关闭 |
+| 右上角橙色的“!” | 这一格有规则，但它不起作用，比如 Codex 没法只在一个项目里隐藏技能。鼠标停在上面会显示“这个开关不起作用：…”和原因 |
 
 怎么用这些格子把技能分给指定的 Agent，见[下一篇](03-assign-skills.md)。
 
@@ -119,10 +120,10 @@
 在演示数据里点侧栏的 **OpenCode**：
 
 1. 页头写着 12 个技能，但没有“链接进它的技能目录”这一组：Kitfold 从来没往 OpenCode 自己的目录 `~/.config/opencode/skills` 里放过东西。
-2. 技能来自两组，都因为超过 6 项而收起：**经由其他 Agent 的目录**（8 个，`~/.claude/skills`）和**来自共享目录**（10 个，`~/.agents/skills`）。
+2. 技能来自两组：**经由其他 Agent 的目录**（8 个，`~/.claude/skills`，超过 6 项所以默认收起）和**来自共享目录**（4 个，`~/.agents/skills`）。
 3. 展开**经由其他 Agent 的目录**：code-review 和 release-notes 指向 `~/.kitfold/library/skills/…`，这是 Kitfold 为 Claude Code 建的链接；其余几个指向 `~/.agents/skills/…`，是另一个工具为 Claude Code 建的。OpenCode 顺带把它们全都加载了。
-4. pdf-tools、deep-research 等 6 个技能在两组里都出现了：同一个目录，OpenCode 经由两条路都能找到。底部的**问题**里有一条提示：“OpenCode 通过两个目录重复找到 6 个技能”。
-5. 展开 **OpenCode 怎么找技能**：`~/.claude/skills` 标着**别的 Agent**，说明写着“OpenCode 也会加载 Claude Code 的技能，除非设置了 OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1。”
+4. pdf-tools、deep-research 等 6 个技能的行上写着“也在 ~/.agents/skills 中”：同一个目录，OpenCode 经由两条路都能找到，Kitfold 把它们列在先生效的 `~/.claude/skills` 下。底部的**问题**里有一条提示：“OpenCode 通过两个目录重复找到 6 个技能”。
+5. 展开 **OpenCode 怎么找技能**：`~/.claude/skills` 标着**别的 Agent**，说明写着“OpenCode 也会加载 Claude Code 的技能，除非设置了 OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1。”Kitfold 能看到这个变量（或 `OPENCODE_DISABLE_CLAUDE_CODE`）时，这个目录就不会列出来，见[常见问题与排错](09-troubleshooting.md)。
 6. 再看**指令文件**：`~/.config/opencode/AGENTS.md` 不存在（它是 Kitfold 写入目标）；`~/.claude/CLAUDE.md` 已加载，标着**回退**和“Claude Code 也会读取它”。也就是说，你写进 `~/.claude/CLAUDE.md` 的内容 OpenCode 也会看到；而一旦创建了 `~/.config/opencode/AGENTS.md`，OpenCode 就不再读 `~/.claude/CLAUDE.md`。Kitfold 要创建这个文件时，会在预览里提醒你。
 7. 概览页报告的失效链接 old-linter 也出现在 OpenCode 的问题里，原因相同：它在 `~/.claude/skills` 里。
 

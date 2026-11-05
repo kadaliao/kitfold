@@ -15,7 +15,7 @@ ln -s "$PWD/build/Kitfold.app/Contents/Resources/kitfold" ~/.local/bin/kitfold
 
 If you move the app, make the link again.
 
-You can mix the app and the command line: changes applied with `kitfold` show up in the app's **History** and can be undone there, and the other way round. One thing to keep in mind: the app reads `kitfold.json` when it starts and doesn't pick up changes made to it afterwards, not even on **Rescan**. If you change assignments with `kitfold` while the app is open, quit and reopen the app before you make more changes in it.
+You can mix the app and the command line: changes applied with `kitfold` show up in the app's **History** and can be undone there, and the other way round. When `kitfold.json` changes outside the app, the app reloads it on **Rescan**, on your next switch, and when you come back to its window (and rescans, if `kitfold` applied or undid something). Switches you flipped in the app but haven't applied are kept on top of the new file; where both changed the same switch, the app's change wins. A message says "kitfold.json changed outside Kitfold. Reloaded it and kept your unapplied changes."
 
 ## Try it in a sandbox
 
@@ -41,6 +41,7 @@ All the output in this tutorial comes from that demo. Every command was run with
 | `--yes`, `-y` | Actually apply (or undo). Without it you get a preview |
 | `--off` | Switch off (`assign`, `profile`) |
 | `--clear` | Remove the rule and leave things as found (`assign`, `profile`) |
+| `--force` | Save a rule that Kitfold refuses because it can't work (`assign`, `profile`); see [below](#rules-that-cant-work---force) |
 | `--all` | Make `skills` list skills that no agent loads, too |
 | `--lang en\|zh-Hans` | Language of the output. The `KITFOLD_LANG` environment variable does the same; with neither, the system's language is used |
 | `--no-color` | No colors. Output that isn't a terminal (a pipe, a file) has none anyway |
@@ -66,7 +67,7 @@ OpenCode     installed 1.19.4
 Gemini CLI   installed 0.66.0
   11 skills active  ·  ~232 tokens always loaded  ·  config ~/.gemini
 
-Issues (1 warnings/errors, 1 notes)
+Issues (1 warning or error, 1 note)
   ✗ Broken skill link “old-linter”
     ~/.claude/skills/old-linter → ~/.agents/skills/old-linter, which no longer exists. Skipped silently by Claude Code, OpenCode.
 ```
@@ -155,7 +156,18 @@ Skills folders are listed highest precedence first, with the number of skills fo
 
 Instruction files are listed in load order, marked loaded, present but not loaded, or absent. `[kitfold: code-reviewer]` means the file holds a profile block written by Kitfold.
 
-Add `--project '~/work/payments-api'` to list the project's folders and files. For `skills` and `agents`, `--project` only works with a project you've already added (in the app, or by applying an `assign` or `profile` with `--project`).
+Add `--project '~/work/payments-api'` to list the project's folders and files. For `skills` and `agents`, `--project` works with any folder, even one you haven't added as a project.
+
+### profiles: ids and names
+
+```console
+$ kitfold profiles
+backend-engineer  Backend Engineer  Go services, infra and on-call
+code-reviewer     Code Reviewer  Strict, evidence-based reviews
+researcher        Researcher  Sourced answers, clear charts
+```
+
+Each line has a profile's id, its name and its description. `kitfold profile` takes the id.
 
 ### plan: does the disk match kitfold.json?
 
@@ -169,7 +181,7 @@ Nothing to change.
 ## Assigning skills: assign
 
 ```
-kitfold assign <skill> <agent> [--off | --clear] [--project <path>] [--yes]
+kitfold assign <skill> <agent> [--off | --clear] [--project <path>] [--force] [--yes]
 ```
 
 Agents are named by their IDs: `claude-code`, `codex`, `opencode`, `gemini-cli`. `'*'` or `all` means every agent (quote the `*` so the shell leaves it alone).
@@ -185,7 +197,7 @@ $ kitfold assign test-writer codex
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 2 change(s)? Re-run with --yes to apply.
+Apply 1 file change? Re-run with --yes to apply.
 ```
 
 The mark in front of each change:
@@ -224,7 +236,7 @@ $ kitfold assign deep-research opencode --off
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 2 change(s)? Re-run with --yes to apply.
+Apply 1 file change? Re-run with --yes to apply.
 ```
 
 OpenCode sees `deep-research` through `~/.claude/skills` and the shared folder `~/.agents/skills`. Other agents read those folders too, so deleting a link or the folder would take the skill from them as well. Kitfold changes OpenCode's own setting instead, and only that one entry. For settings files, only the entries that change are shown, never the file (it may hold API keys). [03 Give skills to the agents you choose](03-assign-skills.md) explains why.
@@ -240,7 +252,7 @@ $ kitfold assign test-writer codex --clear
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 2 change(s)? Re-run with --yes to apply.
+Apply 1 file change? Re-run with --yes to apply.
 ```
 
 `--clear` on a skill that has no rule gives "Nothing to change."
@@ -259,18 +271,31 @@ $ kitfold assign perf-profiler gemini-cli --project '~/work/acme-web'
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 3 change(s)? Re-run with --yes to apply.
+Apply 2 file changes? Re-run with --yes to apply.
 ```
 
 The link goes into the project's own `.gemini/skills`, so it applies in this project only, and Kitfold adds it to `.git/info/exclude` so it isn't committed. If the folder isn't a Kitfold project yet, applying adds it. [06 Per-project setups](06-projects.md) has more on projects.
 
+### Rules that can't work: --force
+
+`assign` and `profile` refuse a rule that can't work, save nothing and return 1. That happens when the skill or the profile id doesn't exist, or when something stands in the way and the rule wouldn't change anything. For example, Codex can't hide a global skill in one project:
+
+```console
+$ kitfold assign code-review codex --off --project '~/work/acme-web'
+  ! “code-review” stays visible to Codex in this project
+    It's enabled globally, and Codex reads `[[skills.config]]` only from $CODEX_HOME/config.toml, so a skill can't be hidden in one project alone. Switch it off globally instead.
+error: not saved: this rule wouldn't change anything. --force saves it anyway.
+```
+
+A misspelled skill gives "error: no skill named test-writr. kitfold skills --all lists them; --force saves the rule anyway.", and a misspelled profile id lists the ids that exist. Add `--force` to save such a rule anyway. `--clear` is always allowed.
+
 ## Assigning profiles: profile
 
 ```
-kitfold profile <profile id> <agent> [--off | --clear] [--project <path>] [--yes]
+kitfold profile <profile id> <agent> [--off | --clear] [--project <path>] [--force] [--yes]
 ```
 
-A profile's ID is its file name in `~/.kitfold/library/profiles/`, not its display name. In the demo they are `code-reviewer`, `backend-engineer` and `researcher`.
+A profile's ID is its file name in `~/.kitfold/library/profiles/`, not its display name. In the demo they are `code-reviewer`, `backend-engineer` and `researcher`; `kitfold profiles` lists them (see [above](#profiles-ids-and-names)).
 
 ```console
 $ kitfold profile researcher gemini-cli
@@ -285,11 +310,11 @@ $ kitfold profile researcher gemini-cli
     + 
       # Gemini
   + link ~/.gemini/skills/data-viz → ~/.kitfold/library/skills/data-viz
-    Link data-viz for Gemini CLI (via profile “researcher”)
+    Link data-viz for Gemini CLI (via profile “Researcher”)
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 3 change(s)? Re-run with --yes to apply.
+Apply 2 file changes? Re-run with --yes to apply.
 ```
 
 The profile goes into the agent's own instruction file as one marked block, and the rest of the file is left alone. Its skills come with it: `data-viz` needs a link, while `deep-research` already reaches Gemini CLI through `~/.agents/skills`.
@@ -312,10 +337,10 @@ Needs attention
   ! OpenCode will stop reading CLAUDE.md
     Today OpenCode falls back to ~/work/acme-web/CLAUDE.md because ~/work/acme-web/AGENTS.md doesn't exist. Creating it changes that.
 
-Apply 5 change(s)? Re-run with --yes to apply.
+Apply 4 file changes? Re-run with --yes to apply.
 ```
 
-Items under **Needs attention** aren't changed automatically; the call is yours. [09 Troubleshooting](09-troubleshooting.md) explains each one.
+Items under **Needs attention** aren't changed automatically; the call is yours. [09 Troubleshooting](09-troubleshooting.md) explains each one. A file whose profile block was edited outside Kitfold is left out and listed under **Not written this time** instead; see [05 Profiles](05-profiles.md#9-a-profile-block-edited-outside-kitfold).
 
 ## History and undo
 
@@ -323,13 +348,13 @@ Items under **Needs attention** aren't changed automatically; the call is yours.
 
 ```console
 $ kitfold history
-20261105-114616-d3cd65  Take deep-research from OpenCode  2 ops
-20261105-114616-608ef8  Give test-writer to Codex  2 ops
-20261105-114613-86456e  Give figma-handoff to OpenCode in acme-web  3 ops
+20261105-114616-d3cd65  Take deep-research from OpenCode  2 operations
+20261105-114616-608ef8  Give test-writer to Codex  2 operations
+20261105-114613-86456e  Give figma-handoff to OpenCode in acme-web  3 operations
 …
 ```
 
-Each apply or undo is one entry, newest first: its ID, a summary and the number of operations. Summaries are stored in the language they were written in and don't change if you switch languages later.
+Each apply or undo is one entry, newest first: its ID, a summary and the number of operations. Summaries are stored in the language they were written in and don't change if you switch languages later. Add `--project <path>` to list only the applies that touched files in that project.
 
 ### undo
 
@@ -353,9 +378,9 @@ The undo takes back the assignment rule along with the files: the entry in `open
 
 ```console
 $ kitfold history
-20261105-114616-0767e2  Undo “Take deep-research from OpenCode”  2 ops
-20261105-114616-d3cd65  Take deep-research from OpenCode (undone)  2 ops
-20261105-114616-608ef8  Give test-writer to Codex  2 ops
+20261105-114616-0767e2  Undo “Take deep-research from OpenCode”  2 operations
+20261105-114616-d3cd65  Take deep-research from OpenCode (undone)  2 operations
+20261105-114616-608ef8  Give test-writer to Codex  2 operations
 …
 ```
 
@@ -385,7 +410,7 @@ $ kitfold apply
   + link ~/.gemini/skills/code-review → ~/.kitfold/library/skills/code-review
     Link code-review for Gemini CLI (assigned)
 
-Apply 1 change(s)? Re-run with --yes to apply.
+Apply 1 file change? Re-run with --yes to apply.
 $ kitfold apply --yes
   + link ~/.gemini/skills/code-review → ~/.kitfold/library/skills/code-review
     Link code-review for Gemini CLI (assigned)
@@ -398,7 +423,7 @@ In the history, this apply is called "Apply kitfold.json".
 ## Using it in scripts
 
 - **Preview, then `--yes`.** A command without `--yes` never writes, so a script can run it first to see what would happen.
-- **Exit status.** Success and previews return 0. Usage errors, an unknown command or agent, and a failed apply or undo return 1, with the message on standard error, starting with "error:":
+- **Exit status.** Success and previews return 0. Usage errors, an unknown command or agent, a rule that's refused (see `--force`), and a failed apply or undo return 1, with the message on standard error, starting with "error:":
 
   ```console
   $ kitfold assign test-writer claude
@@ -420,14 +445,15 @@ kitfold profile code-reviewer claude-code --yes
 kitfold profile backend-engineer codex --project ~/work/payments-api --yes
 ```
 
-If you forget the syntax, run `kitfold help`:
+If you forget the syntax, run `kitfold help` (or `kitfold --help`, `kitfold -h`):
 
 ```console
 $ kitfold help
-kitfold status | skills [--all] | agents | plan | apply [--yes]
-kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--yes]
-kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--yes]
-kitfold history | undo [<tx-id>] [--yes]
+kitfold status | plan | apply [--yes] | profiles
+kitfold skills [--all] [--project <path>] | agents [--project <path>]
+kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans
 ```
 

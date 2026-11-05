@@ -50,9 +50,9 @@ In the Codex screenshot: code-review, k8s-debug and release-notes are linked int
 A few details:
 
 - Each group title is followed by a count, with the folder the skills are in on the right. Groups with more than 6 skills start collapsed; click the title to expand.
-- A skill that arrives through two folders appears in both groups, but the agent loads it once, and the header counts it once.
+- Each skill is listed once, under the route it actually loads through. If the agent finds the same skill in other folders too, its row says so, for example "also in ~/.agents/skills".
 - Click a skill's name to open it on the Skills page.
-- **Filter**, at the top right, filters by name. **Add** searches the skills found on this Mac (except plugin skills); click one to switch it on for this agent. You can also drag skills from the Skills page's list onto this page. A newly added skill shows "will be added" until you apply.
+- **Filter**, at the top right, filters by name. **Add** searches the skills found on this Mac (except plugin skills); click one to switch it on for this agent. You can also drag skills from the Skills page's list or matrix onto this page; they're switched on in the scope the page shows. A newly added skill shows "will be added" until you apply.
 
 ### Reading the cells
 
@@ -69,6 +69,7 @@ The cell at the start of each row is the same as in the Skills page's matrix. It
 | Blank, ⊘ | Present, but switched off in the agent's own settings |
 | Blank | Not loaded |
 | Dashed outline, + or − | Pending: switched on or off when you apply |
+| Small orange ! in the corner | A switch here that can't take effect; hover over it to see why ("This switch has no effect: …") |
 
 How to use these cells to give skills to the agents you choose is in the [next tutorial](03-assign-skills.md).
 
@@ -119,10 +120,10 @@ When problems affect this agent, an **Issues** card appears at the bottom of the
 In the demo, click **OpenCode** in the sidebar:
 
 1. The header says 12 skills, yet there is no "Linked into its skills folder" group: Kitfold has never put anything in OpenCode's own folder, `~/.config/opencode/skills`.
-2. Its skills come from two groups, both collapsed because they hold more than 6: **Through another agent's folder** (8, in `~/.claude/skills`) and **From shared folders** (10, in `~/.agents/skills`).
+2. Its skills come from two groups: **Through another agent's folder** (8, in `~/.claude/skills`, collapsed because it holds more than 6) and **From shared folders** (4, in `~/.agents/skills`).
 3. Expand **Through another agent's folder**. code-review and release-notes point to `~/.kitfold/library/skills/…`: links Kitfold made for Claude Code. The others point to `~/.agents/skills/…`: links another tool made for Claude Code. OpenCode loads all of them as well.
-4. Six skills, such as pdf-tools and deep-research, appear in both groups: the same folder, found by OpenCode along two routes. The **Issues** card at the bottom has a note: "OpenCode reaches 6 skills through two folders".
-5. Expand **How OpenCode finds skills**. `~/.claude/skills` is marked **foreign**, and its note says "OpenCode also loads Claude Code's skills unless OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1."
+4. Six of those skills, such as pdf-tools and deep-research, end with "also in ~/.agents/skills": the same folder, found by OpenCode along two routes. Each is listed once, under `~/.claude/skills`, which OpenCode reads first. The **Issues** card at the bottom has a note: "OpenCode reaches 6 skills through two folders".
+5. Expand **How OpenCode finds skills**. `~/.claude/skills` is marked **foreign**, and its note says "OpenCode also loads Claude Code's skills unless OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1." Kitfold checks that variable too; see [Troubleshooting](09-troubleshooting.md#why-does-opencode-see-claude-codes-skills).
 6. Look at **Instruction files**: `~/.config/opencode/AGENTS.md` doesn't exist (it's the Kitfold target); `~/.claude/CLAUDE.md` is loaded, marked **fallback** and "Also read by Claude Code". So whatever you write in `~/.claude/CLAUDE.md` reaches OpenCode too, and once `~/.config/opencode/AGENTS.md` exists, OpenCode stops reading `~/.claude/CLAUDE.md`. When Kitfold is about to create that file, the review warns you.
 7. The broken old-linter link from the Dashboard shows up in OpenCode's issues too, for the same reason: it's in `~/.claude/skills`.
 

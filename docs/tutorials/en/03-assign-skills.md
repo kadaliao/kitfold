@@ -44,15 +44,15 @@ Click **Matrix** at the top to see every skill × every agent on one screen:
 - The header shows how many skills each agent loads, for example Claude Code "9 loaded".
 - Check **Only skills that reach an agent** to hide skills that no agent loads.
 - The legend is at the top right: Linked, Shared folder, Via another agent, From global, Off in agent settings, Pending.
-- Click a cell to switch it. Click a skill's name to select it; switch back to **List** to see its details.
+- Click a cell to switch it. Click a skill's name to switch to **List** with that skill selected and its details on the right.
 
 The matrix is good for tidying up in bulk, or for slimming an agent's context: go down the column and switch off what it doesn't need.
 
 ## 4. Drag onto the sidebar
 
-In **List** mode, drag a skill onto an agent in the sidebar to switch it on for that agent. A message at the top confirms it, for example "Added data-viz to Gemini CLI — review to apply."
+Drag a skill from the list, or a skill's name from the matrix, onto an agent in the sidebar to switch it on for that agent. It's switched on in the scope chosen at the top of the Skills page: **Global** or a project. A message at the top confirms it, for example "Added data-viz to Gemini CLI — review to apply." or, with acme-web chosen, "Added test-writer to Codex in acme-web — review to apply." If the agent already has the skill, it says so instead: "Codex already has test-writer."
 
-Dropping on the sidebar always uses the global scope. For a project, open that agent's page, choose the project under **Showing**, and drag the skill onto the page.
+You can also drop skills onto an agent's page; they're switched on in the scope that page shows.
 
 ## 5. What Kitfold does underneath
 
@@ -94,7 +94,7 @@ Then Kitfold writes the agent's own setting, which hides the skill from that age
 | OpenCode | `"skill-name": "deny"` in `permission.skill` | `~/.config/opencode/opencode.json` |
 | Gemini CLI | the skill's name added to `skills.disabled` | `~/.gemini/settings.json` |
 
-Which file is used in a project is covered in [Per-project setups](06-projects.md). Codex reads this setting only globally, so it can't hide a skill in one project alone; when that happens, the review's "Needs attention" section says why and suggests switching it off globally instead.
+Which file is used in a project is covered in [Per-project setups](06-projects.md). Codex reads this setting only globally, so it can't hide a skill in one project alone; when that happens, the review's "Needs attention" section says why and suggests switching it off globally instead, and the cell shows a small orange "!".
 
 When Kitfold edits a settings file, only that entry changes: every other byte of the file stays, comments and formatting included. The review lists only the entries that change and never shows the file, which may hold API keys. Kitfold remembers which entries it wrote and takes them back when the rule goes away; a file it created is removed once it's empty.
 
@@ -106,9 +106,11 @@ As the previous tutorial showed, OpenCode also reads Claude Code's skills folder
 >
 > OpenCode also reads Claude Code's folder ~/.claude/skills. Switch “test-writer” off for OpenCode to keep it to Claude Code.
 
-Do as it says: on the test-writer row, click OpenCode's cell too. The review gains "Hide test-writer from OpenCode", written to OpenCode's own settings.
+Do as it says: on the test-writer row, click OpenCode's cell too. The review gains "Hide test-writer from OpenCode", written to OpenCode's own settings, and the warning goes away. Once OpenCode has its own rule for a skill, globally or in that project, Kitfold doesn't warn about it.
 
 It works the other way round as well: when a link is removed from `~/.claude/skills` and OpenCode found the skill only there, Kitfold warns "OpenCode will stop loading …". Switch it on for OpenCode to keep it.
+
+For a link in a project's `.claude/skills`, the warning names the project, as in "OpenCode will load “test-writer” too in acme-web".
 
 ## 7. Rules record only what you said
 
@@ -150,7 +152,7 @@ Kitfold deletes nothing here. deep-research reaches OpenCode through two folders
 
 ### Review and apply
 
-1. Press ⌘↩, or click **Review & Apply…**. The review lists three changes:
+1. Press ⌘↩, or click **Review & Apply…**. The review's header says "2 file changes", and it lists:
    - **Link test-writer for Codex (assigned)**: `~/.codex/skills/test-writer → ~/.kitfold/library/skills/test-writer`;
    - **Hide deep-research from OpenCode**: an edit to `~/.config/opencode/opencode.json` that adds a single entry, `permission.skill › "deep-research": "deny"`, with the note "Only these entries change; the rest of the file is kept as is.";
    - **Save assignments to kitfold.json**: records the two rules.

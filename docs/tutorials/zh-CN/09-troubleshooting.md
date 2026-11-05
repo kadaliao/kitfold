@@ -7,9 +7,9 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 - **“概览”页的“健康检查”**：列出错误和警告。打开卡片右上角的“显示提示”，还能看到提示。
 - **Agent 页面最下面的“问题”**：只列和这个 Agent 有关的问题。侧栏里 Agent 名字旁边有橙色三角时，就说明它有错误或警告。
 - **项目页面的“这个项目的问题”**：只列这个项目里的问题。
-- **预览里的“需要注意：不会自动更改”**：打开开关、准备应用时才会出现的问题。待应用栏上的“N 项待检查”是其中错误和警告的数量。
+- **预览里的“这次不会写入”和“需要注意：不会自动更改”**：打开开关、准备应用时才会出现的问题。待应用栏和预览标题上的“N 项待检查”是其中错误和警告的数量，提示不算在内。
 - **技能详情里的“问题”卡片**：技能自己的 `SKILL.md` 有毛病，见 [07 管理技能库](07-skill-library.md)。
-- **命令行**：`kitfold status` 列出错误和警告，`assign`、`profile`、`plan` 的输出里有“需要注意”。
+- **命令行**：`kitfold status` 列出错误和警告，`assign`、`profile`、`plan` 的输出里有“这次不会写入”和“需要注意”。
 
 问题分三级：错误（App 里是红色图标，命令行是 `✗`）、警告（橙色三角，`!`）、提示（灰色 ⓘ，`·`）。
 
@@ -19,7 +19,7 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 ### 技能链接“old-linter”已失效
 
-> ~/.claude/skills/old-linter → ~/.agents/skills/old-linter，目标已不存在。Claude Code, OpenCode 会静默跳过它。
+> ~/.claude/skills/old-linter → ~/.agents/skills/old-linter，目标已不存在。Claude Code、OpenCode 会静默跳过它。
 
 同一个目录里有 3 个以上失效的链接时，会合成一条，比如“~/.claude/skills 中有 3 个失效的技能链接”。
 
@@ -45,7 +45,7 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 ### OpenCode 通过两个目录重复找到 6 个技能
 
-> 通过 ~/.agents/skills, ~/.claude/skills 找到的是同一批技能目录。有些 Agent 会把它们列出两次，或者提示冲突。
+> 通过 ~/.agents/skills、~/.claude/skills 找到的是同一批技能目录。有些 Agent 会把它们列出两次，或者提示冲突。
 
 这是一条提示。
 
@@ -69,17 +69,21 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 **怎么办：** 里面那个如果只是示例或模板，就改个文件名或者移出去；如果它确实是个独立的技能，就把它挪成单独的技能目录。只是不想让某个 Agent 加载它，可以在“技能”页面为那个 Agent 关闭它，Kitfold 会写那个 Agent 自己的设置。
 
-### Profile“code-reviewer”在 Kitfold 之外被修改过
+### Profile“Code Reviewer”在 Kitfold 之外被修改过
 
 > ~/.claude/rules/kitfold.md：在你保留或放弃这处修改之前，Kitfold 不会覆盖它。
 
-预览里对应的是一个错误：“kitfold.md 在 Kitfold 之外被修改过”。
+预览里，这个文件单独列在“这次不会写入”下：
+
+> **这次不会写入 ~/.claude/rules/kitfold.md**
+>
+> 其中“Code Reviewer”的 Profile 块在 Kitfold 之外被修改过。请在 Agent 页面保留修改（写回 Profile）或覆盖它，然后再应用一次。
 
 **意思：** Kitfold 写进指令文件的 Profile 块被人直接改过了。在你做决定之前，Kitfold 不再写这个文件，其他变更照常应用。
 
 **怎么办：** 打开对应 Agent 的页面，在“指令文件”里找到这个文件，二选一：
 
-- “保留修改”：把改动拷回 Profile（Profile 的旧版本会保留），然后预览并重写这个块；
+- “保留修改”：打开预览，应用后把改动写回 Profile 并重写这个块；撤销这次应用，Profile 也会恢复；
 - “覆盖…”：预览后，用 Profile 里的内容覆盖这处修改。
 
 详见 [05 用 Profile 管理指令](05-profiles.md)。
@@ -128,7 +132,7 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 > 它在全局启用，而 Codex 只从 $CODEX_HOME/config.toml 读取 `[[skills.config]]`，所以无法只在一个项目里隐藏技能。请改为在全局关闭它。
 
-**意思：** 你在一个项目里关闭了一个全局启用的技能，但 Codex 没有项目级的开关。Claude Code、OpenCode 和 Gemini CLI 都能在单个项目里隐藏全局技能，见 [06 按项目配置](06-projects.md)。
+**意思：** 你在一个项目里关闭了一个全局启用的技能，但 Codex 没有项目级的开关。矩阵里这一格会带一个橙色的“!”；命令行的 `assign` 遇到只对 Codex 的这种规则，会拒绝保存（加 `--force` 仍会保存）。Claude Code、OpenCode 和 Gemini CLI 都能在单个项目里隐藏全局技能，见 [06 按项目配置](06-projects.md)。
 
 **怎么办：** 接受它在这个项目里仍然可见，或者在全局为 Codex 关闭它。
 
@@ -140,13 +144,15 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 > OpenCode 只在 Claude Code 的目录 ~/.claude/skills 中找到它。为 OpenCode 打开“release-notes”，它就能继续加载。
 
+在项目里，标题会写明是哪个项目，比如“在 acme-web 中，OpenCode 也会加载“test-writer””。
+
 **意思：** Kitfold 把技能链接进 Claude Code 的目录，而 OpenCode 也读这个目录，所以 OpenCode 也会拿到它。反过来，移除这个链接时，原本只经由这里看到它的 OpenCode 也会失去它。
 
-**怎么办：** 按说明做：只给 Claude Code 用，就同时为 OpenCode 关闭它（Kitfold 会写 OpenCode 的设置）；想让 OpenCode 继续用，就为 OpenCode 打开它。不处理也可以，结果就是说明里讲的那样。
+**怎么办：** 按说明做：只给 Claude Code 用，就同时为 OpenCode 关闭它（Kitfold 会写 OpenCode 的设置）；想让 OpenCode 继续用，就为 OpenCode 打开它。OpenCode 对这个技能有了自己的规则，这条提醒就会消失。不处理也可以，结果就是说明里讲的那样。
 
 ### OpenCode 也会读取 AGENTS.md
 
-> ~/work/payments-api/AGENTS.md 是共享的，所以 OpenCode 也会看到 Backend Engineer, Researcher。同一个文件里无法按 Agent 隔离。
+> ~/work/payments-api/AGENTS.md 是共享的，所以 OpenCode 也会看到 Backend Engineer、Researcher。同一个文件里无法按 Agent 隔离。
 
 **意思：** Profile 要写进的指令文件，别的 Agent 也在读。比如项目里的 `AGENTS.md`，Codex 和 OpenCode 都读，没有 `CLAUDE.md` 时 Claude Code 也读。同一个文件里的内容，没法只给其中一个 Agent 看。
 
@@ -188,17 +194,17 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 ### Gemini CLI 已有名为“test-writer”的目录
 
-> ~/.gemini/skills/test-writer 不由 Kitfold 管理，所以不会被替换。请把它导入库，或者给其中一个改名。
+> ~/.gemini/skills/test-writer 是一个不由 Kitfold 创建的真实目录，所以不会被替换。如果它只是这个技能的副本，删掉它再应用一次；否则请给其中一个改名。
 
 **意思：** 要放链接的位置已经有一个同名的真实目录。Kitfold 从不删除或替换真实目录。
 
-**怎么办：** 先看两者是不是同一个技能。是两个不同的技能，就给其中一个改名；是旧的副本，自己删掉或移走它；想让 Kitfold 接管它，在“技能”页面选中它点“移入库”（库里已经有同名技能时不行）。
+**怎么办：** 先看两者是不是同一个技能。是旧的副本，自己删掉或移走它，再应用一次；是两个不同的技能，就给其中一个改名（目录名和 `name` 一起改）。
 
 ### 其他问题
 
 | 标题 | 意思 | 怎么办 |
 |---|---|---|
-| 技能“…”不在库中 | 分配了这个技能，但哪里都找不到这个名字的目录，可能被删了或改了名 | 找回技能，或者用 `kitfold assign <技能> <Agent> --clear --yes` 清除这条分配 |
+| 技能“…”不在库中 | 分配了这个技能，但哪里都找不到这个名字的目录，可能被删了或改了名。说明里写着它分配给了哪些 Agent、在哪个项目，以及哪些 Profile 附带它，比如“它在 payments-api 中分配给了 Codex，但找不到同名的目录。Profile“Backend Engineer”包含它。” | 找回技能，或者用 `kitfold assign <技能> <Agent> --clear --yes` 清除这条分配；Profile 附带它的话，也从 Profile 里去掉 |
 | Profile“…”不存在 | 分配的 Profile 文件不见了 | 移除这个分配，或者恢复 Profile 文件。删除的 Profile 在 `~/.kitfold/backups/trash/` |
 | Kitfold 无法读取 … | Agent 的设置文件不是有效的 JSON 或 TOML，Kitfold 不会编辑它 | 修好文件再试 |
 | Kitfold 无法向 … 添加技能设置 | `config.toml` 里 `skills.config` 的写法，会被 Kitfold 追加的 `[[skills.config]]` 表破坏 | 那里改用 `[[skills.config]]` 表 |
@@ -236,9 +242,11 @@ Kitfold 能用链接时就用链接：把技能链接进 Agent 自己的技能�
 
 ### 为什么 OpenCode 能看到 Claude Code 的技能？
 
-为了兼容 Claude Code，OpenCode 除了自己的目录，还会读 `~/.claude/skills` 和项目里的 `.claude/skills`（除非设置了环境变量 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`；Kitfold 按默认行为显示，不检查这个变量）。所以凡是链接进 Claude Code 目录的技能，OpenCode 也会加载。矩阵里 OpenCode 那一列的“经由其他 Agent”图标，命令行 `kitfold skills` 里的 `◇`，说的就是这种情况。
+为了兼容 Claude Code，OpenCode 除了自己的目录，还会读 `~/.claude/skills` 和项目里的 `.claude/skills`。所以凡是链接进 Claude Code 目录的技能，OpenCode 也会加载。矩阵里 OpenCode 那一列的“经由其他 Agent”图标，命令行 `kitfold skills` 里的 `◇`，说的就是这种情况。
 
 想让某个技能只给 Claude Code 用，就在“谁会用到”里为 OpenCode 关闭它。Kitfold 会在 `opencode.json` 里写一条 `permission.skill` 把它隐藏，Claude Code 不受影响。分配时，预览里的 **OpenCode 也会加载“…”** 就是在提醒这件事。
+
+设置了环境变量 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` 或 `OPENCODE_DISABLE_CLAUDE_CODE`（值为 `1`、`true`、`yes`、`on` 或 `y`）时，OpenCode 不读 `~/.claude/skills` 和项目里的 `.claude/skills`。Kitfold 也会照此显示：OpenCode 的页面上没有这两个目录，相关的提醒也不会出现。不过 Kitfold 只看得到它自己进程里的环境变量：命令行拿到的是你 shell 里的；从访达打开的 App 看不到在 shell 配置文件里 export 的变量。
 
 ### 怎么在不碰真实配置的情况下试用？
 
@@ -258,9 +266,8 @@ Kitfold 能用链接时就用链接：把技能链接进 Agent 自己的技能�
 
 | 位置 | 内容 |
 |---|---|
-| `~/.kitfold/backups/<历史记录 ID>/` | 每次应用前，被覆盖或删除的文件的副本。在“历史记录”里展开一条，点“备份”就能在访达中看到 |
+| `~/.kitfold/backups/<历史记录 ID>/` | 每次应用前（包括保存 `SKILL.md`），被覆盖或删除的文件的副本。在“历史记录”里展开一条，点“备份”就能在访达中看到 |
 | `~/.kitfold/state.sqlite` | 历史记录本身，包括 Kitfold 改过的文件改前改后的内容。撤销靠的是它，不依赖上面的备份目录 |
-| `~/.kitfold/backups/skills/` | 在 App 里保存 `SKILL.md` 之前的旧版本 |
 | `~/.kitfold/backups/profiles/` | Profile 的历史版本，“对比”用的就是它们 |
 | `~/.kitfold/backups/trash/` | 删除的 Profile |
 
@@ -271,7 +278,7 @@ Kitfold 能用链接时就用链接：把技能链接进 Agent 自己的技能�
 - **App：** 打开“设置 › 通用 › 语言”，选“跟随 macOS”或者指定一种语言，界面立刻切换。macOS 自己画的菜单和面板，要下次打开 Kitfold 才跟着变。也可以在“系统设置 › 通用 › 语言与地区”的“应用程序”里为 Kitfold 单独设置，两边是同一个设置。
 - **命令行：** 加 `--lang zh-Hans` 或 `--lang en`，或者设环境变量 `KITFOLD_LANG`；都不设就跟随系统语言。
 
-有两样东西不会跟着变：已经写进历史记录的摘要，保持写入时的语言；来源的名称（比如“Shared (~/.agents/skills)”）是第一次打开时写进 `kitfold.json` 的，也保持原样。
+已经写进历史记录的摘要不会跟着变，保持写入时的语言。第一次打开时登记的来源，名称没改过的话会跟着界面语言显示，比如“共享目录（~/.agents/skills）”“Magpie 库”。
 
 ---
 

@@ -93,14 +93,14 @@ To switch code-review off for every agent in acme-web:
    > “code-review” stays visible to Codex in this project
    > It's enabled globally, and Codex reads `[[skills.config]]` only from $CODEX_HOME/config.toml, so a skill can't be hidden in one project alone. Switch it off globally instead.
 
-4. Click **Apply**. Those three agents' cells turn ⊘; Codex's stays ↓.
+4. Click **Apply**. Those three agents' cells turn ⊘; Codex's stays ↓, with a small orange "!" because its "off" rule can't take effect. Hover over it to read why ("This switch has no effect: …").
 
-For Codex, a skill that only some projects need shouldn't be given globally. Assign it in the projects that need it instead.
+For Codex, a skill that only some projects need shouldn't be given globally. Assign it in the projects that need it instead. On the command line, `kitfold assign code-review codex --off --project …` prints the same reason and saves nothing, because the rule wouldn't change anything; `--force` saves it anyway.
 
 Two more things:
 
 - `.claude/settings.local.json` is Claude Code's personal project settings file. OpenCode's and Gemini CLI's project settings files may well be committed to the repository: when Kitfold edits one that already exists, the review notes "If this file is committed, everyone using the repository gets this setting."
-- It works the other way too. For a skill the agent's own settings switch off globally, switching it on in one project makes Claude Code write `"on"` and OpenCode `"allow"`. Gemini CLI and Codex can't do this; the review says why and suggests switching it on globally instead.
+- It works the other way too. For a skill the agent's own settings switch off globally, switching it on in one project makes Claude Code write `"on"` and OpenCode `"allow"`. Gemini CLI and Codex can't do this; the review says why and suggests switching it on globally instead, and the cell shows the same "!".
 
 To go back, choose **Clear (leave as found)** in the same ⋯ menu and apply. Kitfold takes back the entries it wrote, and deletes a settings file it created once it's empty. Or undo that apply from History.
 
@@ -186,7 +186,7 @@ Needs attention
   ! “code-review” stays visible to Codex in this project
     It's enabled globally, and Codex reads `[[skills.config]]` only from $CODEX_HOME/config.toml, so a skill can't be hidden in one project alone. Switch it off globally instead.
 
-Apply 5 change(s)? Re-run with --yes to apply.
+Apply 4 file changes? Re-run with --yes to apply.
 ```
 
 `kitfold skills --project ~/work/acme-web` prints the project's matrix, and `kitfold agents --project ~/work/acme-web` lists the folders and instruction files each agent reads there.

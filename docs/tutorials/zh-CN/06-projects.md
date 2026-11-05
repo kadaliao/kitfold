@@ -93,9 +93,9 @@ Agent 不管在哪个目录里运行，都会加载全局配置。项目配置�
    > 在这个项目中，Codex 仍能看到“code-review”
    > 它在全局启用，而 Codex 只从 $CODEX_HOME/config.toml 读取 `[[skills.config]]`，所以无法只在一个项目里隐藏技能。请改为在全局关闭它。
 
-4. 点**应用**。之后这三个 Agent 的格子变成 ⊘，Codex 仍然是 ↓。
+4. 点**应用**。之后这三个 Agent 的格子变成 ⊘。Codex 仍然是 ↓，格子右上角带一个橙色的“!”，鼠标停在上面会显示“这个开关不起作用：…”和原因。
 
-对 Codex 来说，如果某个技能只有部分项目需要，就别在全局给它，改为只在需要的项目里分配。
+对 Codex 来说，如果某个技能只有部分项目需要，就别在全局给它，改为只在需要的项目里分配。命令行里只对 Codex 这样做（`kitfold assign code-review codex --off --project …`）时，Kitfold 会说明原因并拒绝保存，见 [08 命令行](08-command-line.md)。
 
 再注意两点：
 
@@ -158,7 +158,7 @@ $ kitfold assign design-tokens '*' --clear --project ~/work/acme-web --yes
 
 ## 10. 命令行
 
-`skills`、`agents`、`assign`、`profile` 都接受 `--project <路径>`，路径可以是相对路径或项目里的子目录，Kitfold 会换成 git 根目录。在项目里关掉一个全局技能时，预览和 App 里一样：
+`skills`、`agents`、`assign`、`profile`、`history` 都接受 `--project <路径>`，路径可以是相对路径或项目里的子目录，Kitfold 会换成 git 根目录。在项目里关掉一个全局技能时，预览和 App 里一样：
 
 ```console
 $ kitfold assign code-review '*' --off --project ~/work/acme-web
@@ -186,10 +186,10 @@ $ kitfold assign code-review '*' --off --project ~/work/acme-web
   ! 在这个项目中，Codex 仍能看到“code-review”
     它在全局启用，而 Codex 只从 $CODEX_HOME/config.toml 读取 `[[skills.config]]`，所以无法只在一个项目里隐藏技能。请改为在全局关闭它。
 
-要应用 5 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 4 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
-`kitfold skills --project ~/work/acme-web` 显示这个项目的矩阵，`kitfold agents --project ~/work/acme-web` 列出每个 Agent 在项目里扫描的目录和指令文件。
+`kitfold skills --project ~/work/acme-web` 显示这个项目的矩阵，`kitfold agents --project ~/work/acme-web` 列出每个 Agent 在项目里扫描的目录和指令文件，这两个命令也可以指向还没添加的目录。`kitfold history --project ~/work/acme-web` 只列出改动过这个项目里文件的应用。
 
 ---
 

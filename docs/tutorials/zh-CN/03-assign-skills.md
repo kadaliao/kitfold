@@ -44,15 +44,16 @@
 - 表头是每个 Agent 已加载的技能数，比如 Claude Code“已加载 9 个”。
 - 勾选**只显示实际生效的技能**，没有任何 Agent 加载的技能就不显示了。
 - 右上角是图例：链接、共享目录、经由其他 Agent、来自全局、被 Agent 设置关闭、待应用。
-- 点格子切换；点技能名会选中它，切回**列表**就能看到详情。
+- 点格子切换；点技能名会切到**列表**并选中它，右边就是它的详情。
+- 格子右上角有橙色的“!”时，说明这一格的规则不起作用，鼠标停在上面会显示原因（“这个开关不起作用：…”）。
 
 矩阵适合批量整理，或者给某个 Agent 的上下文瘦身：从上往下扫一遍，把它用不到的关掉。
 
 ## 4. 拖到侧栏
 
-在**列表**模式下，把一个技能拖到侧栏里的某个 Agent 上，就为这个 Agent 打开了它。顶部会提示，比如“已把 data-viz 添加给 Gemini CLI，预览后应用。”
+在列表或矩阵里，把技能名拖到侧栏里的某个 Agent 上，就为这个 Agent 打开了它。作用域是技能页顶部选的那个：**全局**，或者某个项目。顶部会提示，比如“已把 data-viz 添加给 Gemini CLI，预览后应用。”；在项目里是“已在 acme-web 中把 test-writer 添加给 Codex，预览后应用。”。这个 Agent 已经有它时，提示“Codex 已经有 test-writer 了。”，草稿不变。
 
-拖到侧栏的总是全局作用域。要给某个项目，先打开那个 Agent 的页面，在**显示**里选这个项目，再把技能拖到页面上。
+也可以拖到 Agent 页上，用的是那个页面**显示**里选的作用域。
 
 ## 5. Kitfold 在底下做了什么
 
@@ -94,7 +95,7 @@
 | OpenCode | `permission.skill` 里的 `"技能名": "deny"` | `~/.config/opencode/opencode.json` |
 | Gemini CLI | 把技能名加进 `skills.disabled` | `~/.gemini/settings.json` |
 
-项目里写的是哪个文件，见[按项目配置](06-projects.md)。Codex 只认全局的这项设置，所以没法只在一个项目里隐藏技能；遇到这种情况，Kitfold 会在预览的“需要注意”里说明原因，建议改在全局关闭。
+项目里写的是哪个文件，见[按项目配置](06-projects.md)。Codex 只认全局的这项设置，所以没法只在一个项目里隐藏技能；遇到这种情况，矩阵里那一格会带一个橙色的“!”，预览的“需要注意”里也会说明原因，建议改在全局关闭。
 
 改设置文件时，Kitfold 只动那一条：文件里其他内容一个字节都不变，包括注释和格式。预览里只列出要变的条目，不显示文件原文，因为设置文件里可能有 API key。Kitfold 记得哪些条目是它写的，规则撤掉时会把它们收回；文件是它新建的，空了就删掉。
 
@@ -106,7 +107,9 @@
 >
 > OpenCode 也会读取 Claude Code 的目录 ~/.claude/skills。要让它只给 Claude Code 用，请为 OpenCode 关闭“test-writer”。
 
-照着做：在 test-writer 这一行再点一下 OpenCode 的格子。预览里会多出一项“对 OpenCode 隐藏 test-writer”，写进 OpenCode 自己的设置。
+照着做：在 test-writer 这一行再点一下 OpenCode 的格子。预览里会多出一项“对 OpenCode 隐藏 test-writer”，写进 OpenCode 自己的设置，这条提醒也就没有了。OpenCode 对这个技能已经有自己的规则时，Kitfold 不会提醒。
+
+在项目里给 Claude Code 打开时，提醒会写明是哪个项目，比如“在 acme-web 中，OpenCode 也会加载“test-writer””，因为 OpenCode 也读项目里的 `.claude/skills`。
 
 反过来也一样：从 `~/.claude/skills` 删掉一个链接时，如果 OpenCode 只在那里找到过这个技能，Kitfold 会提醒“OpenCode 将不再加载……”。为 OpenCode 打开它，就能保住。
 
@@ -150,7 +153,7 @@
 
 ### 预览并应用
 
-1. 按 ⌘↩，或点**预览并应用…**。预览里有三项：
+1. 按 ⌘↩，或点**预览并应用…**。标题下写着“2 处文件变更”，列表里有三行：
    - **为 Codex 链接 test-writer（已分配）**：`~/.codex/skills/test-writer → ~/.kitfold/library/skills/test-writer`；
    - **对 OpenCode 隐藏 deep-research**：改 `~/.config/opencode/opencode.json`，只多一条 `permission.skill › "deep-research": "deny"`，并注明只有这些条目会变更，文件的其余部分保持原样；
    - **把分配保存到 kitfold.json**：记下这两条规则。

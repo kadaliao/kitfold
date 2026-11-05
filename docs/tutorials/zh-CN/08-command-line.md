@@ -15,7 +15,7 @@ ln -s "$PWD/build/Kitfold.app/Contents/Resources/kitfold" ~/.local/bin/kitfold
 
 App 挪了位置，这个链接就要重新建。
 
-App 和命令行可以混着用：命令行应用的变更会出现在 App 的“历史记录”里，可以在 App 里撤销，反过来也一样。只有一点要注意：App 启动时读取 `kitfold.json`，之后不会自己重新读取，“重新扫描”也不会。所以 App 开着的时候用命令行改了分配，回到 App 继续改之前，先退出 App 再重新打开。
+App 和命令行可以混着用：命令行应用的变更会出现在 App 的“历史记录”里，可以在 App 里撤销，反过来也一样。App 开着的时候用命令行改了分配，切回 App、点“重新扫描”或者拨下一个开关时，App 会重新读取 `kitfold.json`（命令行应用或撤销过的话，还会重新扫描），并提示“kitfold.json 在 Kitfold 之外被修改，已重新载入。”。你在 App 里还没应用的开关会保留下来；两边改了同一个开关的，以 App 里还没应用的为准。
 
 ## 先在沙盒里练
 
@@ -41,6 +41,7 @@ KITFOLD_LANG=zh-Hans make demo DIR=/tmp/kf-demo
 | `--yes`、`-y` | 真正应用或撤销。不加只预览 |
 | `--off` | 关闭（`assign`、`profile`） |
 | `--clear` | 清除规则，恢复原样（`assign`、`profile`） |
+| `--force` | 不会生效的规则也照样保存（`assign`、`profile`），见下文“不会生效的规则不保存” |
 | `--all` | 让 `skills` 也列出没有任何 Agent 加载的技能 |
 | `--lang en\|zh-Hans` | 输出语言。也可以设环境变量 `KITFOLD_LANG`；都不设就跟随系统语言 |
 | `--no-color` | 不输出颜色。输出不是终端时（管道、重定向）本来就不带颜色 |
@@ -55,7 +56,7 @@ KITFOLD_LANG=zh-Hans make demo DIR=/tmp/kf-demo
 
 ```console
 $ kitfold status
-Kitfold  ~/.kitfold  ·  库：10 个技能，3 个 Profile
+Kitfold  ~/.kitfold  ·  库：10 个技能、3 个 Profile
 
 Claude Code  已安装 2.1.318
   9 个技能生效  ·  始终加载约 274 token  ·  配置 ~/.claude
@@ -68,7 +69,7 @@ Gemini CLI   已安装 0.66.0
 
 问题（1 个警告或错误，1 条提示）
   ✗ 技能链接“old-linter”已失效
-    ~/.claude/skills/old-linter → ~/.agents/skills/old-linter，目标已不存在。Claude Code, OpenCode 会静默跳过它。
+    ~/.claude/skills/old-linter → ~/.agents/skills/old-linter，目标已不存在。Claude Code、OpenCode 会静默跳过它。
 ```
 
 不带命令直接运行 `kitfold`，效果也一样。每个 Agent 一行状态（已安装、只有配置、未找到）和版本，下面是它在全局实际生效的技能数、每次会话都会占用的上下文（技能名称和描述，加上已加载的指令文件，按每个 token 4 字节估算），以及配置目录。
@@ -155,7 +156,18 @@ OpenCode  由 Kitfold 管理
 
 指令文件按加载顺序列出，标明“已加载”“存在，未加载”或“不存在”；`[kitfold: code-reviewer]` 表示文件里有 Kitfold 写入的 Profile 块。
 
-加 `--project '~/work/payments-api'` 会列出这个项目里的目录和文件。`skills` 和 `agents` 的 `--project` 只认已经添加过的项目（在 App 里添加，或者用带 `--project` 的 `assign`、`profile` 应用过）。
+加 `--project '~/work/payments-api'` 会列出这个项目里的目录和文件。`skills` 和 `agents` 的 `--project` 可以指向任何目录，不必是已经添加过的项目。
+
+### profiles：Profile 的 id 和名称
+
+```console
+$ kitfold profiles
+backend-engineer  Backend Engineer  Go services, infra and on-call
+code-reviewer     Code Reviewer  Strict, evidence-based reviews
+researcher        Researcher  Sourced answers, clear charts
+```
+
+每行依次是 id、名称和描述。`profile` 命令要用的是 id。
 
 ### plan：磁盘和 kitfold.json 一致吗
 
@@ -169,7 +181,7 @@ $ kitfold plan
 ## 分配技能：assign
 
 ```
-kitfold assign <技能> <Agent> [--off | --clear] [--project <路径>] [--yes]
+kitfold assign <技能> <Agent> [--off | --clear] [--project <路径>] [--force] [--yes]
 ```
 
 Agent 用它的 ID：`claude-code`、`codex`、`opencode`、`gemini-cli`；`'*'` 或 `all` 表示所有 Agent（`*` 要加引号，免得被 shell 展开）。
@@ -185,7 +197,7 @@ $ kitfold assign test-writer codex
   ~ 修改 ~/.kitfold/kitfold.json
     把分配保存到 kitfold.json
 
-要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 1 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 每处变更前面的标记：
@@ -224,7 +236,7 @@ $ kitfold assign deep-research opencode --off
   ~ 修改 ~/.kitfold/kitfold.json
     把分配保存到 kitfold.json
 
-要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 1 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 OpenCode 是通过 `~/.claude/skills` 和共享目录 `~/.agents/skills` 看到 `deep-research` 的，这两个目录别的 Agent 也在读，删掉链接或目录会连累它们。所以 Kitfold 改的是 OpenCode 自己的设置，而且只改这一条。设置文件只显示变化的条目，不显示原文（里面可能有 API key）。原因详见 [03 把技能分给指定的 Agent](03-assign-skills.md)。
@@ -240,7 +252,7 @@ $ kitfold assign test-writer codex --clear
   ~ 修改 ~/.kitfold/kitfold.json
     把分配保存到 kitfold.json
 
-要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 1 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 对一个本来就没有规则的技能用 `--clear`，结果就是“无需更改。”。
@@ -259,18 +271,40 @@ $ kitfold assign perf-profiler gemini-cli --project '~/work/acme-web'
   ~ 修改 ~/.kitfold/kitfold.json
     把分配保存到 kitfold.json
 
-要应用 3 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 链接放在项目自己的 `.gemini/skills` 里，只在这个项目中生效；Kitfold 还会把它写进 `.git/info/exclude`，免得被提交。如果这个目录还不是 Kitfold 的项目，应用时会顺便添加。项目的更多细节见 [06 按项目配置](06-projects.md)。
 
+### 不会生效的规则不保存
+
+`assign` 和 `profile` 不保存注定不起作用的规则：技能或 Profile 不存在，或者有东西挡着、这条规则不会带来任何变化时，命令什么都不保存，返回 1，并说明原因。比如 Codex 没法只在一个项目里隐藏全局技能：
+
+```console
+$ kitfold assign code-review codex --off --project '~/work/acme-web'
+  ! 在这个项目中，Codex 仍能看到“code-review”
+    它在全局启用，而 Codex 只从 $CODEX_HOME/config.toml 读取 `[[skills.config]]`，所以无法只在一个项目里隐藏技能。请改为在全局关闭它。
+错误：没有保存：这条规则不会带来任何变化。加 --force 仍会保存。
+```
+
+名字写错时也一样：
+
+```console
+$ kitfold assign no-such-skill codex
+错误：没有名为 no-such-skill 的技能。kitfold skills --all 会列出所有技能；加 --force 仍会保存这条规则。
+$ kitfold profile reviewer codex
+错误：没有 id 为 reviewer 的 Profile（现有：backend-engineer、code-reviewer、researcher）。加 --force 仍会保存这条规则。
+```
+
+确实想留下这条规则（比如技能稍后才会放进库里），加 `--force`。`--clear` 不受这个限制。
+
 ## 分配 Profile：profile
 
 ```
-kitfold profile <Profile ID> <Agent> [--off | --clear] [--project <路径>] [--yes]
+kitfold profile <Profile ID> <Agent> [--off | --clear] [--project <路径>] [--force] [--yes]
 ```
 
-Profile ID 是它在 `~/.kitfold/library/profiles/` 里的文件名，不是显示名称：演示数据里是 `code-reviewer`、`backend-engineer`、`researcher`。
+Profile ID 是它在 `~/.kitfold/library/profiles/` 里的文件名，不是显示名称：演示数据里是 `code-reviewer`、`backend-engineer`、`researcher`。`kitfold profiles` 会列出来。
 
 ```console
 $ kitfold profile researcher gemini-cli
@@ -285,11 +319,11 @@ $ kitfold profile researcher gemini-cli
     + 
       # Gemini
   + 链接 ~/.gemini/skills/data-viz → ~/.kitfold/library/skills/data-viz
-    为 Gemini CLI 链接 data-viz（通过 Profile“researcher”）
+    为 Gemini CLI 链接 data-viz（通过 Profile“Researcher”）
   ~ 修改 ~/.kitfold/kitfold.json
     把分配保存到 kitfold.json
 
-要应用 3 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 Profile 以一个带标记的块写进 Agent 自己的指令文件，文件原有的内容不动。它附带的技能也会一起分配：`data-viz` 要建链接；`deep-research` 已经能通过 `~/.agents/skills` 看到，就不用再建。
@@ -302,7 +336,7 @@ $ kitfold profile code-reviewer '*' --project '~/work/acme-web'
     创建 ~/work/acme-web/.claude/rules/kitfold.md，写入 Code Reviewer — 由 Claude Code 读取
   …
   + 文件 ~/work/acme-web/AGENTS.md
-    创建 ~/work/acme-web/AGENTS.md，写入 Code Reviewer — 由 Codex, OpenCode 读取
+    创建 ~/work/acme-web/AGENTS.md，写入 Code Reviewer — 由 Codex、OpenCode 读取
   + 文件 ~/work/acme-web/GEMINI.md
     创建 ~/work/acme-web/GEMINI.md，写入 Code Reviewer — 由 Gemini CLI 读取
   ~ 修改 ~/.kitfold/kitfold.json
@@ -312,7 +346,7 @@ $ kitfold profile code-reviewer '*' --project '~/work/acme-web'
   ! OpenCode 将不再读取 CLAUDE.md
     因为 ~/work/acme-web/AGENTS.md 不存在，OpenCode 目前会回退到 ~/work/acme-web/CLAUDE.md。创建它之后就不会了。
 
-要应用 5 处文件变更吗？加上 --yes 重新运行即可应用。
+要应用 4 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 “需要注意”里的事情不会自动改，要你自己判断。各种提示的意思见 [09 常见问题与排错](09-troubleshooting.md)。
@@ -329,7 +363,7 @@ $ kitfold history
 …
 ```
 
-每次应用或撤销都是一条，最新的在最上面。开头是它的 ID，后面是摘要和操作数。摘要用写入时的语言保存，之后切换语言也不会变。
+每次应用或撤销都是一条，最新的在最上面。开头是它的 ID，后面是摘要和操作数。摘要用写入时的语言保存，之后切换语言也不会变。加 `--project <路径>` 只列出改动过这个项目里文件的应用。
 
 ### undo
 
@@ -398,11 +432,11 @@ $ kitfold apply --yes
 ## 在脚本里使用
 
 - **先预览，后 `--yes`。** 不加 `--yes` 的命令从不写入，可以放心在脚本里先跑一遍看结果。
-- **退出码。** 成功和预览都返回 0。用法错误、未知的命令或 Agent、应用或撤销失败时返回 1，错误信息写到标准错误，以“错误：”开头：
+- **退出码。** 成功和预览都返回 0。用法错误、未知的命令或 Agent、不存在的技能或 Profile、不会生效的规则（没加 `--force` 时）、应用或撤销失败时返回 1，错误信息写到标准错误，以“错误：”开头：
 
   ```console
   $ kitfold assign test-writer claude
-  错误：未知的 Agent claude（可选：claude-code, codex, opencode, gemini-cli, *）
+  错误：未知的 Agent claude（可选：claude-code、codex、opencode、gemini-cli、*）
   ```
 
   `status` 和 `plan` 即使列出了问题，也返回 0。
@@ -420,14 +454,15 @@ kitfold profile code-reviewer claude-code --yes
 kitfold profile backend-engineer codex --project ~/work/payments-api --yes
 ```
 
-忘了用法就运行 `kitfold help`：
+忘了用法就运行 `kitfold help`（或者 `kitfold --help`、`kitfold -h`）：
 
 ```console
 $ kitfold help
-kitfold status | skills [--all] | agents | plan | apply [--yes]
-kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--yes]
-kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--yes]
-kitfold history | undo [<tx-id>] [--yes]
+kitfold status | plan | apply [--yes] | profiles
+kitfold skills [--all] [--project <path>] | agents [--project <path>]
+kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 选项：--home <dir>（沙盒 $HOME）、--no-color、--lang en|zh-Hans
 ```
 

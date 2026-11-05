@@ -39,7 +39,7 @@ If `~/.agents/skills` exists, Kitfold registers it as a skill source; if Magpie 
 
 Nothing else on disk changes. The agents' skills folders, instruction files and settings files change only after you flip a switch, look at the preview and click **Apply**, and every apply can be undone. Actions in Settings (adding a project or a source, changing a preference) only touch `kitfold.json` and are saved right away.
 
-Kitfold doesn't run in the background or watch files. If you install a skill from the terminal or change an agent's config, click **Rescan** in the toolbar (⌘R).
+Kitfold doesn't run in the background or watch files. If you install a skill from the terminal or change an agent's config, click **Rescan** in the toolbar (⌘R). If you change `kitfold.json` with the command line or an editor, Kitfold reloads it when you switch back to the app.
 
 ## Try it on the demo data first (optional)
 
@@ -67,7 +67,7 @@ The sidebar, from top to bottom:
 
 The toolbar at the top right has two buttons: **Rescan** (⌘R) and **Quick Open** (⌘K). A spinner shows next to them while Kitfold scans.
 
-When you have changes that aren't applied yet, a bar appears at the bottom of the window. On the left it says "N file changes pending", plus "N to check" when something needs a look; on the right are **Discard** and **Review & Apply…** (⌘↩). Every switch in Kitfold only changes a draft; nothing is written until you review and confirm it here. See [Review, apply, undo](04-review-apply-undo.md).
+When you have changes that aren't applied yet, a bar appears at the bottom of the window. On the left it says "N file changes pending", plus "N to check" when something needs a look; on the right are **Discard** (when you've flipped switches) and **Review & Apply…** (⌘↩). Every switch in Kitfold only changes a draft; nothing is written until you review and confirm it here. See [Review, apply, undo](04-review-apply-undo.md).
 
 ## 4. The Dashboard
 
@@ -85,7 +85,7 @@ In the demo, Health reports a broken link, "old-linter": `~/.claude/skills/old-l
 
 ![Quick Open over the Dashboard, with common actions at the top](../images/en/palette.jpg)
 
-Press ⌘K, or click the magnifying glass in the toolbar. With nothing typed, the list starts with common actions: **Review changes**, **Rescan**, **New profile**, **New skill**, then **Dashboard**, **History**, and each agent and project. Type a few letters to find any skill, profile, agent or project.
+Press ⌘K, or click the magnifying glass in the toolbar. With nothing typed, the list starts with common actions: **Review changes**, **Rescan**, **New Profile**, **New Skill**, then the pages to go to (**Dashboard**, **Skills**, **Profiles**, **History**) and each agent. Type a few letters to find any skill, profile, agent or project.
 
 - ↑ ↓ to choose, ↩ to run, Esc to close.
 - The gray text on the right is searched too: type "plugin" to list every plugin skill, or "project" to list every project.

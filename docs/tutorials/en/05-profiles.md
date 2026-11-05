@@ -38,12 +38,12 @@ If you set `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, or changed a config folder in **
 
 ## 3. Create a profile
 
-1. Press ⌘N. You can also click ＋ at the bottom of the profile list, or choose **New profile** in Quick Open (⌘K).
+1. Press ⌘N. You can also click ＋ at the bottom of the profile list, or choose **New Profile** in Quick Open (⌘K).
 2. Fill in the name and a short description, then click **Create**.
 
 A new profile's body is just a `## <name>` heading. Its order is 100, and it isn't assigned to any agent yet.
 
-Kitfold derives an id from the name: Code Reviewer becomes `code-reviewer`. The id is the file name in the library and the `profile=` in the block markers, and it stays the same if you rename the profile later. History and the command line use the id.
+Kitfold derives an id from the name: Code Reviewer becomes `code-reviewer`. The id is the file name in the library and the `profile=` in the block markers, and it stays the same if you rename the profile later. The app shows profiles by name; the command line takes the id, and `kitfold profiles` lists each id with its name.
 
 ## 4. Edit
 
@@ -60,14 +60,14 @@ Under each profile in the list are the logos of the agents it's assigned to and 
 
 Click **Save** (⌘S) when you're done. Saving writes the profile file in the library right away and keeps the previous version (in `~/.kitfold/backups/profiles/<id>/`), which you'll find under **Compare**.
 
-**Agents' files change only when you apply.** Note that the pending bar appears only when assignments change, not when you edit a profile's content. So after saving, press ⌘K, choose **Review changes**, check the diff for each file, and click **Apply**. On the command line, that's `kitfold apply`.
+**Agents' files change only when you apply.** After you save a profile that's assigned to an agent, the pending bar shows the files that need the new text, such as "1 file change pending". Press ⌘↩ or click **Review & Apply…**, check the diff for each file, and click **Apply**. The bar has no **Discard** here: the saved profile is the change. On the command line, that's `kitfold apply`.
 
 ### How the attached skills are given out
 
 When a profile is assigned to an agent, its skills are given to that agent in the same scope, as if you had switched them on yourself:
 
 - if the agent already sees the skill (from a shared folder, say), nothing happens;
-- if not, it's linked into the agent's own skills folder, shown in the review as "Link data-viz for Claude Code (via profile “researcher”)";
+- if not, it's linked into the agent's own skills folder, shown in the review as "Link data-viz for Claude Code (via profile “Researcher”)";
 - if you explicitly switched that skill off for the agent, your switch wins.
 
 Unassign the profile and Kitfold takes back the links it made because of it.
@@ -122,12 +122,12 @@ These are warnings; they don't block the apply. The four global files are indepe
 
 If you or another tool edit the text inside a block, the fingerprint no longer matches. Kitfold points this out in several places:
 
-- **Health** on the Dashboard and **Issues** on the agent's page: "Profile “code-reviewer” was edited outside Kitfold";
-- under **Instruction files** on the agent's page, the block's tag turns orange, with the line "“code-reviewer” was edited here outside Kitfold." and two buttons:
-  - **Keep edit** saves the edited text from the file into the profile (the previous body stays available as a saved version under **Compare**), then opens a review that rewrites the block. If the profile is also written to other files, they get the new text in the same review.
+- **Health** on the Dashboard and **Issues** on the agent's page: "Profile “Code Reviewer” was edited outside Kitfold";
+- under **Instruction files** on the agent's page, the block's tag turns orange, with the line "“Code Reviewer” was edited here outside Kitfold." and two buttons:
+  - **Keep edit** opens a review that copies the edited text from the file into the profile ("Copy the edit into profile “Code Reviewer”") and rewrites the block. If the profile is also written to other files, they get the new text in the same review. The profile is written only when you apply; **Cancel** changes nothing, and undoing the apply puts the old profile back too.
   - **Overwrite…** opens a review that puts the profile's text back over the edit. The row is marked caution, with the note "Overwrites edits made outside Kitfold"; the file is backed up first, and you can undo it.
 
-Until you choose, Kitfold won't write that file. Every review lists "kitfold.md was edited outside Kitfold" under **Needs attention**, and the other changes in the same apply go ahead.
+Until you choose, Kitfold won't write that file. Every review lists it under **Not written this time**, as in "~/.claude/rules/kitfold.md won't be written", and the other changes in the same apply go ahead. The command line prints the same under a "Not written this time" heading.
 
 Edits outside the markers don't count as outside edits; Kitfold leaves them alone.
 
@@ -162,10 +162,10 @@ $ kitfold profile code-reviewer codex
   ~ edit ~/.kitfold/kitfold.json
     Save assignments to kitfold.json
 
-Apply 2 change(s)? Re-run with --yes to apply.
+Apply 1 file change? Re-run with --yes to apply.
 ```
 
-- It takes the id, not the name.
+- It takes the id, not the name. `kitfold profiles` lists the ids. An id that doesn't exist is refused and nothing is saved; `--force` saves the rule anyway.
 - `'*'` means all agents, `--project <path>` assigns in one project only, `--clear` removes the rule, and `--yes` actually applies.
 - `kitfold agents` marks files that hold Kitfold blocks with `[kitfold: code-reviewer]`.
 - After saving a profile edit in the app, `kitfold apply` writes the new text into the files it's assigned to.

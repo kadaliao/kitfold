@@ -94,6 +94,7 @@ swift run kitfold agents                          # folders each agent scans, fi
 swift run kitfold assign pdf-tools codex          # preview giving a skill to Codex
 swift run kitfold assign pdf-tools codex --yes    # …and apply it
 swift run kitfold profile code-reviewer '*' --project ~/work/app --yes
+swift run kitfold profiles                        # profile ids, for `kitfold profile`
 swift run kitfold history
 swift run kitfold undo --yes                      # undo the last apply
 swift run kitfold --home /tmp/sandbox status      # try anything against a sandbox $HOME
