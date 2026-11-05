@@ -125,18 +125,22 @@ struct ReachCell: View {
     }
 
     private var helpText: String {
-        let pending = state.pending ? (on ? " — will be switched on" : " — will be switched off") : ""
+        guard state.pending else { return reachText }
+        return on ? L("\(reachText) — will be switched on") : L("\(reachText) — will be switched off")
+    }
+
+    private var reachText: String {
         switch state.reach {
-        case .off: return "Not loaded" + pending
-        case .kitfoldLink: return "Linked by Kitfold" + pending
-        case .otherLink: return "Linked (by another tool or by hand)" + pending
-        case .localFolder: return "A real folder in the agent's skills directory" + pending
-        case .shared: return "Loaded from a shared folder the agent reads directly" + pending
-        case .viaOtherAgent: return "Loaded through another agent's skills folder" + pending
-        case .inherited: return "Enabled globally" + pending
-        case .plugin: return "From a plugin" + pending
-        case .nested: return "Nested inside another skill's folder; the agent loads it as its own skill" + pending
-        case .disabledNatively: return "Present but switched off in the agent's own settings" + pending
+        case .off: return L("Not loaded")
+        case .kitfoldLink: return L("Linked by Kitfold")
+        case .otherLink: return L("Linked (by another tool or by hand)")
+        case .localFolder: return L("A real folder in the agent's skills directory")
+        case .shared: return L("Loaded from a shared folder the agent reads directly")
+        case .viaOtherAgent: return L("Loaded through another agent's skills folder")
+        case .inherited: return L("Enabled globally")
+        case .plugin: return L("From a plugin")
+        case .nested: return L("Nested inside another skill's folder; the agent loads it as its own skill")
+        case .disabledNatively: return L("Present but switched off in the agent's own settings")
         }
     }
 }
@@ -182,7 +186,7 @@ struct PathLabel: View {
                 Image(systemName: "arrow.up.forward.square")
             }
             .buttonStyle(.borderless)
-            .help("Reveal in Finder")
+            .help(L("Reveal in Finder"))
         }
     }
 }
@@ -224,12 +228,23 @@ extension SkillOrigin {
 
     var label: String {
         switch self {
-        case .library: return "Library"
-        case .source: return "Source"
-        case .agentLocal: return "Local folder"
-        case .external: return "Linked folder"
-        case .bundled: return "Plugin"
-        case .nested: return "Nested"
+        case .library: return L("Library")
+        case .source: return L("Source")
+        case .agentLocal: return L("Local folder")
+        case .external: return L("Linked folder")
+        case .bundled: return L("Plugin")
+        case .nested: return L("Nested")
+        }
+    }
+    /// Where the kind is listed in summaries: the library first, plugins last.
+    var rank: Int {
+        switch self {
+        case .library: return 0
+        case .source: return 1
+        case .agentLocal: return 2
+        case .external: return 3
+        case .nested: return 4
+        case .bundled: return 5
         }
     }
     var symbol: String {

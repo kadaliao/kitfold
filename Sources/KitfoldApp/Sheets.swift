@@ -27,8 +27,9 @@ struct InstructionEditor: View {
             .padding(16)
             if !ManagedBlock.findAll(in: original).isEmpty {
                 Label(
-                    "Parts of this file are Kitfold profile blocks. Edit those in Profiles; changes made here are detected and won't be overwritten silently.",
-                    systemImage: "person.text.rectangle"
+                    L(
+                        "Parts of this file are Kitfold profile blocks. Edit those in Profiles; changes made here are detected and won't be overwritten silently."
+                    ), systemImage: "person.text.rectangle"
                 )
                 .font(.caption).foregroundStyle(.purple)
                 .padding(.horizontal, 16).padding(.bottom, 8)
@@ -36,7 +37,7 @@ struct InstructionEditor: View {
             let foreign = ManagedBlock.foreignBlocks(in: original)
             if !foreign.isEmpty {
                 Label(
-                    "Contains blocks written by \(foreign.joined(separator: ", ")). That tool may rewrite them.",
+                    L("Contains blocks written by \(foreign.joined(separator: ", ")). That tool may rewrite them."),
                     systemImage: "exclamationmark.triangle"
                 )
                 .font(.caption).foregroundStyle(.orange)
@@ -44,7 +45,7 @@ struct InstructionEditor: View {
             }
             Divider()
             if reviewing {
-                ScrollView { DiffView(old: original, new: text, oldLabel: "on disk", newLabel: "your edit").padding(16) }
+                ScrollView { DiffView(old: original, new: text, oldLabel: L("on disk"), newLabel: L("your edit")).padding(16) }
             } else {
                 TextEditor(text: $text)
                     .font(.system(.body, design: .monospaced))
@@ -53,22 +54,25 @@ struct InstructionEditor: View {
             }
             Divider()
             HStack {
-                Text(original.isEmpty && !FS.exists(target.path) ? "New file" : "\(text.utf8.count.formatted(.byteCount(style: .file)))")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    original.isEmpty && !FS.exists(target.path)
+                        ? L("New file") : text.utf8.count.formatted(.byteCount(style: .file).locale(Localization.language.locale))
+                )
+                .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(L("Cancel")) { dismiss() }.keyboardShortcut(.cancelAction)
                 if reviewing {
-                    Button("Back to Editing") { reviewing = false }
-                    Button("Apply") {
+                    Button(L("Back to Editing")) { reviewing = false }
+                    Button(L("Apply")) {
                         guard let ws = model.workspace else { return }
                         let plan = ws.planEdit(path: target.path, newText: text, agents: target.agents, scope: target.scope)
-                        model.perform(plan, summary: "Edit \(model.ab(target.path))", keepDraft: true)
+                        model.perform(plan, summary: L("Edit \(model.ab(target.path))"), keepDraft: true)
                         dismiss()
                     }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                 } else {
-                    Button("Review…") { reviewing = true }
+                    Button(L("Review…")) { reviewing = true }
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut("s")
                         .disabled(text == original)
@@ -94,22 +98,24 @@ struct NewItemSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(kind == .profile ? "New Profile" : "New Skill").font(.title3.weight(.semibold))
+            Text(kind == .profile ? L("New Profile") : L("New Skill")).font(.title3.weight(.semibold))
             Text(
                 kind == .profile
-                    ? "A reusable set of instructions (and skills) you can give to any agent or project."
-                    : "Creates a SKILL.md in the Kitfold library. It isn't given to any agent until you assign it."
+                    ? L("A reusable set of instructions (and skills) you can give to any agent or project.")
+                    : L("Creates a SKILL.md in the Kitfold library. It isn't given to any agent until you assign it.")
             )
             .font(.callout).foregroundStyle(.secondary)
-            TextField(kind == .profile ? "Name (e.g. Backend Developer)" : "Name (e.g. release-notes)", text: $name)
+            TextField(kind == .profile ? L("Name (e.g. Backend Developer)") : L("Name (e.g. release-notes)"), text: $name)
                 .textFieldStyle(.roundedBorder)
-            TextField(kind == .profile ? "Short description" : "When should an agent use it?", text: $description, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(2...4)
+            TextField(
+                kind == .profile ? L("Short description") : L("When should an agent use it?"), text: $description, axis: .vertical
+            )
+            .textFieldStyle(.roundedBorder)
+            .lineLimit(2...4)
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Create") {
+                Button(L("Cancel")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(L("Create")) {
                     if kind == .profile {
                         model.createProfile(name: name, description: description)
                     } else {
@@ -144,43 +150,50 @@ struct CommandPalette: View {
 
     var items: [Item] {
         var out: [Item] = [
-            Item(id: "a:review", title: "Review changes", subtitle: "Action", symbol: "checklist") { model.showReview = true },
-            Item(id: "a:rescan", title: "Rescan", subtitle: "Action", symbol: "arrow.clockwise") { model.rescan() },
-            Item(id: "a:profile", title: "New profile", subtitle: "Action", symbol: "person.text.rectangle") {
+            Item(id: "a:review", title: L("Review changes"), subtitle: L("Action"), symbol: "checklist") { model.showReview = true },
+            Item(id: "a:rescan", title: L("Rescan"), subtitle: L("Action"), symbol: "arrow.clockwise") { model.rescan() },
+            Item(id: "a:profile", title: L("New profile"), subtitle: L("Action"), symbol: "person.text.rectangle") {
                 model.showNewProfile = true
             },
-            Item(id: "a:skill", title: "New skill", subtitle: "Action", symbol: "sparkles") { model.showNewSkill = true },
-            Item(id: "a:dash", title: "Dashboard", subtitle: "Go to", symbol: "square.grid.2x2") { model.selection = .dashboard },
-            Item(id: "a:history", title: "History", subtitle: "Go to", symbol: "clock.arrow.circlepath") { model.selection = .history },
+            Item(id: "a:skill", title: L("New skill"), subtitle: L("Action"), symbol: "sparkles") { model.showNewSkill = true },
+            Item(id: "a:dash", title: L("Dashboard"), subtitle: L("Go to"), symbol: "square.grid.2x2") { model.selection = .dashboard },
+            Item(id: "a:history", title: L("History"), subtitle: L("Go to"), symbol: "clock.arrow.circlepath") {
+                model.selection = .history
+            },
         ]
         for a in model.agents {
             out.append(
-                Item(id: "g:" + a.id.rawValue, title: a.adapter.name, subtitle: "Agent", symbol: "cpu") { model.selection = .agent(a.id) })
+                Item(id: "g:" + a.id.rawValue, title: a.adapter.name, subtitle: L("Agent"), symbol: "cpu") {
+                    model.selection = .agent(a.id)
+                })
         }
         for p in model.draft.projects {
             out.append(
-                Item(id: "p:" + p.path, title: p.name, subtitle: "Project · " + model.ab(p.path), symbol: "folder") {
+                Item(id: "p:" + p.path, title: p.name, subtitle: L("Project · \(model.ab(p.path))"), symbol: "folder") {
                     model.selection = .project(p.path)
                 })
         }
         for p in model.profiles {
             out.append(
-                Item(id: "r:" + p.id, title: p.name, subtitle: "Profile", symbol: "person.text.rectangle") {
+                Item(id: "r:" + p.id, title: p.name, subtitle: L("Profile"), symbol: "person.text.rectangle") {
                     model.selectedProfileID = p.id
                     model.selection = .profiles
                 })
         }
         for e in model.snapshot?.catalog ?? [] {
             out.append(
-                Item(id: "s:" + e.path, title: e.name, subtitle: "Skill · \(e.origin.label)", symbol: "sparkles") {
+                Item(id: "s:" + e.path, title: e.name, subtitle: L("Skill · \(e.origin.label)"), symbol: "sparkles") {
                     model.selectedSkillPath = e.path
                     model.selection = .skills
                 })
         }
-        guard !query.isEmpty else { return Array(out.prefix(12)) }
-        let q = query.lowercased()
-        return out.filter { $0.title.lowercased().contains(q) || $0.subtitle.lowercased().contains(q) }
-            .sorted { ($0.title.lowercased().hasPrefix(q) ? 0 : 1) < ($1.title.lowercased().hasPrefix(q) ? 0 : 1) }
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return Array(out.prefix(12)) }
+        // Match the text as shown, in either language; full-width letters typed through a Chinese input method count too.
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]
+        func starts(_ s: String) -> Bool { s.range(of: q, options: options.union(.anchored)) != nil }
+        return out.filter { $0.title.range(of: q, options: options) != nil || $0.subtitle.range(of: q, options: options) != nil }
+            .sorted { (starts($0.title) ? 0 : 1) < (starts($1.title) ? 0 : 1) }
             .prefix(40).map { $0 }
     }
 
@@ -191,7 +204,7 @@ struct CommandPalette: View {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search skills, profiles, agents, projects, actions", text: $query)
+                    TextField(L("Search skills, profiles, agents, projects, actions"), text: $query)
                         .textFieldStyle(.plain)
                         .font(.title3)
                         .focused($focused)
@@ -277,11 +290,13 @@ struct ProjectView: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text(model.projectName(scope)).font(.system(size: 22, weight: .semibold, design: .rounded))
                             Spacer()
-                            Button("Remove from Kitfold") { model.removeProject(path) }.controlSize(.small)
+                            Button(L("Remove from Kitfold")) { model.removeProject(path) }.controlSize(.small)
                         }
                         PathLabel(path: path)
                         Text(
-                            "Agents load their global setup everywhere. Assignments here add skills and profiles for this project only, in folders only that agent reads. Kitfold keeps its files here out of git via .git/info/exclude."
+                            L(
+                                "Agents load their global setup everywhere. Assignments here add skills and profiles for this project only, in folders only that agent reads. Kitfold keeps its files here out of git via .git/info/exclude."
+                            )
                         )
                         .font(.callout).foregroundStyle(.secondary)
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
@@ -293,47 +308,66 @@ struct ProjectView: View {
                                         AgentBadge(adapter: a.adapter, size: 22)
                                         Text(a.adapter.name).font(.headline)
                                     }
-                                    Text("\(est.skillCount) skills here (\(local) project-only)").font(.callout)
+                                    Text(
+                                        est.skillCount == 1
+                                            ? L("1 skill here (\(local) project-only)")
+                                            : L("\(est.skillCount) skills here (\(local) project-only)")
+                                    )
+                                    .font(.callout)
                                     let files = a.state(scope).loadedInstructions
                                     ForEach(files) { f in
                                         HStack {
                                             Image(systemName: "doc.text.fill").foregroundStyle(a.adapter.tint)
                                             Text(FS.relativePath(from: path, to: f.file.path)).font(.caption.monospaced())
                                             Spacer()
-                                            Button("Edit") {
+                                            Button(L("Edit")) {
                                                 model.editingInstruction = .init(
                                                     path: f.file.path, agents: [a.id] + f.sharedWith, scope: scope)
                                             }
                                             .controlSize(.mini)
                                         }
                                     }
-                                    if files.isEmpty { Text("No project instruction files").font(.caption).foregroundStyle(.secondary) }
+                                    if files.isEmpty { Text(L("No project instruction files")).font(.caption).foregroundStyle(.secondary) }
                                 }
                             }
                         }
                         let issues = snap.issues.filter { $0.scope == scope }
                         if !issues.isEmpty {
                             Card {
-                                SectionTitle(title: "Issues in this project")
+                                SectionTitle(title: L("Issues in this project"))
                                 ForEach(issues) { IssueRow(issue: $0) }
                             }
                         }
                         Card {
-                            SectionTitle(title: "Profiles for this project")
+                            SectionTitle(title: L("Profiles for this project"))
                             ProjectProfiles(scope: scope)
                         }
                     }
                     .padding(20)
                 }
-                .frame(maxHeight: showMatrix ? 420 : .infinity)
+                .frame(minHeight: showMatrix ? 220 : nil, maxHeight: showMatrix ? 420 : .infinity)
                 Divider()
-                DisclosureGroup(isExpanded: $showMatrix) {
-                    AssignmentMatrix(scope: scope, names: snap.skillNames)
+                // Not a DisclosureGroup: it sizes its content to fit, so the matrix would stop scrolling and
+                // push the page past the window.
+                Button {
+                    withAnimation(.snappy) { showMatrix.toggle() }
                 } label: {
-                    Text("Skills in this project").font(.headline)
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(showMatrix ? 90 : 0))
+                        Text(L("Skills in this project")).font(.headline)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                if showMatrix {
+                    AssignmentMatrix(scope: scope, names: snap.skillNames)
+                        .padding(.horizontal, 16)
+                }
             }
             .navigationTitle(model.projectName(scope))
         }
@@ -346,7 +380,7 @@ struct ProjectProfiles: View {
 
     var body: some View {
         if model.profiles.isEmpty {
-            Text("No profiles yet.").foregroundStyle(.secondary)
+            Text(L("No profiles yet.")).foregroundStyle(.secondary)
         }
         Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
             GridRow {
@@ -380,8 +414,8 @@ struct HistoryView: View {
         List {
             if history.isEmpty {
                 ContentUnavailableView(
-                    "No changes yet", systemImage: "clock.arrow.circlepath",
-                    description: Text("Everything Kitfold applies shows up here and can be undone."))
+                    L("No changes yet"), systemImage: "clock.arrow.circlepath",
+                    description: Text(L("Everything Kitfold applies shows up here and can be undone.")))
             }
             ForEach(history) { tx in
                 DisclosureGroup {
@@ -390,7 +424,7 @@ struct HistoryView: View {
                             Text(op.summary).font(.callout)
                             Spacer()
                             if let b = op.backupPath {
-                                Button("Backup") { model.reveal(b) }.buttonStyle(.link).font(.caption)
+                                Button(L("Backup")) { model.reveal(b) }.buttonStyle(.link).font(.caption)
                             }
                         }
                     }
@@ -399,17 +433,15 @@ struct HistoryView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
                                 Text(tx.summary).font(.body.weight(.medium))
-                                if tx.kind == "undo" { Pill(text: "undo", systemImage: "arrow.uturn.backward") }
-                                if tx.undoneBy != nil { Pill(text: "undone", color: .secondary) }
+                                if tx.kind == "undo" { Pill(text: L("undo"), systemImage: "arrow.uturn.backward") }
+                                if tx.undoneBy != nil { Pill(text: L("undone"), color: .secondary) }
                             }
-                            Text(
-                                "\(tx.createdAt.formatted(date: .abbreviated, time: .standard)) · \(tx.operations.count) operation\(tx.operations.count == 1 ? "" : "s")"
-                            )
-                            .font(.caption).foregroundStyle(.secondary)
+                            Text(details(tx))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         if tx.canUndo {
-                            Button("Undo…") { confirm = tx }.controlSize(.small)
+                            Button(L("Undo…")) { confirm = tx }.controlSize(.small)
                         }
                     }
                 }
@@ -417,14 +449,21 @@ struct HistoryView: View {
             }
         }
         .listStyle(.inset)
-        .navigationTitle("History")
+        .navigationTitle(L("History"))
         .confirmationDialog(
-            "Undo “\(confirm?.summary ?? "")”?", isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } })
+            L("Undo “\(confirm?.summary ?? "")”?"), isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } })
         ) {
-            Button("Undo") { if let c = confirm { model.undo(c) } }
+            Button(L("Undo")) { if let c = confirm { model.undo(c) } }
         } message: {
-            Text("Kitfold checks every file first. If one was changed since, nothing is undone and you'll see which.")
+            Text(L("Kitfold checks every file first. If one was changed since, nothing is undone and you'll see which."))
         }
+    }
+
+    /// "5 Nov 2026, 14:03:07 · 3 operations", in the app's language.
+    func details(_ tx: TransactionRecord) -> String {
+        let when = tx.createdAt.formatted(Date.FormatStyle(date: .abbreviated, time: .standard, locale: Localization.language.locale))
+        let n = tx.operations.count
+        return when + " · " + (n == 1 ? L("1 operation") : L("\(n) operations"))
     }
 }
 
@@ -433,29 +472,39 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            general.tabItem { Label("General", systemImage: "gearshape") }
-            agents.tabItem { Label("Agents", systemImage: "cpu") }
-            sources.tabItem { Label("Sources", systemImage: "tray.full") }
+            general.tabItem { Label(L("General"), systemImage: "gearshape") }
+            agents.tabItem { Label(L("Agents"), systemImage: "cpu") }
+            sources.tabItem { Label(L("Sources"), systemImage: "tray.full") }
         }
         .padding(20)
     }
 
     var general: some View {
         Form {
+            Section {
+                Picker(L("Language"), selection: Binding(get: { LanguageSettings.chosen }, set: { model.setLanguage($0) })) {
+                    Text(L("Same as macOS (\(LanguageSettings.system.nativeName))")).tag(Language?.none)
+                    ForEach(Language.allCases) { l in Text(l.nativeName).tag(Language?.some(l)) }
+                }
+            } footer: {
+                Text(L("Menus that come from macOS switch the next time Kitfold opens."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let env = model.env {
-                LabeledContent("Kitfold folder") { PathLabel(path: env.kitfoldHome) }
-                LabeledContent("Assignments") { PathLabel(path: env.configFile) }
-                LabeledContent("History & backups") { PathLabel(path: env.backupsDir) }
+                LabeledContent(L("Kitfold folder")) { PathLabel(path: env.kitfoldHome) }
+                LabeledContent(L("Assignments")) { PathLabel(path: env.configFile) }
+                LabeledContent(L("History & backups")) { PathLabel(path: env.backupsDir) }
             }
             Toggle(
-                "Keep Kitfold's project files out of git (.git/info/exclude)",
+                L("Keep Kitfold's project files out of git (.git/info/exclude)"),
                 isOn: Binding(
                     get: { model.draft.preferences.gitExcludeProjectFiles },
                     set: { v in
                         var c = model.draft; c.preferences.gitExcludeProjectFiles = v; model.saveDirect(c)
                     }))
+            let days = model.draft.preferences.backupRetentionDays
             Stepper(
-                "Keep backups for \(model.draft.preferences.backupRetentionDays) days",
+                days == 1 ? L("Keep backups for 1 day") : L("Keep backups for \(days) days"),
                 value: Binding(
                     get: { model.draft.preferences.backupRetentionDays },
                     set: { v in
@@ -470,7 +519,7 @@ struct SettingsView: View {
             ForEach(model.agents) { a in
                 Section {
                     Toggle(
-                        "Managed by Kitfold",
+                        L("Managed by Kitfold"),
                         isOn: Binding(
                             get: { a.enabled },
                             set: { on in
@@ -493,7 +542,7 @@ struct SettingsView: View {
 
     var sources: some View {
         Form {
-            Section("Skill folders Kitfold reads in place") {
+            Section(L("Skill folders Kitfold reads in place")) {
                 ForEach(model.draft.sources) { s in
                     HStack {
                         VStack(alignment: .leading) {
@@ -511,7 +560,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text("The Kitfold library (~/.kitfold/library) is always included. Removing a source never deletes files.")
+            Text(L("The Kitfold library (~/.kitfold/library) is always included. Removing a source never deletes files."))
                 .font(.caption).foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
@@ -525,8 +574,8 @@ struct ConfigDirField: View {
 
     var body: some View {
         HStack {
-            TextField("Config folder", text: $text, prompt: Text(agent.adapter.descriptor.configDir))
-            Button("Use") {
+            TextField(L("Config folder"), text: $text, prompt: Text(agent.adapter.descriptor.configDir))
+            Button(L("Use")) {
                 var c = model.draft
                 var s = c.agents[agent.id.rawValue] ?? AgentSettings()
                 s.configDir = text.isEmpty ? nil : text

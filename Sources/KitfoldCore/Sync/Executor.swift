@@ -22,7 +22,7 @@ public final class Executor: @unchecked Sendable {
     public func apply(
         _ changes: [PlannedChange], summary: String, kind: String = "apply", undoes: String? = nil
     ) throws -> TransactionRecord {
-        guard !changes.isEmpty else { throw KitfoldError.invalid("Nothing to apply") }
+        guard !changes.isEmpty else { throw KitfoldError.invalid(L("Nothing to apply")) }
         let txID = Executor.newID()
         let backupDir = env.backupsDir + "/" + txID
         let owned = store.ownedPaths()
@@ -119,13 +119,13 @@ public final class Executor: @unchecked Sendable {
     /// an inverse change first (Workspace uses it to merge kitfold.json instead of restoring it).
     @discardableResult
     public func undo(_ txID: String, adjust: (PlannedChange) -> PlannedChange = { $0 }) throws -> TransactionRecord {
-        guard let tx = store.transaction(id: txID) else { throw KitfoldError.notFound("transaction \(txID)") }
-        guard tx.undoneBy == nil else { throw KitfoldError.invalid("Already undone") }
+        guard let tx = store.transaction(id: txID) else { throw KitfoldError.notFound(L("transaction \(txID)")) }
+        guard tx.undoneBy == nil else { throw KitfoldError.invalid(L("Already undone")) }
         let deployments = Dictionary(store.deployments().map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
         let inverse = tx.operations.reversed().map { op in
             let original = op.ownership.first.flatMap { deployments[$0.key] }
             return PlannedChange(
-                op.change.inverse, summary: "Undo: " + op.summary, agents: original?.agents ?? [], scope: original?.scope ?? .global,
+                op.change.inverse, summary: L("Undo: \(op.summary)"), agents: original?.agents ?? [], scope: original?.scope ?? .global,
                 ownership: op.ownership.reversed().map(\.inverse))
         }.map(adjust)
         // Dry-run every precondition first so an undo is all-or-nothing in the common case.
@@ -137,8 +137,8 @@ public final class Executor: @unchecked Sendable {
             if case .moveItem(let from, _) = c.change { simulated[from] = .missing }
         }
         guard conflicts.isEmpty else {
-            throw KitfoldError.precondition(
-                "These files changed after the original apply, so undo would overwrite newer edits: " + conflicts.joined(separator: ", "))
+            let list = conflicts.joined(separator: ", ")
+            throw KitfoldError.precondition(L("These files changed after the original apply, so undo would overwrite newer edits: \(list)"))
         }
         // Moving a skill back out of the library must not strand links made to it since.
         let removedByUndo = Set(
@@ -153,13 +153,12 @@ public final class Executor: @unchecked Sendable {
                 return FS.isInside(FS.absolute(t, relativeTo: (d.path as NSString).deletingLastPathComponent), from)
             }
             if !dependents.isEmpty {
+                let links = dependents.map { env.abbreviate($0.path) }.joined(separator: ", ")
                 throw KitfoldError.precondition(
-                    "Links made later still point into \(env.abbreviate(from)): "
-                        + dependents.map { env.abbreviate($0.path) }.joined(separator: ", ")
-                        + ". Switch that skill off for those agents first.")
+                    L("Links made later still point into \(env.abbreviate(from)): \(links). Switch that skill off for those agents first."))
             }
         }
-        return try apply(inverse, summary: "Undo “\(tx.summary)”", kind: "undo", undoes: tx.id)
+        return try apply(inverse, summary: L("Undo “\(tx.summary)”"), kind: "undo", undoes: tx.id)
     }
 
     // MARK: primitives
@@ -168,24 +167,24 @@ public final class Executor: @unchecked Sendable {
         let kind = simulated[c.path] ?? FS.kind(c.path)
         switch c {
         case .createSymlink(let p, _):
-            guard kind == .missing else { throw KitfoldError.precondition("\(p) already exists") }
+            guard kind == .missing else { throw KitfoldError.precondition(L("\(p) already exists")) }
         case .removeSymlink(let p, let target):
-            guard case .symlink = kind else { throw KitfoldError.precondition("\(p) is no longer a link") }
+            guard case .symlink = kind else { throw KitfoldError.precondition(L("\(p) is no longer a link")) }
             // `target` may be relative (stored as found); compare resolved destinations.
             let expected = FS.absolute(target, relativeTo: (p as NSString).deletingLastPathComponent)
             if simulated[p] == nil, !target.isEmpty, let dest = FS.linkDestination(p), dest != expected {
-                throw KitfoldError.precondition("\(p) now points to \(dest)")
+                throw KitfoldError.precondition(L("\(p) now points to \(dest)"))
             }
         case .writeFile(let p, let before, _):
             if simulated[p] != nil { return }
             if let before {
-                guard FS.read(p) == before else { throw KitfoldError.precondition("\(p) changed since the preview") }
+                guard FS.read(p) == before else { throw KitfoldError.precondition(L("\(p) changed since the preview")) }
             } else {
-                guard kind == .missing else { throw KitfoldError.precondition("\(p) now exists") }
+                guard kind == .missing else { throw KitfoldError.precondition(L("\(p) now exists")) }
             }
         case .moveItem(let from, let to):
-            guard kind == .missing else { throw KitfoldError.precondition("\(to) already exists") }
-            if simulated[from] == nil, FS.kind(from) == .missing { throw KitfoldError.precondition("\(from) is gone") }
+            guard kind == .missing else { throw KitfoldError.precondition(L("\(to) already exists")) }
+            if simulated[from] == nil, FS.kind(from) == .missing { throw KitfoldError.precondition(L("\(from) is gone")) }
         }
     }
 
@@ -222,11 +221,26 @@ public final class Executor: @unchecked Sendable {
     }
 
     /// Delete backup folders older than `days`.
+    /// Folders under backups/ that hold saved versions (`<kind>/<name>/<version>.md`) rather than one apply's backup.
+    static let versionFolders: Set<String> = ["profiles", "skills"]
+
     public func pruneBackups(olderThan days: Int) {
         let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
+        func isOld(_ p: String) -> Bool { FS.modificationDate(p).map { $0 < cutoff } ?? false }
         for name in FS.children(env.backupsDir) where name != "trash" {
             let p = env.backupsDir + "/" + name
-            if let d = FS.modificationDate(p), d < cutoff { try? FileManager.default.removeItem(atPath: p) }
+            guard Self.versionFolders.contains(name) else {
+                if isOld(p) { try? FileManager.default.removeItem(atPath: p) }
+                continue
+            }
+            // A version folder's own date only changes when a new item is added, so judge each version by its own.
+            for item in FS.children(p) {
+                let dir = p + "/" + item
+                for version in FS.children(dir) where isOld(dir + "/" + version) {
+                    try? FileManager.default.removeItem(atPath: dir + "/" + version)
+                }
+                if FS.children(dir).isEmpty { try? FileManager.default.removeItem(atPath: dir) }
+            }
         }
     }
 }

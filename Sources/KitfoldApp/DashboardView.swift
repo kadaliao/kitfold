@@ -19,20 +19,26 @@ struct DashboardView: View {
                 }
                 .padding(24)
             }
-            .navigationTitle("Dashboard")
+            .navigationTitle(L("Dashboard"))
         }
     }
 
     func header(_ snap: Snapshot) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("One library. Every agent. Your rules.")
+            // The tagline stays English, as in README.zh-CN.md.
+            Text(verbatim: "One library. Every agent. Your rules.")
                 .font(.system(size: 22, weight: .semibold, design: .rounded))
-            Text(
-                "Scanned \(snap.scannedAt.formatted(date: .omitted, time: .shortened)) · \(snap.managedAgents.count) agents · \(snap.skillNames.count) skills · \(snap.profiles.count) profiles · \(snap.config.projects.count) projects"
-            )
-            .font(.callout)
-            .foregroundStyle(.secondary)
+            Text(counts(snap))
+                .font(.callout)
+                .foregroundStyle(.secondary)
         }
+    }
+
+    func counts(_ snap: Snapshot) -> String {
+        let time = snap.scannedAt.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Localization.language.locale))
+        let agents = snap.managedAgents.count, skills = snap.skillNames.count
+        let profiles = snap.profiles.count, projects = snap.config.projects.count
+        return L("Scanned \(time) · \(agents) agents · \(skills) skills · \(profiles) profiles · \(projects) projects")
     }
 
     func agentCards(_ snap: Snapshot) -> some View {
@@ -54,13 +60,14 @@ struct DashboardView: View {
         return Card {
             HStack {
                 SectionTitle(
-                    title: "Health",
+                    title: L("Health"),
                     subtitle: important.isEmpty
-                        ? "No problems found." : "\(important.count) \(important.count == 1 ? "thing" : "things") worth a look")
-                Toggle("Show notes", isOn: $showAllIssues).toggleStyle(.switch).controlSize(.small)
+                        ? L("No problems found.")
+                        : important.count == 1 ? L("1 thing worth a look") : L("\(important.count) things worth a look"))
+                Toggle(L("Show notes"), isOn: $showAllIssues).toggleStyle(.switch).controlSize(.small)
             }
             if shown.isEmpty {
-                Label("Everything checks out.", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                Label(L("Everything checks out."), systemImage: "checkmark.seal.fill").foregroundStyle(.green)
             }
             ForEach(shown.prefix(40)) { issue in
                 HStack(alignment: .top) {
@@ -75,22 +82,21 @@ struct DashboardView: View {
                 .padding(.vertical, 2)
                 Divider()
             }
-            if shown.count > 40 { Text("… and \(shown.count - 40) more").font(.caption).foregroundStyle(.secondary) }
+            if shown.count > 40 { Text(L("… and \(shown.count - 40) more")).font(.caption).foregroundStyle(.secondary) }
         }
     }
 
     func library(_ snap: Snapshot) -> some View {
-        let counts = Dictionary(grouping: snap.catalog, by: { $0.origin.label }).mapValues(\.count)
+        let kinds = Dictionary(grouping: snap.catalog, by: \.origin.rank).sorted { $0.key < $1.key }
         return VStack(spacing: 14) {
             Card {
-                SectionTitle(title: "Skill folders", subtitle: "Where skills live on this Mac")
-                ForEach(["Library", "Source", "Local folder", "Linked folder", "Nested", "Plugin"], id: \.self) { k in
-                    if let n = counts[k] {
-                        HStack {
-                            Text(k); Spacer(); Text("\(n)").monospacedDigit().foregroundStyle(.secondary)
-                        }
-                        .font(.callout)
+                SectionTitle(title: L("Skill folders"), subtitle: L("Where skills live on this Mac"))
+                ForEach(kinds, id: \.key) { kind in
+                    HStack {
+                        Text(kind.value[0].origin.label); Spacer();
+                        Text("\(kind.value.count)").monospacedDigit().foregroundStyle(.secondary)
                     }
+                    .font(.callout)
                 }
                 Divider()
                 ForEach(snap.config.sources) { s in
@@ -104,21 +110,21 @@ struct DashboardView: View {
                 }
             }
             Card {
-                SectionTitle(title: "Quick actions")
+                SectionTitle(title: L("Quick actions"))
                 Button {
                     model.showNewProfile = true
                 } label: {
-                    Label("New Profile", systemImage: "person.text.rectangle")
+                    Label(L("New Profile"), systemImage: "person.text.rectangle")
                 }
                 Button {
                     model.showNewSkill = true
                 } label: {
-                    Label("New Skill", systemImage: "sparkles")
+                    Label(L("New Skill"), systemImage: "sparkles")
                 }
                 Button {
                     model.selection = .skills
                 } label: {
-                    Label("Assign skills", systemImage: "square.grid.3x3")
+                    Label(L("Assign skills"), systemImage: "square.grid.3x3")
                 }
             }
             .buttonStyle(.link)
@@ -146,12 +152,12 @@ struct AgentCard: View {
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text("\(est.skillCount)").font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
-                Text("skills loaded").foregroundStyle(.secondary).font(.callout)
+                Text(L("skills loaded")).foregroundStyle(.secondary).font(.callout)
             }
             ContextMeter(tokens: est.approxTokens, tint: agent.adapter.tint)
             HStack(spacing: 6) {
                 let files = agent.state(.global).loadedInstructions
-                Pill(text: "\(files.count) instruction file\(files.count == 1 ? "" : "s")", systemImage: "doc.text")
+                Pill(text: files.count == 1 ? L("1 instruction file") : L("\(files.count) instruction files"), systemImage: "doc.text")
                 if !issues.isEmpty { Pill(text: "\(issues.count)", color: .orange, systemImage: "exclamationmark.triangle.fill") }
             }
         }
@@ -169,9 +175,9 @@ struct AgentCard: View {
 
     func statusText(_ i: AgentInstallation) -> String {
         if let v = i.version { return "v\(v) · \(model.ab(i.configDir))" }
-        if i.binaryPath != nil { return "Installed · \(model.ab(i.configDir))" }
-        if i.configDirExists { return "Config found, CLI not on PATH" }
-        return "Not detected"
+        if i.binaryPath != nil { return L("Installed · \(model.ab(i.configDir))") }
+        if i.configDirExists { return L("Config found, CLI not on PATH") }
+        return L("Not detected")
     }
 }
 
@@ -189,11 +195,14 @@ struct ContextMeter: View {
                 }
             }
             .frame(height: 6)
-            Text("≈ \(tokens.formatted()) tokens always in context")
+            Text(L("≈ \(tokens.formatted(.number.locale(Localization.language.locale))) tokens always in context"))
                 .font(.caption2).foregroundStyle(.secondary)
         }
-        .help(
-            "Skill names + descriptions are listed to the model in every session, plus the instruction files. Estimate: 4 bytes per token.")
+        .help(explanation)
+    }
+
+    var explanation: String {
+        L("Skill names + descriptions are listed to the model in every session, plus the instruction files. Estimate: 4 bytes per token.")
     }
 
     var fraction: CGFloat { min(1, log10(Double(max(tokens, 1))) / log10(40_000)) }

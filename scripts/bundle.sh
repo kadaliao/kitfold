@@ -35,6 +35,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Kitfold</string>
   <key>CFBundleIconFile</key><string>Kitfold</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <!-- Kitfold translates its own text (Sources/KitfoldCore/Localization). Listing the languages lets macOS
+       offer them under System Settings › Language & Region › Applications and localize its own menus. -->
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>

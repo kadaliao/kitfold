@@ -45,12 +45,12 @@ public struct LibraryStore: Sendable {
 
     public func createSkill(name: String, description: String) throws -> String {
         let slug = SkillEntry.slugify(name)
-        guard !slug.isEmpty else { throw KitfoldError.invalid("Skill name is empty") }
+        guard !slug.isEmpty else { throw KitfoldError.invalid(L("Skill name is empty")) }
         let dir = env.librarySkillsDir + "/" + slug
-        guard !FS.exists(dir) else { throw KitfoldError.invalid("A skill named \(slug) already exists in the library") }
+        guard !FS.exists(dir) else { throw KitfoldError.invalid(L("A skill named \(slug) already exists in the library")) }
         let text = Frontmatter.render(
             fields: [("name", .string(slug)), ("description", .string(description))],
-            body: "# \(name)\n\nDescribe when and how to use this skill.\n")
+            body: "# \(name)\n\n" + L("Describe when and how to use this skill.") + "\n")
         try FS.write(text, to: dir + "/SKILL.md")
         return dir
     }
@@ -58,11 +58,11 @@ public struct LibraryStore: Sendable {
     /// Copy a skill folder into the library (the original is left untouched).
     public func importFolder(_ source: String) throws -> String {
         let src = FS.realPath(source) ?? source
-        guard FS.exists(src + "/SKILL.md") else { throw KitfoldError.invalid("\(source) has no SKILL.md") }
+        guard FS.exists(src + "/SKILL.md") else { throw KitfoldError.invalid(L("\(source) has no SKILL.md")) }
         let entry = SkillEntry.read(directory: src, origin: .external)
         let name = SkillEntry.slugify(entry?.name ?? (src as NSString).lastPathComponent)
         let dest = env.librarySkillsDir + "/" + name
-        guard !FS.exists(dest) else { throw KitfoldError.invalid("The library already has a skill named \(name)") }
+        guard !FS.exists(dest) else { throw KitfoldError.invalid(L("The library already has a skill named \(name)")) }
         try FileManager.default.createDirectory(atPath: env.librarySkillsDir, withIntermediateDirectories: true)
         try FileManager.default.copyItem(atPath: src, toPath: dest)
         return dest
@@ -73,9 +73,9 @@ public struct LibraryStore: Sendable {
         var name = (url as NSString).lastPathComponent
         if name.hasSuffix(".git") { name = String(name.dropLast(4)) }
         name = SkillEntry.slugify(name)
-        guard !name.isEmpty else { throw KitfoldError.invalid("Can't derive a name from \(url)") }
+        guard !name.isEmpty else { throw KitfoldError.invalid(L("Can't derive a name from \(url)")) }
         let dest = env.kitfoldHome + "/sources/" + name
-        guard !FS.exists(dest) else { throw KitfoldError.invalid("\(env.abbreviate(dest)) already exists") }
+        guard !FS.exists(dest) else { throw KitfoldError.invalid(L("\(env.abbreviate(dest)) already exists")) }
         try FileManager.default.createDirectory(atPath: env.kitfoldHome + "/sources", withIntermediateDirectories: true)
         try Shell.run("/usr/bin/git", ["clone", "--depth", "1", url, dest])
         return SkillSourceConfig(id: "git-" + name, label: name, path: env.abbreviate(dest), gitURL: url)
@@ -138,7 +138,8 @@ public enum Shell {
         let e = err.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         guard p.terminationStatus == 0 else {
-            throw KitfoldError.io("\((exe as NSString).lastPathComponent) failed: \(String(decoding: e, as: UTF8.self).prefix(400))")
+            let tool = (exe as NSString).lastPathComponent
+            throw KitfoldError.io(L("\(tool) failed: \(String(decoding: e, as: UTF8.self).prefix(400))"))
         }
         return String(decoding: o, as: UTF8.self)
     }

@@ -24,14 +24,14 @@ enum Diagnostics {
                     } else if !o.isReadable {
                         out.append(
                             Issue(
-                                .invalidSkill, .warning, "“\(o.entryName)” has no SKILL.md",
-                                detail: "\(ab(o.entryPath)) is in a skills folder but isn't a skill.",
+                                .invalidSkill, .warning, L("“\(o.entryName)” has no SKILL.md"),
+                                detail: L("\(ab(o.entryPath)) is in a skills folder but isn't a skill."),
                                 paths: [o.entryPath], agent: a.id, scope: scope))
                     } else if let why = o.skipReason {
                         out.append(
                             Issue(
-                                .invalidSkill, .warning, "\(a.name) ignores “\(o.name)”",
-                                detail: "\(why). Add it to \(ab(o.skillFile ?? o.entryPath)).", paths: [o.entryPath], agent: a.id,
+                                .invalidSkill, .warning, L("\(a.name) ignores “\(o.name)”"),
+                                detail: L("\(why). Add it to \(ab(o.skillFile ?? o.entryPath))."), paths: [o.entryPath], agent: a.id,
                                 scope: scope))
                     }
                 }
@@ -44,23 +44,26 @@ enum Diagnostics {
                     let folders = Set(group.compactMap { $0.skill.realPath })
                     if folders.count > 1 {
                         let first = group[0].skill
+                        let others = group.dropFirst().map { ab($0.skill.entryPath) }.joined(separator: ", ")
                         out.append(
                             Issue(
-                                .duplicateName, .warning, "\(a.name) sees \(folders.count) different skills named “\(name)”",
-                                detail: "\(ab(first.entryPath)) takes precedence. Also found: "
-                                    + group.dropFirst().map { ab($0.skill.entryPath) }.joined(separator: ", "),
+                                .duplicateName, .warning, L("\(a.name) sees \(folders.count) different skills named “\(name)”"),
+                                detail: L("\(ab(first.entryPath)) takes precedence. Also found: \(others)"),
                                 paths: group.map { $0.skill.entryPath }, agent: a.id, scope: scope, key: name))
                     } else {
                         sameFolderTwice += 1
                     }
                 }
                 if sameFolderTwice > 0 {
-                    let roots = Set(reachable.map { $0.skill.root.path }).map(ab).sorted()
+                    let roots = Set(reachable.map { $0.skill.root.path }).map(ab).sorted().joined(separator: ", ")
                     out.append(
                         Issue(
-                            .duplicateName, .info, "\(a.name) reaches \(sameFolderTwice) skills through two folders",
-                            detail:
-                                "The same skill folders are found via \(roots.joined(separator: ", ")). Some agents list them twice or warn about a conflict.",
+                            .duplicateName, .info,
+                            sameFolderTwice == 1
+                                ? L("\(a.name) reaches 1 skill through two folders")
+                                : L("\(a.name) reaches \(sameFolderTwice) skills through two folders"),
+                            detail: L(
+                                "The same skill folders are found via \(roots). Some agents list them twice or warn about a conflict."),
                             agent: a.id, scope: scope, key: "same-folder"))
                 }
 
@@ -70,23 +73,24 @@ enum Diagnostics {
                     for b in f.driftedBlocks {
                         out.append(
                             Issue(
-                                .blockDrift, .warning, "Profile “\(b.profile)” was edited outside Kitfold",
-                                detail: "\(ab(f.file.path)): Kitfold won't overwrite it until you keep or discard the edit.",
+                                .blockDrift, .warning, L("Profile “\(b.profile)” was edited outside Kitfold"),
+                                detail: L("\(ab(f.file.path)): Kitfold won't overwrite it until you keep or discard the edit."),
                                 paths: [f.file.path], agent: a.id, scope: scope, key: f.file.path + b.profile))
                     }
                     for tool in f.foreignBlocks {
                         out.append(
                             Issue(
-                                .foreignBlock, .info, "\(tool.capitalized) manages part of \((f.file.path as NSString).lastPathComponent)",
-                                detail: "\(ab(f.file.path)) has a block written by \(tool). Kitfold leaves it alone.",
+                                .foreignBlock, .info,
+                                L("\(tool.capitalized) manages part of \((f.file.path as NSString).lastPathComponent)"),
+                                detail: L("\(ab(f.file.path)) has a block written by \(tool). Kitfold leaves it alone."),
                                 paths: [f.file.path], key: f.file.path + tool))
                     }
                 }
                 if let limit = a.adapter.descriptor.instructionByteLimit, loadedBytes > limit {
                     out.append(
                         Issue(
-                            .sizeLimit, .warning, "\(a.name) instructions exceed \(limit / 1024) KiB",
-                            detail: "\(loadedBytes) bytes are loaded; \(a.name) cuts off everything past \(limit) bytes.",
+                            .sizeLimit, .warning, L("\(a.name) instructions exceed \(limit / 1024) KiB"),
+                            detail: L("\(loadedBytes) bytes are loaded; \(a.name) cuts off everything past \(limit) bytes."),
                             agent: a.id, scope: scope))
                 }
             }
@@ -97,20 +101,19 @@ enum Diagnostics {
             for (folder, links) in folders {
                 let agents = Array(Set(links.values.flatMap(\.agents))).sorted()
                 if links.count >= 3 {
-                    let list = links.keys.map { ($0 as NSString).lastPathComponent }.sorted()
+                    let list = links.keys.map { ($0 as NSString).lastPathComponent }.sorted().joined(separator: ", ")
                     out.append(
                         Issue(
-                            .brokenLink, .error, "\(links.count) broken skill links in \(ab(folder))",
-                            detail:
-                                "\(list.joined(separator: ", ")) point to folders that no longer exist. Skipped silently by \(names(agents)).",
+                            .brokenLink, .error, L("\(links.count) broken skill links in \(ab(folder))"),
+                            detail: L("\(list) point to folders that no longer exist. Skipped silently by \(names(agents))."),
                             paths: links.keys.sorted(), agent: agents.first, alsoAffects: Array(agents.dropFirst()), scope: scope,
                             key: folder))
                 } else {
                     for (path, b) in links {
                         out.append(
                             Issue(
-                                .brokenLink, .error, "Broken skill link “\((path as NSString).lastPathComponent)”",
-                                detail: "\(ab(path)) → \(ab(b.target)), which no longer exists. Skipped silently by \(names(b.agents)).",
+                                .brokenLink, .error, L("Broken skill link “\((path as NSString).lastPathComponent)”"),
+                                detail: L("\(ab(path)) → \(ab(b.target)), which no longer exists. Skipped silently by \(names(b.agents))."),
                                 paths: [path], agent: b.agents.first, alsoAffects: Array(b.agents.dropFirst()), scope: scope, key: path))
                     }
                 }
@@ -124,15 +127,15 @@ enum Diagnostics {
             default: continue
             }
             for p in e.problems {
-                out.append(Issue(.invalidSkill, .info, "\(e.name): \(p)", paths: [e.path], key: e.path + p))
+                out.append(Issue(.invalidSkill, .info, L("\(e.name): \(p)"), paths: [e.path], key: e.path + p))
             }
             let nested = nestedSkillFiles(in: e.path)
             if !nested.isEmpty {
+                let shown = nested.prefix(3).map(ab).joined(separator: ", ")
                 out.append(
                     Issue(
-                        .nestedSkill, .warning, "“\(e.name)” contains \(nested.count) nested SKILL.md",
-                        detail: "Codex and OpenCode load each nested SKILL.md as a separate skill: "
-                            + nested.prefix(3).map(ab).joined(separator: ", "),
+                        .nestedSkill, .warning, L("“\(e.name)” contains \(nested.count) nested SKILL.md"),
+                        detail: L("Codex and OpenCode load each nested SKILL.md as a separate skill: \(shown)"),
                         paths: [e.path] + nested, key: e.path))
             }
         }

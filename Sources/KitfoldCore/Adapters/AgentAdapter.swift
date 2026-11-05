@@ -120,9 +120,9 @@ public struct AgentDescriptor: Sendable, Hashable, Codable, Identifiable {
         let noName = requiresName && (skill.frontmatter["name"] ?? "").isEmpty
         let noDescription = requiresDescription && skill.description.isEmpty
         switch (noName, noDescription) {
-        case (true, true): return "\(name) skips skills without a name and description"
-        case (true, false): return "\(name) skips skills without a name in SKILL.md"
-        case (false, true): return "\(name) skips skills without a description in SKILL.md"
+        case (true, true): return L("\(name) skips skills without a name and description")
+        case (true, false): return L("\(name) skips skills without a name in SKILL.md")
+        case (false, true): return L("\(name) skips skills without a description in SKILL.md")
         default: return nil
         }
     }

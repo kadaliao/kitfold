@@ -95,7 +95,7 @@ extension Planner {
                 guard target != nil else {
                     issues.append(
                         Issue(
-                            .stillVisible, .warning, "“\(name)” stays visible to \(a.name) in this project",
+                            .stillVisible, .warning, L("“\(name)” stays visible to \(a.name) in this project"),
                             detail: cantHideHere(a), paths: active.map(\.realPath), agent: a.id, scope: scope, key: name))
                     continue
                 }
@@ -136,7 +136,7 @@ extension Planner {
                     let blocker = remaining.rule(name: first.name, skillFile: first.skillFile)
                     issues.append(
                         Issue(
-                            .disabledNatively, .warning, "“\(name)” is switched off in \(a.name)'s settings",
+                            .disabledNatively, .warning, L("“\(name)” is switched off in \(a.name)'s settings"),
                             detail: cantShow(a, scope: scope, blocker: blocker), paths: [first.realPath], agent: a.id, scope: scope,
                             key: name))
                 }
@@ -159,9 +159,10 @@ extension Planner {
                 if CodexConfig.conflictsWithArrayTables(current ?? "") && !desired.isEmpty {
                     plan.issues.append(
                         Issue(
-                            .unsupported, .warning, "Kitfold can't add skill settings to \(ab(target.file))",
-                            detail:
-                                "The file defines `skills.config` in a form that an appended `[[skills.config]]` table would break. Use `[[skills.config]]` tables there to let Kitfold manage it.",
+                            .unsupported, .warning, L("Kitfold can't add skill settings to \(ab(target.file))"),
+                            detail: L(
+                                "The file defines `skills.config` in a form that an appended `[[skills.config]]` table would break. Use `[[skills.config]]` tables there to let Kitfold manage it."
+                            ),
                             paths: [target.file], agent: a.id, scope: scope))
                     return
                 }
@@ -180,9 +181,9 @@ extension Planner {
         } catch {
             plan.issues.append(
                 Issue(
-                    .unsupported, .warning, "Kitfold can't read \(ab(target.file))",
-                    detail:
-                        "It isn't valid \(m == .codexConfig ? "TOML" : "JSON"), so Kitfold won't edit it. Fix the file, then try again.",
+                    .unsupported, .warning, L("Kitfold can't read \(ab(target.file))"),
+                    detail: L(
+                        "It isn't valid \(m == .codexConfig ? "TOML" : "JSON"), so Kitfold won't edit it. Fix the file, then try again."),
                     paths: [target.file], agent: a.id, scope: scope))
             return
         }
@@ -207,21 +208,31 @@ extension Planner {
         let unhidden = dropOwned.filter { desired[$0.key] == nil && NativeEntry(key: $0.key, value: $0.value, skill: "").hides }
         let shown =
             (unhidden + userRemovals).map { skillName(forKey: $0.key) } + additions.filter { !$0.hides }.map(\.skill)
-        var parts: [String] = []
-        if !hidden.isEmpty { parts.append("Hide \(list(Set(hidden))) from \(a.name)") }
-        if !shown.isEmpty { parts.append("Let \(a.name) load \(list(Set(shown))) again") }
-        if parts.isEmpty { parts.append("Update \(a.name)'s skill settings") }
+        let summary: String
+        switch (hidden.isEmpty, shown.isEmpty) {
+        case (false, false): summary = L("Hide \(list(Set(hidden))) from \(a.name); Let \(a.name) load \(list(Set(shown))) again")
+        case (false, true): summary = L("Hide \(list(Set(hidden))) from \(a.name)")
+        case (true, false): summary = L("Let \(a.name) load \(list(Set(shown))) again")
+        case (true, true): summary = L("Update \(a.name)'s skill settings")
+        }
 
-        var notes: [String] = []
-        if !userRemovals.isEmpty || !replaced.isEmpty { notes.append("Changes an entry Kitfold didn't write. Undo restores it.") }
-        if !scope.isGlobal && current != nil && m != .claudeSettings {
-            notes.append("If this file is committed, everyone using the repository gets this setting.")
+        let changesUserEntry = !userRemovals.isEmpty || !replaced.isEmpty
+        let maybeCommitted = !scope.isGlobal && current != nil && m != .claudeSettings
+        let note: String?
+        switch (changesUserEntry, maybeCommitted) {
+        case (true, true):
+            note = L(
+                "Changes an entry Kitfold didn't write. Undo restores it. If this file is committed, everyone using the repository gets this setting."
+            )
+        case (true, false): note = L("Changes an entry Kitfold didn't write. Undo restores it.")
+        case (false, true): note = L("If this file is committed, everyone using the repository gets this setting.")
+        case (false, false): note = nil
         }
         plan.changes.append(
             PlannedChange(
-                .writeFile(path: target.file, before: current, after: after), summary: parts.joined(separator: "; "), agents: [a.id],
+                .writeFile(path: target.file, before: current, after: after), summary: summary, agents: [a.id],
                 scope: scope, resource: (hidden + shown).count == 1 ? ResourceRef(.skill, (hidden + shown)[0]) : nil,
-                risk: userRemovals.isEmpty && replaced.isEmpty ? .safe : .caution, note: notes.isEmpty ? nil : notes.joined(separator: " "),
+                risk: userRemovals.isEmpty && replaced.isEmpty ? .safe : .caution, note: note,
                 details: NativeSettings.semanticDiff(a, file: target.file, before: current, after: after, env: env),
                 ownership: ownership))
     }
@@ -252,19 +263,21 @@ extension Planner {
     func cantHideHere(_ a: AgentAdapter) -> String {
         switch a.descriptor.skillDisable {
         case .codexConfig:
-            return
+            return L(
                 "It's enabled globally, and Codex reads `[[skills.config]]` only from $CODEX_HOME/config.toml, so a skill can't be hidden in one project alone. Switch it off globally instead."
-        default: return "\(a.name) has no per-project setting for this."
+            )
+        default: return L("\(a.name) has no per-project setting for this.")
         }
     }
 
     func cantShow(_ a: AgentAdapter, scope: Scope, blocker: NativeRule?) -> String {
-        guard let b = blocker else { return "Its settings switch it off." }
-        if b.match == .all { return "\(ab(b.file)) switches off every skill (`\(b.key)`). Change that setting to load skills." }
+        guard let b = blocker else { return L("Its settings switch it off.") }
+        if b.match == .all { return L("\(ab(b.file)) switches off every skill (`\(b.key)`). Change that setting to load skills.") }
         if !scope.isGlobal, a.descriptor.skillDisable == .geminiSettings || a.descriptor.skillDisable == .codexConfig {
-            return
+            return L(
                 "\(ab(b.file)) switches it off for every project, and \(a.name) can't switch it back on for one project. Switch it on globally instead."
+            )
         }
-        return "\(ab(b.file)) switches it off. Remove that entry to let \(a.name) load it."
+        return L("\(ab(b.file)) switches it off. Remove that entry to let \(a.name) load it.")
     }
 }

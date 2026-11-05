@@ -26,7 +26,7 @@ struct ReviewSheet: View {
 
     var title: String {
         switch mode {
-        case .draft: return "Review changes"
+        case .draft: return L("Review changes")
         case .oneOff(let r): return r.title
         }
     }
@@ -38,7 +38,7 @@ struct ReviewSheet: View {
             if let plan {
                 List {
                     if !plan.changes.isEmpty {
-                        Section("Changes") {
+                        Section(L("Changes")) {
                             let ordered =
                                 plan.changes.filter { !$0.change.path.hasSuffix("/kitfold.json") }
                                 + plan.changes.filter { $0.change.path.hasSuffix("/kitfold.json") }
@@ -50,12 +50,12 @@ struct ReviewSheet: View {
                         }
                     }
                     if !plan.issues.isEmpty {
-                        Section("Needs attention — not changed automatically") {
+                        Section(L("Needs attention — not changed automatically")) {
                             ForEach(plan.issues.sorted { $0.severity > $1.severity }) { IssueRow(issue: $0) }
                         }
                     }
                     if plan.changes.isEmpty && plan.issues.isEmpty {
-                        Text("Nothing to change.").foregroundStyle(.secondary)
+                        Text(L("Nothing to change.")).foregroundStyle(.secondary)
                     }
                 }
                 .listStyle(.inset)
@@ -73,13 +73,7 @@ struct ReviewSheet: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.title2.weight(.semibold))
                 if let plan {
-                    let caution = plan.changes.filter { $0.risk == .caution }.count
-                    Text(
-                        "\(plan.changes.count) change\(plan.changes.count == 1 ? "" : "s")"
-                            + (caution > 0 ? " · \(caution) touch files Kitfold didn't create" : "")
-                            + (plan.issues.isEmpty ? "" : " · \(plan.issues.count) to check")
-                    )
-                    .foregroundStyle(.secondary)
+                    Text(counts(plan)).foregroundStyle(.secondary)
                 }
             }
             Spacer()
@@ -87,18 +81,26 @@ struct ReviewSheet: View {
         .padding(20)
     }
 
+    func counts(_ plan: Plan) -> String {
+        let n = plan.changes.count, caution = plan.changes.filter { $0.risk == .caution }.count
+        var parts = [n == 1 ? L("1 change") : L("\(n) changes")]
+        if caution > 0 { parts.append(L("\(caution) touch files Kitfold didn't create")) }
+        if !plan.issues.isEmpty { parts.append(L("\(plan.issues.count) to check")) }
+        return parts.joined(separator: " · ")
+    }
+
     var footer: some View {
         HStack {
-            Label("Files are backed up first. Any apply can be undone from History.", systemImage: "arrow.uturn.backward.circle")
+            Label(L("Files are backed up first. Any apply can be undone from History."), systemImage: "arrow.uturn.backward.circle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("Cancel") {
+            Button(L("Cancel")) {
                 if case .oneOff = mode { model.reviewPlan = nil }
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
-            Button("Apply") {
+            Button(L("Apply")) {
                 switch mode {
                 case .draft: model.applyDraft()
                 case .oneOff(let r): model.perform(r.plan, summary: r.summary, keepDraft: true)
@@ -139,7 +141,7 @@ struct ChangeRow: View {
                         if let a = model.snapshot?.agent(id) { AgentBadge(adapter: a.adapter, size: 16) }
                     }
                 }
-                if change.risk == .caution { Pill(text: "caution", color: .orange, systemImage: "hand.raised") }
+                if change.risk == .caution { Pill(text: L("caution"), color: .orange, systemImage: "hand.raised") }
                 if change.isExpandable {
                     Button {
                         withAnimation(.snappy) { expanded.toggle() }
@@ -147,15 +149,15 @@ struct ChangeRow: View {
                         Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                     }
                     .buttonStyle(.borderless)
-                    .help(change.details == nil ? "Show diff" : "Show the settings that change")
+                    .help(change.details == nil ? L("Show diff") : L("Show the settings that change"))
                 }
             }
             if expanded, let details = change.details {
                 SettingsChangeView(lines: details).padding(.leading, 28)
             } else if expanded, case .writeFile(_, let before, let after) = change.change {
                 DiffView(
-                    old: before ?? "", new: after ?? "", oldLabel: before == nil ? "(new file)" : "current",
-                    newLabel: after == nil ? "(deleted)" : "after apply"
+                    old: before ?? "", new: after ?? "", oldLabel: before == nil ? L("(new file)") : L("current"),
+                    newLabel: after == nil ? L("(deleted)") : L("after apply")
                 )
                 .padding(.leading, 28)
             }
@@ -204,7 +206,7 @@ struct SettingsChangeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("Only these entries change; the rest of the file is kept as is.", systemImage: "lock")
+                Label(L("Only these entries change; the rest of the file is kept as is."), systemImage: "lock")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -231,8 +233,8 @@ struct SettingsChangeView: View {
 struct DiffView: View {
     let old: String
     let new: String
-    var oldLabel = "before"
-    var newLabel = "after"
+    var oldLabel = L("before")
+    var newLabel = L("after")
 
     var body: some View {
         let ops = LineDiff.diff(old, new)
@@ -250,7 +252,7 @@ struct DiffView: View {
             .padding(.vertical, 5)
             Divider()
             if hunks.isEmpty {
-                Text("No differences").font(.caption).foregroundStyle(.secondary).padding(8)
+                Text(L("No differences")).font(.caption).foregroundStyle(.secondary).padding(8)
             }
             ForEach(Array(hunks.prefix(30).enumerated()), id: \.offset) { item in
                 if item.offset > 0 {

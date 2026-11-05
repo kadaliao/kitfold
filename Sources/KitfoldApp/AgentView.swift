@@ -21,7 +21,7 @@ struct AgentView: View {
                     let issues = snap.issues(for: agentID).filter { $0.scope == nil || $0.scope == scope }
                     if !issues.isEmpty {
                         Card {
-                            SectionTitle(title: "Issues")
+                            SectionTitle(title: L("Issues"))
                             ForEach(issues) { IssueRow(issue: $0) }
                         }
                     }
@@ -54,7 +54,7 @@ struct AgentView: View {
                 if let bin = inst.binaryPath {
                     PathLabel(path: bin)
                 } else {
-                    Text(inst.configDirExists ? "CLI not found on PATH (config folder exists)" : "Not detected on this Mac")
+                    Text(inst.configDirExists ? L("CLI not found on PATH (config folder exists)") : L("Not detected on this Mac"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 PathLabel(path: inst.configDir)
@@ -62,11 +62,11 @@ struct AgentView: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 8) {
                 HStack {
-                    Text("Showing").foregroundStyle(.secondary)
+                    Text(L("Showing")).foregroundStyle(.secondary)
                     ScopePicker(scope: $scope)
                 }
                 Toggle(
-                    "Managed by Kitfold",
+                    L("Managed by Kitfold"),
                     isOn: Binding(
                         get: { a.enabled },
                         set: { on in
@@ -79,7 +79,8 @@ struct AgentView: View {
                 )
                 .toggleStyle(.switch)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(est.skillCount) skills · \(est.instructionBytes.formatted(.byteCount(style: .file))) instructions")
+                    let bytes = est.instructionBytes.formatted(.byteCount(style: .file).locale(Localization.language.locale))
+                    Text(est.skillCount == 1 ? L("1 skill · \(bytes) instructions") : L("\(est.skillCount) skills · \(bytes) instructions"))
                         .font(.callout.monospacedDigit())
                     ContextMeter(tokens: est.approxTokens, tint: a.adapter.tint).frame(width: 220)
                 }
@@ -89,15 +90,21 @@ struct AgentView: View {
 
     // MARK: skills (agent perspective)
 
-    enum SkillGroup: String, CaseIterable {
-        case linked = "Linked into its skills folder"
-        case local = "Folders inside its skills folder"
-        case shared = "From shared folders"
-        case foreign = "Through another agent's folder"
-        case nested = "Nested inside other skills"
-        case project = "Project skills"
-        case plugins = "From plugins"
-        case disabled = "Present, but switched off in its settings"
+    enum SkillGroup: CaseIterable {
+        case linked, local, shared, foreign, nested, project, plugins, disabled
+
+        var title: String {
+            switch self {
+            case .linked: return L("Linked into its skills folder")
+            case .local: return L("Folders inside its skills folder")
+            case .shared: return L("From shared folders")
+            case .foreign: return L("Through another agent's folder")
+            case .nested: return L("Nested inside other skills")
+            case .project: return L("Project skills")
+            case .plugins: return L("From plugins")
+            case .disabled: return L("Present, but switched off in its settings")
+            }
+        }
     }
 
     func group(_ r: Reach) -> SkillGroup {
@@ -125,25 +132,25 @@ struct AgentView: View {
         let pendingAdds = model.draft.rules.filter {
             $0.resource.kind == .skill && $0.scope == scope && $0.state == .on && ($0.agent == .all || $0.agent == .agent(agentID))
         }.map(\.resource.id).filter { n in !reach.contains { $0.skill.name == n } }
+        let subtitle =
+            scope.isGlobal
+            ? L("What \(a.adapter.name) loads everywhere, grouped by how it gets there. Drop skills here to add them.")
+            : L("What \(a.adapter.name) loads in \(model.projectName(scope)), grouped by how it gets there. Drop skills here to add them.")
 
         return Card {
             HStack {
-                SectionTitle(
-                    title: "Skills",
-                    subtitle:
-                        "What \(a.adapter.name) loads \(scope.isGlobal ? "everywhere" : "in \(model.projectName(scope))"), grouped by how it gets there. Drop skills here to add them."
-                )
-                TextField("Filter", text: $filter).textFieldStyle(.roundedBorder).frame(width: 160)
+                SectionTitle(title: L("Skills"), subtitle: subtitle)
+                TextField(L("Filter"), text: $filter).textFieldStyle(.roundedBorder).frame(width: 160)
                 Button {
                     showAdd = true
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label(L("Add"), systemImage: "plus")
                 }
                 .popover(isPresented: $showAdd, arrowEdge: .bottom) { AddSkillsPopover(agentID: agentID, scope: scope) }
             }
             if !pendingAdds.isEmpty {
                 ForEach(pendingAdds, id: \.self) { n in
-                    skillRow(name: n, path: nil, a: a, note: "will be added")
+                    skillRow(name: n, path: nil, a: a, note: L("will be added"))
                 }
             }
             ForEach(SkillGroup.allCases, id: \.self) { g in
@@ -157,7 +164,7 @@ struct AgentView: View {
                         }
                     } label: {
                         HStack {
-                            Text(g.rawValue).font(.callout.weight(.medium))
+                            Text(g.title).font(.callout.weight(.medium))
                             Text("\(items.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                             Spacer()
                             let roots = Set(items.map { $0.skill.root.path })
@@ -186,7 +193,7 @@ struct AgentView: View {
             Spacer()
             let native = a.reachableSkills(in: scope).first(where: { $0.skill.name == name })?.skill.native ?? .enabled
             if case .disabled(let src, let byKitfold) = native {
-                Text(byKitfold ? "hidden by Kitfold in \(src)" : "off in \(src)").font(.caption).foregroundStyle(.secondary)
+                Text(byKitfold ? L("hidden by Kitfold in \(src)") : L("off in \(src)")).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.leading, 4)
@@ -196,11 +203,11 @@ struct AgentView: View {
 
     func profiles(_ a: AgentState) -> some View {
         Card {
-            SectionTitle(title: "Profiles", subtitle: profileTarget(a))
+            SectionTitle(title: L("Profiles"), subtitle: profileTarget(a))
             if model.profiles.isEmpty {
                 HStack {
-                    Text("No profiles yet.").foregroundStyle(.secondary)
-                    Button("Create one…") { model.showNewProfile = true }.buttonStyle(.link)
+                    Text(L("No profiles yet.")).foregroundStyle(.secondary)
+                    Button(L("Create one…")) { model.showNewProfile = true }.buttonStyle(.link)
                 }
             }
             ForEach(model.profiles) { p in
@@ -208,8 +215,10 @@ struct AgentView: View {
                 Toggle(isOn: Binding(get: { st.on }, set: { _ in model.toggleProfile(p.id, agent: a.id, scope: scope) })) {
                     HStack {
                         Text(p.name)
-                        if !p.skills.isEmpty { Pill(text: "+\(p.skills.count) skills", systemImage: "sparkles") }
-                        if st.pending { Pill(text: "pending", color: .accentColor) }
+                        if !p.skills.isEmpty {
+                            Pill(text: p.skills.count == 1 ? L("+1 skill") : L("+\(p.skills.count) skills"), systemImage: "sparkles")
+                        }
+                        if st.pending { Pill(text: L("pending"), color: .accentColor) }
                         Text(p.description).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
@@ -221,14 +230,14 @@ struct AgentView: View {
 
     func profileTarget(_ a: AgentState) -> String {
         guard let env = model.env, let f = a.adapter.primaryInstructionFile(scope, env) else { return "" }
-        return "Kitfold writes assigned profiles to \(model.ab(f))."
+        return L("Kitfold writes assigned profiles to \(model.ab(f)).")
     }
 
     // MARK: instructions
 
     func instructions(_ a: AgentState) -> some View {
         Card {
-            SectionTitle(title: "Instruction files", subtitle: "In load order. Only loaded files reach the model.")
+            SectionTitle(title: L("Instruction files"), subtitle: L("In load order. Only loaded files reach the model."))
             let files = (scope.isGlobal ? [] : a.state(.global).instructions.filter(\.isLoaded)) + a.state(scope).instructions
             ForEach(files) { f in
                 HStack(alignment: .top, spacing: 10) {
@@ -239,22 +248,24 @@ struct AgentView: View {
                         HStack(spacing: 6) {
                             Text(model.ab(f.file.path)).font(.callout.monospaced()).lineLimit(1).truncationMode(.middle)
                             if f.isLoaded {
-                                Pill(text: "loaded", color: .green)
+                                Pill(text: L("loaded"), color: .green)
                             } else if f.exists {
-                                Pill(text: "not loaded", color: .orange)
+                                Pill(text: L("not loaded"), color: .orange)
                             }
-                            if f.file.spec.role == .primary { Pill(text: "Kitfold target", color: .accentColor) }
-                            if f.file.spec.role == .fallback { Pill(text: "fallback") }
-                            if f.isSymlink { Pill(text: "symlink", systemImage: "link") }
-                            if f.exists { Text(f.byteCount.formatted(.byteCount(style: .file))).font(.caption).foregroundStyle(.secondary) }
+                            if f.file.spec.role == .primary { Pill(text: L("Kitfold target"), color: .accentColor) }
+                            if f.file.spec.role == .fallback { Pill(text: L("fallback")) }
+                            if f.isSymlink { Pill(text: L("symlink"), systemImage: "link") }
+                            if f.exists {
+                                Text(f.byteCount.formatted(.byteCount(style: .file).locale(Localization.language.locale))).font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        if !f.file.spec.note.isEmpty { Text(f.file.spec.note).font(.caption).foregroundStyle(.secondary) }
+                        if !f.file.spec.note.isEmpty {
+                            Text(Localization.translate(f.file.spec.note)).font(.caption).foregroundStyle(.secondary)
+                        }
                         if !f.sharedWith.isEmpty {
-                            Text(
-                                "Also read by "
-                                    + f.sharedWith.compactMap { model.snapshot?.agent($0)?.adapter.name }.joined(separator: ", ")
-                            )
-                            .font(.caption).foregroundStyle(.orange)
+                            let names = f.sharedWith.compactMap { model.snapshot?.agent($0)?.adapter.name }.joined(separator: ", ")
+                            Text(L("Also read by \(names)")).font(.caption).foregroundStyle(.orange)
                         }
                         if !f.blocks.isEmpty {
                             HStack(spacing: 4) {
@@ -267,19 +278,20 @@ struct AgentView: View {
                         }
                         ForEach(f.driftedBlocks) { b in
                             HStack {
-                                Text("“\(b.profile)” was edited here outside Kitfold.").font(.caption)
-                                Button("Keep edit") { model.reviewKeepEdit(file: f.file.path, profile: b.profile) }
-                                Button("Overwrite…") { model.reviewOverwrite(file: f.file.path) }
+                                Text(L("“\(b.profile)” was edited here outside Kitfold.")).font(.caption)
+                                Button(L("Keep edit")) { model.reviewKeepEdit(file: f.file.path, profile: b.profile) }
+                                Button(L("Overwrite…")) { model.reviewOverwrite(file: f.file.path) }
                             }
                             .controlSize(.small)
                         }
                         if !f.foreignBlocks.isEmpty {
-                            Text("Contains blocks managed by \(f.foreignBlocks.joined(separator: ", ")) (left untouched).")
+                            let owners = f.foreignBlocks.joined(separator: ", ")
+                            Text(L("Contains blocks managed by \(owners) (left untouched)."))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     Spacer()
-                    Button(f.exists ? "Edit" : "Create") {
+                    Button(f.exists ? L("Edit") : L("Create")) {
                         model.editingInstruction = .init(path: f.file.path, agents: [a.id] + f.sharedWith, scope: f.file.scope)
                     }
                     .controlSize(.small)
@@ -292,6 +304,15 @@ struct AgentView: View {
 
     // MARK: discovery
 
+    func roleLabel(_ role: SkillRootSpec.Role) -> String {
+        switch role {
+        case .primary: return L("primary")
+        case .shared: return L("shared")
+        case .foreign: return L("foreign")
+        case .bundled: return L("bundled")
+        }
+    }
+
     func discovery(_ a: AgentState) -> some View {
         Card {
             DisclosureGroup {
@@ -299,23 +320,24 @@ struct AgentView: View {
                     if let env = model.env {
                         ForEach(a.adapter.skillRoots(scope, env)) { r in
                             HStack(alignment: .top) {
-                                Pill(text: r.spec.role.rawValue, color: r.spec.role == .primary ? .accentColor : .secondary)
+                                Pill(text: roleLabel(r.spec.role), color: r.spec.role == .primary ? .accentColor : .secondary)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(model.ab(r.path)).font(.caption.monospaced())
-                                    Text(r.spec.note + (r.spec.verified ? "" : " (unverified)")).font(.caption).foregroundStyle(.secondary)
+                                    Text(Localization.translate(r.spec.note) + (r.spec.verified ? "" : L(" (unverified)"))).font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
                     }
                     Divider()
                     ForEach(a.adapter.descriptor.notes, id: \.self) { n in
-                        Label(n, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
+                        Label(Localization.translate(n), systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
                     }
-                    Link("Agent documentation", destination: URL(string: a.adapter.descriptor.docsURL)!).font(.caption)
+                    Link(L("Agent documentation"), destination: URL(string: a.adapter.descriptor.docsURL)!).font(.caption)
                 }
                 .padding(.top, 6)
             } label: {
-                SectionTitle(title: "How \(a.adapter.name) finds skills", subtitle: "Folders scanned, highest precedence first")
+                SectionTitle(title: L("How \(a.adapter.name) finds skills"), subtitle: L("Folders scanned, highest precedence first"))
             }
         }
     }
@@ -330,7 +352,7 @@ struct AddSkillsPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("Search skills", text: $q).textFieldStyle(.roundedBorder)
+            TextField(L("Search skills"), text: $q).textFieldStyle(.roundedBorder)
             List {
                 ForEach(candidates, id: \.self) { name in
                     Button {

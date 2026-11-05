@@ -54,6 +54,8 @@ final class AppModel {
     var isPlanning = false
     var errorMessage: String?
     var toast: String?
+    /// The language Kitfold's text is in. Views rebuild when it changes.
+    private(set) var language = Localization.language
 
     var selection: SidebarItem? = .dashboard
     var selectedSkillPath: String?
@@ -98,10 +100,10 @@ final class AppModel {
             let ws = try Workspace()
             workspace = ws
             draft = ws.config
-            if ws.isFirstRun { toast = "Welcome. Kitfold only read your setup — nothing has been changed." }
+            if ws.isFirstRun { toast = L("Welcome. Kitfold only read your setup — nothing has been changed.") }
             rescan()
         } catch {
-            errorMessage = "Couldn't open Kitfold's data folder: \(error.localizedDescription)"
+            errorMessage = L("Couldn't open Kitfold's data folder: \(error.localizedDescription)")
         }
     }
 
@@ -173,7 +175,10 @@ final class AppModel {
         let pending = draft
         do {
             if let tx = try ws.apply(plan, summary: summary) {
-                toast = "Applied \(tx.operations.count) change\(tx.operations.count == 1 ? "" : "s"). Undo anytime from History."
+                let n = tx.operations.count
+                toast =
+                    n == 1
+                    ? L("Applied 1 change. Undo anytime from History.") : L("Applied \(n) changes. Undo anytime from History.")
             }
             draft = ws.config
             if keepDraft {
@@ -197,7 +202,7 @@ final class AppModel {
         do {
             try ws.undo(tx.id)
             draft = ws.config
-            toast = "Undid “\(tx.summary)”."
+            toast = L("Undid “\(tx.summary)”.")
             rescan(probeVersions: false)
         } catch {
             errorMessage = error.localizedDescription
@@ -205,29 +210,40 @@ final class AppModel {
     }
 
     func summaryForDraft() -> String {
-        guard let ws = workspace else { return "Apply changes" }
+        guard let ws = workspace else { return L("Apply changes") }
         let before = Set(ws.config.rules)
         let after = Set(draft.rules)
         let added = after.subtracting(before), removed = before.subtracting(after)
         let names = Set((added.union(removed)).map(\.resource.id)).sorted()
-        if names.isEmpty { return "Update configuration" }
+        if names.isEmpty { return L("Update configuration") }
         // One switch flipped: say exactly what it does, as the CLI does.
         let keys = Set(added.union(removed).map { "\($0.resource)|\($0.scope)|\($0.agent)" })
         if keys.count == 1, let r = added.first ?? removed.first {
-            let what = r.resource.kind == .profile ? "profile \(r.resource.id)" : r.resource.id
-            let who: String = {
-                if case .agent(let id) = r.agent { return snapshot?.agent(id)?.name ?? id.rawValue }
-                return "all agents"
-            }()
-            let place = r.scope.isGlobal ? "" : " in \(projectName(r.scope))"
-            switch draft.rule(r.resource, agent: r.agent, scope: r.scope)?.state {
-            case .on: return "Give \(what) to \(who)\(place)"
-            case .off: return "Take \(what) from \(who)\(place)"
-            case nil: return "Reset \(what) for \(who)\(place)"
+            let what = r.resource.kind == .profile ? L("profile \(r.resource.id)") : r.resource.id
+            let state = draft.rule(r.resource, agent: r.agent, scope: r.scope)?.state
+            let place = projectName(r.scope)
+            guard case .agent(let id) = r.agent else {
+                switch (state, r.scope.isGlobal) {
+                case (.on, true): return L("Give \(what) to all agents")
+                case (.on, false): return L("Give \(what) to all agents in \(place)")
+                case (.off, true): return L("Take \(what) from all agents")
+                case (.off, false): return L("Take \(what) from all agents in \(place)")
+                case (nil, true): return L("Reset \(what) for all agents")
+                case (nil, false): return L("Reset \(what) for all agents in \(place)")
+                }
+            }
+            let who = snapshot?.agent(id)?.name ?? id.rawValue
+            switch (state, r.scope.isGlobal) {
+            case (.on, true): return L("Give \(what) to \(who)")
+            case (.on, false): return L("Give \(what) to \(who) in \(place)")
+            case (.off, true): return L("Take \(what) from \(who)")
+            case (.off, false): return L("Take \(what) from \(who) in \(place)")
+            case (nil, true): return L("Reset \(what) for \(who)")
+            case (nil, false): return L("Reset \(what) for \(who) in \(place)")
             }
         }
         let head = names.prefix(3).joined(separator: ", ")
-        return "Update \(head)\(names.count > 3 ? " +\(names.count - 3)" : "")"
+        return names.count > 3 ? L("Update \(head) +\(names.count - 3)") : L("Update \(head)")
     }
 
     // MARK: rule editing (the single source of truth)
@@ -267,7 +283,7 @@ final class AppModel {
 
     func toggle(skill: String, agent: AgentID, scope: Scope) {
         if isPluginSkill(skill) {
-            toast = "“\(skill)” comes from a plugin — switch it in the agent's plugin settings."
+            toast = L("“\(skill)” comes from a plugin — switch it in the agent's plugin settings.")
             return
         }
         let c = cell(skill: skill, agent: agent, scope: scope)
@@ -321,7 +337,7 @@ final class AppModel {
         guard let ws = workspace else { return }
         do {
             try ws.saveProfile(p)
-            toast = "Saved “\(p.name)”. Agents using it are updated when you apply."
+            toast = L("Saved “\(p.name)”. Agents using it are updated when you apply.")
             rescan(probeVersions: false)
         } catch { errorMessage = error.localizedDescription }
     }
@@ -332,7 +348,7 @@ final class AppModel {
             try ws.library.trashProfile(id: id)
             draft.removeRules(for: ResourceRef(.profile, id))
             selectedProfileID = nil
-            toast = "Profile moved to Kitfold's trash. Apply to remove it from agents."
+            toast = L("Profile moved to Kitfold's trash. Apply to remove it from agents.")
             rescan(probeVersions: false)
         } catch { errorMessage = error.localizedDescription }
     }
@@ -352,7 +368,7 @@ final class AppModel {
         do {
             let dir = try ws.library.importFolder(url.path)
             selectedSkillPath = FS.realPath(dir) ?? dir
-            toast = "Copied into the library. The original folder is untouched."
+            toast = L("Copied into the library. The original folder is untouched.")
             rescan(probeVersions: false)
         } catch { errorMessage = error.localizedDescription }
     }
@@ -367,7 +383,7 @@ final class AppModel {
                     c.sources.append(source)
                     try? ws.saveConfigDirectly(c)
                     self.draft.sources = ws.config.sources
-                    self.toast = "Added \(source.label) as a skill source."
+                    self.toast = L("Added \(source.label) as a skill source.")
                     self.rescan(probeVersions: false)
                 }
             } catch {
@@ -419,7 +435,9 @@ final class AppModel {
         var c = ws.config
         c.projects.removeAll { $0.path == path }
         if c.rules.contains(where: { $0.scope == .project(path) }) {
-            errorMessage = "This project still has assignments. Switch them off and apply first, so Kitfold can clean up its files there."
+            errorMessage = L(
+                "This project still has assignments, including switched-off ones. Clear them (Clear in the row's menu) and apply first, so Kitfold can clean up its files there."
+            )
             return
         }
         selection = .dashboard
@@ -430,7 +448,7 @@ final class AppModel {
         guard let ws = workspace else { return }
         do {
             try ws.saveSkillFile(entry, text: text)
-            toast = "Saved SKILL.md (previous version kept in backups)."
+            toast = L("Saved SKILL.md (previous version kept in backups).")
             rescan(probeVersions: false)
         } catch { errorMessage = error.localizedDescription }
     }
@@ -439,7 +457,8 @@ final class AppModel {
         guard let ws = workspace, let snap = snapshot else { return }
         do {
             let p = try ws.planAdopt(entry, snapshot: snap)
-            reviewPlan = ReviewRequest(title: "Move “\(entry.name)” into the library", plan: p, summary: "Adopt \(entry.name)")
+            reviewPlan = ReviewRequest(
+                title: L("Move “\(entry.name)” into the library"), plan: p, summary: L("Adopt \(entry.name)"))
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -448,15 +467,15 @@ final class AppModel {
         let p = ws.planEdit(path: target.path, newText: newText, agents: target.agents, scope: target.scope)
         guard !p.isEmpty else { editingInstruction = nil; return }
         reviewPlan = ReviewRequest(
-            title: "Save \((target.path as NSString).lastPathComponent)", plan: p,
-            summary: "Edit \(ws.env.abbreviate(target.path))")
+            title: L("Save \((target.path as NSString).lastPathComponent)"), plan: p,
+            summary: L("Edit \(ws.env.abbreviate(target.path))"))
     }
 
     func reviewKeepEdit(file: String, profile: String) {
         guard let ws = workspace, let snap = snapshot else { return }
         do {
             let p = try ws.adoptDrift(file: file, profile: profile, snapshot: snap)
-            reviewPlan = ReviewRequest(title: "Keep the edit to “\(profile)”", plan: p, summary: "Keep edit to \(profile)")
+            reviewPlan = ReviewRequest(title: L("Keep the edit to “\(profile)”"), plan: p, summary: L("Keep edit to \(profile)"))
             rescan(probeVersions: false)
         } catch { errorMessage = error.localizedDescription }
     }
@@ -464,7 +483,18 @@ final class AppModel {
     func reviewOverwrite(file: String) {
         guard let ws = workspace, let snap = snapshot else { return }
         let p = ws.plan(ws.config, snapshot: snap, overwriteDrift: [file])
-        reviewPlan = ReviewRequest(title: "Overwrite the outside edit", plan: p, summary: "Overwrite edit in \(ws.env.abbreviate(file))")
+        reviewPlan = ReviewRequest(
+            title: L("Overwrite the outside edit"), plan: p, summary: L("Overwrite edit in \(ws.env.abbreviate(file))"))
+    }
+
+    // MARK: language
+
+    /// nil follows the system. Messages from the core are made during a scan, so this rescans.
+    func setLanguage(_ choice: Language?) {
+        LanguageSettings.choose(choice)
+        Localization.language = choice ?? LanguageSettings.system
+        language = Localization.language
+        rescan()
     }
 
     // MARK: helpers
@@ -477,7 +507,7 @@ final class AppModel {
 
     func projectName(_ scope: Scope) -> String {
         switch scope {
-        case .global: return "Global"
+        case .global: return L("Global")
         case .project(let p): return draft.projects.first { $0.path == p }?.name ?? (p as NSString).lastPathComponent
         }
     }

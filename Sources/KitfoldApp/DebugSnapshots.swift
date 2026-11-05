@@ -9,6 +9,8 @@ import SwiftUI
 /// - KITFOLD_SNAPSHOT_SCRIPT=marketing  curated states for release screenshots (see scripts/screenshots/make.sh)
 /// - KITFOLD_SNAPSHOT_SCRIPT=video      states for the launch video (see scripts/video); applies its
 ///   draft only inside a fake home (KITFOLD_FAKE_HOME)
+/// - KITFOLD_SNAPSHOT_SCRIPT=tutorial   states the tutorials show (see scripts/tutorials/make.sh)
+/// - KITFOLD_SNAPSHOT_SCRIPT=language   switches language while running, to check that every page and menu follows
 /// - KITFOLD_SNAPSHOT_APPEARANCE=light|dark
 /// - KITFOLD_SNAPSHOT_SIZE=1440x900     window size in points
 /// Draft changes made by a script are never applied.
@@ -45,6 +47,10 @@ enum DebugSnapshots {
             await marketing(model: model, dir: dir)
         } else if env["KITFOLD_SNAPSHOT_SCRIPT"] == "video" {
             await video(model: model, dir: dir)
+        } else if env["KITFOLD_SNAPSHOT_SCRIPT"] == "tutorial" {
+            await tutorial(model: model, dir: dir)
+        } else if env["KITFOLD_SNAPSHOT_SCRIPT"] == "language" {
+            await language(model: model, dir: dir)
         } else {
             await tour(model: model, dir: dir)
         }
@@ -154,6 +160,101 @@ enum DebugSnapshots {
         await show(model, .skills, then: "v09-skill", dir: dir)
         model.selectedProfileID = "code-reviewer"
         await show(model, .profiles, then: "v10-profile", dir: dir)
+    }
+
+    /// The tutorials' screenshots, one per step they explain. Draft changes are discarded, never applied.
+    @MainActor
+    static func tutorial(model: AppModel, dir: String) async {
+        guard let snap = model.snapshot else { return }
+        await show(model, .dashboard, then: "dashboard", dir: dir)
+        await show(model, .agent(.codex), then: "agent", dir: dir)
+        model.skillsMatrix = true
+        await show(model, .skills, then: "matrix", dir: dir)
+        model.skillsMatrix = false
+        model.selectedSkillPath = snap.skill(named: "code-review")?.path
+        await show(model, .skills, then: "skill", dir: dir)
+
+        // Two switches flipped: one is a link, the other needs OpenCode's own setting.
+        model.skillsMatrix = true
+        model.toggle(skill: "test-writer", agent: .codex, scope: .global)
+        model.toggle(skill: "deep-research", agent: .openCode, scope: .global)
+        await show(model, .skills, wait: 1200, then: "pending", dir: dir)
+        model.showReview = true
+        try? await Task.sleep(for: .milliseconds(1400))
+        if let sheet = visibleSheet { capture(window: sheet, to: "\(dir)/review.png") }
+        model.showReview = false
+        try? await Task.sleep(for: .milliseconds(500))
+        model.discardDraft()
+        model.skillsMatrix = false
+
+        await show(model, .history, then: "history", dir: dir)
+        model.selectedProfileID = "code-reviewer"
+        await show(model, .profiles, then: "profile", dir: dir)
+        if let p = model.draft.projects.first(where: { $0.name == "acme-web" }) {
+            await show(model, .project(p.path), then: "project", dir: dir)
+        }
+
+        model.selection = .dashboard
+        model.showPalette = true
+        try? await Task.sleep(for: .milliseconds(700))
+        capture(to: "\(dir)/palette.png")
+        model.showPalette = false
+        model.showNewSkill = true
+        try? await Task.sleep(for: .milliseconds(900))
+        if let sheet = visibleSheet { capture(window: sheet, to: "\(dir)/new-skill.png") }
+        model.showNewSkill = false
+        try? await Task.sleep(for: .milliseconds(500))
+
+        // The Settings window, General tab (where the language is picked).
+        let before = Set(NSApp.windows.map(ObjectIdentifier.init))
+        // The app menu's Settings… item (⌘,), as a user would open it.
+        if let appMenu = NSApp.mainMenu?.items.first?.submenu,
+            let i = appMenu.items.firstIndex(where: { $0.keyEquivalent == "," })
+        {
+            appMenu.performActionForItem(at: i)
+        }
+        try? await Task.sleep(for: .milliseconds(1500))
+        if let settings = NSApp.windows.first(where: { $0.isVisible && !before.contains(ObjectIdentifier($0)) }) {
+            capture(window: settings, to: "\(dir)/settings.png")
+            settings.close()
+        }
+        writeMenus(to: "\(dir)/menus.txt")
+    }
+
+    /// Switches to the other language while running and back to following the system, capturing each step.
+    @MainActor
+    static func language(model: AppModel, dir: String) async {
+        let start = model.language
+        let other: Language = start == .english ? .simplifiedChinese : .english
+        await show(model, .dashboard, then: "1-\(start.rawValue)", dir: dir)
+        writeMenus(to: "\(dir)/1-menus-\(start.rawValue).txt")
+        model.setLanguage(other)
+        try? await Task.sleep(for: .milliseconds(1500))
+        await show(model, .skills, then: "2-\(other.rawValue)", dir: dir)
+        await show(model, .agent(.codex), then: "3-\(other.rawValue)-agent", dir: dir)
+        writeMenus(to: "\(dir)/2-menus-\(other.rawValue).txt")
+        model.setLanguage(nil)
+        try? await Task.sleep(for: .milliseconds(1500))
+        await show(model, .dashboard, then: "4-system-\(model.language.rawValue)", dir: dir)
+    }
+
+    @MainActor static var visibleSheet: NSWindow? { NSApp.windows.first { $0.isVisible && $0.sheetParent != nil } }
+
+    /// The menu bar as text: every menu and item title, indented.
+    @MainActor
+    static func writeMenus(to path: String) {
+        func walk(_ menu: NSMenu, _ depth: Int) -> [String] {
+            // What macOS does before showing a menu; SwiftUI refreshes its items here.
+            menu.delegate?.menuNeedsUpdate?(menu)
+            menu.update()
+            return menu.items.flatMap { item -> [String] in
+                guard !item.isSeparatorItem else { return [] }
+                let line = String(repeating: "  ", count: depth) + item.title
+                return [line] + (item.submenu.map { walk($0, depth + 1) } ?? [])
+            }
+        }
+        guard let menu = NSApp.mainMenu else { return }
+        try? walk(menu, 0).joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
     }
 
     @MainActor

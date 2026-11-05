@@ -42,6 +42,31 @@ import Testing
         #expect(ws.config.preferences.backupRetentionDays == 7)  // the later setting is kept
     }
 
+    @Test func pruningKeepsRecentProfileVersions() throws {
+        let h = FakeHome()
+        let ws = try h.workspace()
+        let old = Date().addingTimeInterval(-90 * 86_400)
+        func age(_ p: String) throws { try FileManager.default.setAttributes([.modificationDate: old], ofItemAtPath: p) }
+        let versions = ws.profileHistoryDir + "/backend"
+        try FS.write("old", to: versions + "/20260101-000000.md")
+        try FS.write("new", to: versions + "/20261105-000000.md")
+        try FS.write("gone", to: ws.profileHistoryDir + "/retired/20260101-000000.md")
+        try FS.write("backup", to: ws.env.backupsDir + "/20260101-000000-abcd/file")
+        try age(versions + "/20260101-000000.md")
+        try age(ws.profileHistoryDir + "/retired/20260101-000000.md")
+        try age(ws.env.backupsDir + "/20260101-000000-abcd")
+        // The folders themselves look old too: only a new profile's folder would refresh their date.
+        try age(versions)
+        try age(ws.profileHistoryDir)
+
+        ws.executor.pruneBackups(olderThan: 30)
+
+        #expect(FS.exists(versions + "/20261105-000000.md"))
+        #expect(!FS.exists(versions + "/20260101-000000.md"))
+        #expect(!FS.exists(ws.profileHistoryDir + "/retired"))
+        #expect(!FS.exists(ws.env.backupsDir + "/20260101-000000-abcd"))
+    }
+
     @Test func undoingAnAdoptRefusesWhileNewerLinksDependOnIt() throws {
         let h = FakeHome()
         h.installAgents()

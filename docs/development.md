@@ -17,6 +17,7 @@
 | `make app` | Release build in `build/Kitfold.app` (with icon and bundled CLI) |
 | `make demo DIR=/tmp/kf` | Build the fictional demo home |
 | `make screenshots` | Regenerate release screenshots |
+| `make tutorial-shots` | Regenerate the tutorials' screenshots, in English and Chinese |
 | `make video` | Render the launch video and GIFs, e.g. `make video MUSIC=~/music.mp3` |
 | `make format` | Format sources with `swift format` |
 | `make clean` | Remove `.build` and `build` |
@@ -28,8 +29,9 @@
 | `KITFOLD_HOME=<dir>` | Where Kitfold keeps its own data (config, state DB, backups, library). Default `~/.kitfold`. Use it to inspect your real agents read-only without creating `~/.kitfold`. |
 | `KITFOLD_FAKE_HOME=<dir>` | Treat `<dir>` as `$HOME`: agent folders, Kitfold's data, everything. `CODEX_HOME`, `CLAUDE_CONFIG_DIR` and similar are ignored unless they point inside it. The CLI's `--home <dir>` does the same. |
 | `CLAUDE_CONFIG_DIR`, `CODEX_HOME` | Honored like the agents themselves honor them. |
+| `KITFOLD_LANG=en\|zh-Hans` | Language of the app and CLI, instead of the system's. See [localization.md](localization.md). |
 | `KITFOLD_SNAPSHOT_DIR=<dir>` | App only: render pages to PNGs, then quit (see below). |
-| `KITFOLD_SNAPSHOT_SCRIPT=marketing\|video` | Use the release-screenshot or launch-video sequence instead of the page tour. `video` applies its change, but only inside a fake home. |
+| `KITFOLD_SNAPSHOT_SCRIPT=marketing\|video\|tutorial\|language` | Use the release-screenshot, launch-video or tutorial sequence instead of the page tour. `video` applies its change, but only inside a fake home. `language` switches language while running and writes the menu bar to text files, to check that everything follows. |
 | `KITFOLD_SNAPSHOT_APPEARANCE=light\|dark` | Force an appearance for snapshots. |
 | `KITFOLD_SNAPSHOT_SIZE=1440x900` | Window size in points for snapshots. |
 
@@ -74,9 +76,15 @@ ls /tmp/shots
 
 Snapshot mode makes draft changes only for the review sheet and never applies them (except the `video` script, and only in a fake home). `scripts/lib/snapshot-app.sh` wraps the binary in a throwaway `.app` and runs one snapshot script against a demo home.
 
+`scripts/lib/snapshot-app.sh` renders in English unless `KITFOLD_LANG=zh-Hans` is set; it also passes `-AppleLanguages` so macOS's own controls match.
+
+`scripts/tutorials/make.sh` builds a demo home per language (its history is written in that language too) and saves the tutorial screenshots to `docs/tutorials/images/en/` and `docs/tutorials/images/zh-CN/`.
+
 `scripts/screenshots/make.sh` builds the demo home, captures dark and light sets, and frames them with `scripts/screenshots/frame.swift`:
 - full-size PNGs go to `build/screenshots/`;
 - README JPEGs go to `docs/assets/screenshots/`.
+
+`scripts/screenshots/make.sh zh-Hans` renders the Chinese set for `README.zh-CN.md` into `docs/assets/screenshots/zh-CN/`; pass `en zh-Hans` for both.
 
 ## Launch video
 
@@ -112,4 +120,5 @@ make app            # build/Kitfold.app, ad-hoc signed
 | change what gets written | `Sync/Planner.swift`, `Sync/ManagedBlock.swift` |
 | change how it gets written / undone | `Sync/Executor.swift`, `State/StateStore.swift` |
 | add a CLI command | `Sources/kitfold/main.swift` |
+| add or change a message | the `L("…")` at the call site and `Sources/KitfoldCore/Localization/` ([localization.md](localization.md)) |
 | change app state or a page | `Sources/KitfoldApp/AppModel.swift` and the `*View.swift` files |

@@ -8,6 +8,8 @@ final class FakeHome {
     let env: KitfoldEnvironment
 
     init() {
+        // Messages are checked in English whatever the machine's language is.
+        Localization.language = .english
         let base = NSTemporaryDirectory() + "kitfold-tests/" + UUID().uuidString
         try! FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
         root = FS.realPath(base)!

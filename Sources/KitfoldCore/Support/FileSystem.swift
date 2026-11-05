@@ -127,9 +127,9 @@ public enum FS {
     /// Remove only a symlink (never what it points to).
     public static func removeSymlink(at path: String) throws {
         guard case .symlink = kind(path) else {
-            throw KitfoldError.precondition("Refusing to remove \(path): not a symlink")
+            throw KitfoldError.precondition(L("Refusing to remove \(path): not a symlink"))
         }
-        guard unlink(path) == 0 else { throw KitfoldError.io("unlink failed for \(path): \(String(cString: strerror(errno)))") }
+        guard unlink(path) == 0 else { throw KitfoldError.io(L("unlink failed for \(path): \(String(cString: strerror(errno)))")) }
     }
 
     /// Relative path from directory `from` to `to` (both absolute, standardized).
@@ -174,10 +174,10 @@ public enum KitfoldError: Error, CustomStringConvertible, LocalizedError {
 
     public var description: String {
         switch self {
-        case .precondition(let s): return "Precondition failed: \(s)"
-        case .io(let s): return "I/O error: \(s)"
-        case .invalid(let s): return "Invalid: \(s)"
-        case .notFound(let s): return "Not found: \(s)"
+        case .precondition(let s): return L("Precondition failed: \(s)")
+        case .io(let s): return L("I/O error: \(s)")
+        case .invalid(let s): return L("Invalid: \(s)")
+        case .notFound(let s): return L("Not found: \(s)")
         }
     }
     public var errorDescription: String? { description }

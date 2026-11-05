@@ -9,9 +9,29 @@ struct SkillsView: View {
     @State private var scope: Scope = .global
     @State private var showGitSheet = false
 
-    enum Mode: String, CaseIterable { case list = "List", matrix = "Matrix" }
-    enum Filter: String, CaseIterable {
-        case all = "All", library = "Library", sources = "Sources", local = "Local folders", plugins = "Plugins", problems = "With problems"
+    enum Mode: CaseIterable {
+        case list, matrix
+
+        var label: String {
+            switch self {
+            case .list: return L("List")
+            case .matrix: return L("Matrix")
+            }
+        }
+    }
+    enum Filter: CaseIterable {
+        case all, library, sources, local, plugins, problems
+
+        var label: String {
+            switch self {
+            case .all: return L("All")
+            case .library: return L("Library")
+            case .sources: return L("Sources")
+            case .local: return L("Local folders")
+            case .plugins: return L("Plugins")
+            case .problems: return L("With problems")
+            }
+        }
     }
 
     var entries: [SkillEntry] {
@@ -42,24 +62,24 @@ struct SkillsView: View {
                 Picker(
                     "", selection: Binding(get: { model.skillsMatrix ? Mode.matrix : .list }, set: { model.skillsMatrix = $0 == .matrix })
                 ) {
-                    ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
+                    ForEach(Mode.allCases, id: \.self) { Text($0.label) }
                 }
                 .pickerStyle(.segmented).fixedSize()
                 ScopePicker(scope: $scope)
-                Picker("", selection: $filter) { ForEach(Filter.allCases, id: \.self) { Text($0.rawValue) } }
+                Picker("", selection: $filter) { ForEach(Filter.allCases, id: \.self) { Text($0.label) } }
                     .fixedSize()
                 Spacer()
-                TextField("Filter skills", text: $search)
+                TextField(L("Filter skills"), text: $search)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
                 Menu {
-                    Button("New Skill…") { model.showNewSkill = true }
-                    Button("Import Folder…") { importFolder() }
+                    Button(L("New Skill…")) { model.showNewSkill = true }
+                    Button(L("Import Folder…")) { importFolder() }
                     Divider()
-                    Button("Add Source Folder…") { addSourceFolder() }
-                    Button("Add Git Repository…") { showGitSheet = true }
+                    Button(L("Add Source Folder…")) { addSourceFolder() }
+                    Button(L("Add Git Repository…")) { showGitSheet = true }
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label(L("Add"), systemImage: "plus")
                 }
                 .fixedSize()
             }
@@ -88,15 +108,15 @@ struct SkillsView: View {
                             SkillDetail(entry: e).id(e.path)
                         } else {
                             ContentUnavailableView(
-                                "Select a skill", systemImage: "sparkles",
-                                description: Text("Choose which agents and projects get it."))
+                                L("Select a skill"), systemImage: "sparkles",
+                                description: Text(L("Choose which agents and projects get it.")))
                         }
                     }
                     .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
-        .navigationTitle("Skills")
+        .navigationTitle(L("Skills"))
         .sheet(isPresented: $showGitSheet) { GitSourceSheet() }
     }
 
@@ -109,7 +129,7 @@ struct SkillsView: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.message = "Choose a skill folder (it must contain SKILL.md). It's copied into the library."
+        panel.message = L("Choose a skill folder (it must contain SKILL.md). It's copied into the library.")
         if panel.runModal() == .OK, let url = panel.url { model.importSkillFolder(url) }
     }
 
@@ -117,7 +137,7 @@ struct SkillsView: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.message = "Choose a folder of skills. Kitfold reads it in place."
+        panel.message = L("Choose a folder of skills. Kitfold reads it in place.")
         if panel.runModal() == .OK, let url = panel.url { model.addSourceFolder(url) }
     }
 }
@@ -128,13 +148,13 @@ struct ScopePicker: View {
 
     var body: some View {
         Picker("", selection: $scope) {
-            Label("Global", systemImage: "globe").tag(Scope.global)
+            Label(L("Global"), systemImage: "globe").tag(Scope.global)
             ForEach(model.draft.projects) { p in
                 Label(p.name, systemImage: "folder").tag(Scope.project(p.path))
             }
         }
         .fixedSize()
-        .help("Which scope the agent dots and the matrix show")
+        .help(L("Which scope the agent dots and the matrix show"))
     }
 }
 
@@ -156,7 +176,7 @@ struct SkillRow: View {
                         Image(systemName: "exclamationmark.circle").foregroundStyle(.orange).imageScale(.small)
                     }
                 }
-                Text(entry.description.isEmpty ? "No description" : entry.description)
+                Text(entry.description.isEmpty ? L("No description") : entry.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -167,7 +187,7 @@ struct SkillRow: View {
                             .fill(c.willBeOn ? a.adapter.tint : Color.secondary.opacity(0.18))
                             .frame(width: 7, height: 7)
                             .overlay(Circle().strokeBorder(a.adapter.tint, lineWidth: c.pending ? 1.5 : 0).frame(width: 10, height: 10))
-                            .help("\(a.adapter.name): \(c.willBeOn ? "on" : "off")")
+                            .help(c.willBeOn ? L("\(a.adapter.name): on") : L("\(a.adapter.name): off"))
                     }
                 }
                 .padding(.top, 1)
@@ -205,9 +225,9 @@ struct AvailabilityGrid: View {
                         .disabled(!editable)
                     }
                     Menu {
-                        Button("All agents on") { model.setAll(skill: skill, scope: scope, on: true) }
-                        Button("All agents off") { model.setAll(skill: skill, scope: scope, on: false) }
-                        Button("Clear (leave as found)") {
+                        Button(L("All agents on")) { model.setAll(skill: skill, scope: scope, on: true) }
+                        Button(L("All agents off")) { model.setAll(skill: skill, scope: scope, on: false) }
+                        Button(L("Clear (leave as found)")) {
                             model.draft.setAll(ResourceRef(.skill, skill), scope: scope, state: nil)
                             model.replan()
                         }
@@ -226,12 +246,12 @@ struct AvailabilityGrid: View {
 struct ReachLegend: View {
     var body: some View {
         HStack(spacing: 14) {
-            legend("checkmark", "Linked")
-            legend("square.stack.3d.up", "Shared folder")
-            legend("arrow.turn.down.right", "Via another agent")
-            legend("arrow.down", "From global")
-            legend("nosign", "Off in agent settings")
-            legend("plus", "Pending")
+            legend("checkmark", L("Linked"))
+            legend("square.stack.3d.up", L("Shared folder"))
+            legend("arrow.turn.down.right", L("Via another agent"))
+            legend("arrow.down", L("From global"))
+            legend("nosign", L("Off in agent settings"))
+            legend("plus", L("Pending"))
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
@@ -255,9 +275,10 @@ struct SkillDetail: View {
                 header
                 Card {
                     SectionTitle(
-                        title: "Who gets it", subtitle: "Click a cell to switch it. Nothing changes on disk until you review and apply.")
+                        title: L("Who gets it"),
+                        subtitle: L("Click a cell to switch it. Nothing changes on disk until you review and apply."))
                     if case .bundled = entry.origin {
-                        Text("Plugin skills are switched on and off in the agent's plugin settings.").font(.callout).foregroundStyle(
+                        Text(L("Plugin skills are switched on and off in the agent's plugin settings.")).font(.callout).foregroundStyle(
                             .secondary)
                     } else {
                         AvailabilityGrid(skill: entry.name)
@@ -302,14 +323,14 @@ struct SkillDetail: View {
                 Button {
                     model.reviewAdopt(entry)
                 } label: {
-                    Label("Move into Library", systemImage: "tray.and.arrow.down")
+                    Label(L("Move into Library"), systemImage: "tray.and.arrow.down")
                 }
-                .help("Move this folder into Kitfold's library and leave a link behind, so it can be assigned per agent.")
+                .help(L("Move this folder into Kitfold's library and leave a link behind, so it can be assigned per agent."))
             }
             Button {
                 model.openInEditor(entry.skillFile)
             } label: {
-                Label("Open", systemImage: "square.and.pencil")
+                Label(L("Open"), systemImage: "square.and.pencil")
             }
         }
         .controlSize(.small)
@@ -318,12 +339,12 @@ struct SkillDetail: View {
 
     var loadedFrom: some View {
         Card {
-            SectionTitle(title: "Where agents load it from", subtitle: "Global scope, in each agent's precedence order")
+            SectionTitle(title: L("Where agents load it from"), subtitle: L("Global scope, in each agent's precedence order"))
             let rows = model.managedAgents.flatMap { a in
                 (model.snapshot?.exposures(skill: entry.name, agent: a.id, scope: .global) ?? []).map { (a, $0) }
             }
             if rows.isEmpty {
-                Text("No agent loads it yet.").foregroundStyle(.secondary).font(.callout)
+                Text(L("No agent loads it yet.")).foregroundStyle(.secondary).font(.callout)
             }
             ForEach(Array(rows.enumerated()), id: \.offset) { item in
                 let a = item.element.0
@@ -344,28 +365,28 @@ struct SkillDetail: View {
 
     func viaPill(_ ex: Exposure) -> some View {
         if case .disabled(let src, let byKitfold) = ex.observed.native {
-            return Pill(text: byKitfold ? "hidden by Kitfold in \(src)" : "off in \(src)", color: .secondary, systemImage: "nosign")
+            return Pill(text: byKitfold ? L("hidden by Kitfold in \(src)") : L("off in \(src)"), color: .secondary, systemImage: "nosign")
         }
-        if ex.observed.realPath != entry.path { return Pill(text: "different folder", color: .orange) }
+        if ex.observed.realPath != entry.path { return Pill(text: L("different folder"), color: .orange) }
         switch ex.via {
-        case .link(let owned): return Pill(text: owned ? "Kitfold link" : "link", color: .accentColor)
-        case .localFolder: return Pill(text: "local folder")
-        case .sharedDir: return Pill(text: "shared folder", color: .teal)
-        case .foreignDir: return Pill(text: "via another agent", color: .teal)
-        case .bundled: return Pill(text: "plugin")
-        case .nested(let parent): return Pill(text: "inside \(parent)", color: .teal)
+        case .link(let owned): return Pill(text: owned ? L("Kitfold link") : L("link"), color: .accentColor)
+        case .localFolder: return Pill(text: L("local folder"))
+        case .sharedDir: return Pill(text: L("shared folder"), color: .teal)
+        case .foreignDir: return Pill(text: L("via another agent"), color: .teal)
+        case .bundled: return Pill(text: L("plugin"))
+        case .nested(let parent): return Pill(text: L("inside \(parent)"), color: .teal)
         }
     }
 
     var problems: some View {
         Card {
-            SectionTitle(title: "Problems")
+            SectionTitle(title: L("Problems"))
             ForEach(entry.problems, id: \.self) { p in
                 Label(p, systemImage: "exclamationmark.circle").foregroundStyle(.orange).font(.callout)
             }
             if sameName.count > 1 {
                 Label(
-                    "\(sameName.count) folders are named “\(entry.name)”. Agents pick one; Kitfold assigns the library copy first.",
+                    L("\(sameName.count) folders are named “\(entry.name)”. Agents pick one; Kitfold assigns the library copy first."),
                     systemImage: "square.on.square"
                 ).font(.callout)
                 ForEach(sameName.filter { $0.path != entry.path }) { other in PathLabel(path: other.path) }
@@ -379,15 +400,15 @@ struct SkillDetail: View {
                 SectionTitle(title: "SKILL.md")
                 if entry.origin.isEditable {
                     if editing {
-                        Button("Cancel") { editing = false }
-                        Button("Save") {
+                        Button(L("Cancel")) { editing = false }
+                        Button(L("Save")) {
                             model.saveSkillFile(entry, text: text)
                             editing = false
                         }
                         .keyboardShortcut("s")
                         .buttonStyle(.borderedProminent)
                     } else {
-                        Button("Edit") {
+                        Button(L("Edit")) {
                             text = FS.read(entry.skillFile) ?? ""; editing = true
                         }
                     }
@@ -395,8 +416,10 @@ struct SkillDetail: View {
             }
             if editing {
                 if case .source(let id) = entry.origin, let owner = model.draft.sources.first(where: { $0.id == id })?.managedBy {
-                    Label("\(owner) manages this folder; its next update may replace your edits.", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
+                    Label(
+                        L("\(owner) manages this folder; its next update may replace your edits."), systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.caption).foregroundStyle(.orange)
                 }
                 TextEditor(text: $text)
                     .font(.system(.body, design: .monospaced))
@@ -426,7 +449,7 @@ struct AssignmentMatrix: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Toggle("Only skills that reach an agent", isOn: $onlyActive).toggleStyle(.checkbox)
+                Toggle(L("Only skills that reach an agent"), isOn: $onlyActive).toggleStyle(.checkbox)
                 Spacer()
                 ReachLegend()
             }
@@ -458,13 +481,16 @@ struct AssignmentMatrix: View {
                         }
                     } header: {
                         HStack(spacing: 0) {
-                            Text("\(rows.count) skills · \(model.projectName(scope))").font(.caption).foregroundStyle(.secondary)
+                            Text(
+                                rows.count == 1
+                                    ? L("1 skill · \(model.projectName(scope))") : L("\(rows.count) skills · \(model.projectName(scope))")
+                            ).font(.caption).foregroundStyle(.secondary)
                                 .frame(width: 260, alignment: .leading)
                             ForEach(model.managedAgents) { a in
                                 VStack(spacing: 2) {
                                     AgentBadge(adapter: a.adapter, size: 20)
                                     Text(a.adapter.name).font(.caption.weight(.medium)).lineLimit(1)
-                                    Text("\(a.visibleSkills(in: scope).count) loaded").font(.caption2.monospacedDigit()).foregroundStyle(
+                                    Text(L("\(a.visibleSkills(in: scope).count) loaded")).font(.caption2.monospacedDigit()).foregroundStyle(
                                         .secondary)
                                 }
                                 .frame(width: 104)
@@ -488,16 +514,18 @@ struct GitSourceSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add a Git repository of skills").font(.headline)
+            Text(L("Add a Git repository of skills")).font(.headline)
             Text(
-                "Kitfold makes a shallow clone into ~/.kitfold/sources and reads every folder with a SKILL.md. Nothing is assigned until you choose."
+                L(
+                    "Kitfold makes a shallow clone into ~/.kitfold/sources and reads every folder with a SKILL.md. Nothing is assigned until you choose."
+                )
             )
             .font(.callout).foregroundStyle(.secondary)
             TextField("https://github.com/owner/skills.git", text: $url).textFieldStyle(.roundedBorder)
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Clone") {
+                Button(L("Cancel")) { dismiss() }
+                Button(L("Clone")) {
                     model.addGitSource(url); dismiss()
                 }
                 .buttonStyle(.borderedProminent)

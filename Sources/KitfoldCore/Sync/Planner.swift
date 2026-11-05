@@ -89,23 +89,23 @@ public struct Planner {
                 guard let entry = snapshot.skill(named: name) else {
                     plan.issues.append(
                         Issue(
-                            .missingResource, .error, "Skill “\(name)” isn't in the library",
-                            detail: "It's assigned to \(a.name) but no folder with that name was found.",
+                            .missingResource, .error, L("Skill “\(name)” isn't in the library"),
+                            detail: L("It's assigned to \(a.name) but no folder with that name was found."),
                             agent: a.id, scope: scope, key: name))
                     continue
                 }
                 if case .bundled = entry.origin {
                     plan.issues.append(
                         Issue(
-                            .unsupported, .info, "“\(name)” comes from a plugin",
-                            detail: "Plugin skills are managed by the agent's plugin system.", agent: a.id, scope: scope, key: name))
+                            .unsupported, .info, L("“\(name)” comes from a plugin"),
+                            detail: L("Plugin skills are managed by the agent's plugin system."), agent: a.id, scope: scope, key: name))
                     continue
                 }
                 if let why = a.descriptor.skipReason(entry) {
                     plan.issues.append(
                         Issue(
-                            .invalidSkill, .warning, "\(a.name) can't load “\(name)”",
-                            detail: "\(why). Fix \(ab(entry.skillFile)) first.", paths: [entry.skillFile], agent: a.id, scope: scope,
+                            .invalidSkill, .warning, L("\(a.name) can't load “\(name)”"),
+                            detail: L("\(why). Fix \(ab(entry.skillFile)) first."), paths: [entry.skillFile], agent: a.id, scope: scope,
                             key: name))
                     continue
                 }
@@ -117,49 +117,52 @@ public struct Planner {
                     if hasNativeSwitch(a) { continue }
                     plan.issues.append(
                         Issue(
-                            .disabledNatively, .warning, "“\(name)” is switched off in \(a.name)'s settings",
-                            detail: "\(source) disables it. Remove that entry to let \(a.name) load it.",
+                            .disabledNatively, .warning, L("“\(name)” is switched off in \(a.name)'s settings"),
+                            detail: L("\(source) disables it. Remove that entry to let \(a.name) load it."),
                             paths: [blocked.observed.entryPath], agent: a.id, scope: scope, key: name))
                     continue
                 }
                 guard let dir = a.primarySkillDir(scope, env) else {
                     plan.issues.append(
                         Issue(
-                            .unsupported, .warning, "\(a.name) has no \(scope.isGlobal ? "global" : "project") skills folder",
+                            .unsupported, .warning,
+                            scope.isGlobal ? L("\(a.name) has no global skills folder") : L("\(a.name) has no project skills folder"),
                             agent: a.id, scope: scope, key: name))
                     continue
                 }
                 let linkPath = dir + "/" + linkName(entry)
-                let why = via.map { "via profile “\($0)”" } ?? "assigned"
+                let linkSummary =
+                    via.map { L("Link \(name) for \(a.name) (via profile “\($0)”)") } ?? L("Link \(name) for \(a.name) (assigned)")
                 let others = exposures.filter { $0.observed.realPath != entry.path }
                 let note =
                     others.isEmpty
                     ? nil
-                    : "Another “\(name)” is also visible: \(others.map { ab($0.observed.entryPath) }.joined(separator: ", "))"
+                    : L("Another “\(name)” is also visible: \(others.map { ab($0.observed.entryPath) }.joined(separator: ", "))")
                 switch removed.contains(linkPath) ? FS.Kind.missing : FS.kind(linkPath) {
                 case .missing:
                     plan.changes.append(
                         PlannedChange(
                             .createSymlink(path: linkPath, target: entry.path),
-                            summary: "Link \(name) for \(a.name) (\(why))", agents: [a.id], scope: scope, resource: ref, note: note))
+                            summary: linkSummary, agents: [a.id], scope: scope, resource: ref, note: note))
                 case .symlink(let raw):
                     let dest = FS.absolute(raw, relativeTo: dir)
                     let owned = snapshot.ownedPaths.contains(linkPath)
                     plan.changes.append(
                         PlannedChange(
                             .removeSymlink(path: linkPath, target: raw),
-                            summary: "Replace link \(linkName(entry)) for \(a.name)", agents: [a.id], scope: scope, resource: ref,
-                            risk: owned ? .safe : .caution, note: "Currently points to \(ab(dest))"))
+                            summary: L("Replace link \(linkName(entry)) for \(a.name)"), agents: [a.id], scope: scope, resource: ref,
+                            risk: owned ? .safe : .caution, note: L("Currently points to \(ab(dest))")))
                     plan.changes.append(
                         PlannedChange(
                             .createSymlink(path: linkPath, target: entry.path),
-                            summary: "Link \(name) for \(a.name) (\(why))", agents: [a.id], scope: scope, resource: ref))
+                            summary: linkSummary, agents: [a.id], scope: scope, resource: ref))
                 case .directory, .file:
                     plan.issues.append(
                         Issue(
-                            .conflict, .error, "A folder named “\(linkName(entry))” already exists for \(a.name)",
-                            detail:
-                                "\(ab(linkPath)) isn't managed by Kitfold, so it won't be replaced. Import it into the library or rename one of them.",
+                            .conflict, .error, L("A folder named “\(linkName(entry))” already exists for \(a.name)"),
+                            detail: L(
+                                "\(ab(linkPath)) isn't managed by Kitfold, so it won't be replaced. Import it into the library or rename one of them."
+                            ),
                             paths: [linkPath], agent: a.id, scope: scope, key: name))
                 }
 
@@ -176,8 +179,8 @@ public struct Planner {
                     if e.inherited {
                         plan.issues.append(
                             Issue(
-                                .stillVisible, .warning, "“\(name)” stays visible to \(a.name) in this project",
-                                detail: "It's enabled globally (\(ab(o.entryPath))).",
+                                .stillVisible, .warning, L("“\(name)” stays visible to \(a.name) in this project"),
+                                detail: L("It's enabled globally (\(ab(o.entryPath)))."),
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                         continue
                     }
@@ -186,41 +189,47 @@ public struct Planner {
                         plan.changes.append(
                             PlannedChange(
                                 .removeSymlink(path: o.entryPath, target: rawLink(o.entryPath)),
-                                summary: "Unlink \(name) from \(a.name)", agents: [a.id], scope: scope, resource: ref,
+                                summary: L("Unlink \(name) from \(a.name)"), agents: [a.id], scope: scope, resource: ref,
                                 risk: owned ? .safe : .caution,
-                                note: owned ? nil : "This link wasn't created by Kitfold (another tool or by hand). Undo restores it."))
+                                note: owned ? nil : L("This link wasn't created by Kitfold (another tool or by hand). Undo restores it.")))
                     case .localFolder:
                         plan.issues.append(
                             Issue(
-                                .conflict, .warning, "“\(name)” is a real folder in \(a.name)'s skills",
-                                detail:
-                                    "\(ab(o.entryPath)) isn't a link, so Kitfold won't delete it. Import it into the library first, then it can be switched off.",
+                                .conflict, .warning, L("“\(name)” is a real folder in \(a.name)'s skills"),
+                                detail: L(
+                                    "\(ab(o.entryPath)) isn't a link, so Kitfold won't delete it. Import it into the library first, then it can be switched off."
+                                ),
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     case .sharedDir:
                         plan.issues.append(
                             Issue(
-                                .stillVisible, .warning, "“\(name)” stays visible to \(a.name)",
-                                detail:
-                                    "It lives in \(ab(o.root.path)), which \(a.name) reads directly. Move it into the Kitfold library to control it per agent.",
+                                .stillVisible, .warning, L("“\(name)” stays visible to \(a.name)"),
+                                detail: L(
+                                    "It lives in \(ab(o.root.path)), which \(a.name) reads directly. Move it into the Kitfold library to control it per agent."
+                                ),
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     case .foreignDir(let owner):
-                        let ownerName = owner.flatMap { snapshot.agent($0)?.adapter.name } ?? "another agent"
+                        let folder = ab(o.root.path)
+                        let detail =
+                            owner.flatMap { snapshot.agent($0)?.adapter.name }.map { L("\(a.name) also reads \($0)'s folder \(folder).") }
+                            ?? L("\(a.name) also reads another agent's folder \(folder).")
                         plan.issues.append(
                             Issue(
-                                .stillVisible, .warning, "“\(name)” stays visible to \(a.name)",
-                                detail: "\(a.name) also reads \(ownerName)'s folder \(ab(o.root.path)).",
+                                .stillVisible, .warning, L("“\(name)” stays visible to \(a.name)"),
+                                detail: detail,
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     case .bundled:
                         plan.issues.append(
                             Issue(
-                                .unsupported, .info, "“\(name)” comes from a plugin",
-                                detail: "Disable the plugin in \(a.name) instead.", agent: a.id, scope: scope, key: name))
+                                .unsupported, .info, L("“\(name)” comes from a plugin"),
+                                detail: L("Disable the plugin in \(a.name) instead."), agent: a.id, scope: scope, key: name))
                     case .nested(let parent):
                         plan.issues.append(
                             Issue(
-                                .stillVisible, .warning, "“\(name)” stays visible to \(a.name)",
-                                detail:
-                                    "It's a SKILL.md nested inside “\(parent)” (\(ab(o.entryPath))), and \(a.name) loads nested skills on its own. Switch off “\(parent)”, or move the inner file out.",
+                                .stillVisible, .warning, L("“\(name)” stays visible to \(a.name)"),
+                                detail: L(
+                                    "It's a SKILL.md nested inside “\(parent)” (\(ab(o.entryPath))), and \(a.name) loads nested skills on its own. Switch off “\(parent)”, or move the inner file out."
+                                ),
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     }
                 }
@@ -231,7 +240,7 @@ public struct Planner {
                     plan.changes.append(
                         PlannedChange(
                             .removeSymlink(path: o.entryPath, target: rawLink(o.entryPath)),
-                            summary: "Unlink \(name) from \(a.name) (no longer assigned)", agents: [a.id], scope: scope, resource: ref))
+                            summary: L("Unlink \(name) from \(a.name) (no longer assigned)"), agents: [a.id], scope: scope, resource: ref))
                 }
             }
         }
@@ -286,9 +295,10 @@ public struct Planner {
                     if adding && seen.isEmpty {
                         plan.issues.append(
                             Issue(
-                                .sharedSkillFolder, .warning, "\(other.adapter.name) will load “\(ref.id)” too",
-                                detail:
-                                    "\(other.adapter.name) also reads \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” off for \(other.adapter.name) to keep it to \(ownerName).",
+                                .sharedSkillFolder, .warning, L("\(other.adapter.name) will load “\(ref.id)” too"),
+                                detail: L(
+                                    "\(other.adapter.name) also reads \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” off for \(other.adapter.name) to keep it to \(ownerName)."
+                                ),
                                 paths: [path], agent: other.id, scope: scope, key: ref.id))
                     } else if !adding && seen.isEmpty
                         && snapshot.exposures(skill: ref.id, agent: other.id, scope: scope).contains(where: {
@@ -297,9 +307,10 @@ public struct Planner {
                     {
                         plan.issues.append(
                             Issue(
-                                .sharedSkillFolder, .warning, "\(other.adapter.name) will stop loading “\(ref.id)”",
-                                detail:
-                                    "\(other.adapter.name) found it only in \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” on for \(other.adapter.name) to keep it there.",
+                                .sharedSkillFolder, .warning, L("\(other.adapter.name) will stop loading “\(ref.id)”"),
+                                detail: L(
+                                    "\(other.adapter.name) found it only in \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” on for \(other.adapter.name) to keep it there."
+                                ),
                                 paths: [path], agent: other.id, scope: scope, key: ref.id))
                     }
                 }
@@ -342,8 +353,8 @@ public struct Planner {
         {
             plan.issues.append(
                 Issue(
-                    .missingResource, .error, "Profile “\(r.resource.id)” doesn't exist",
-                    detail: "Remove the assignment or restore the profile file.", scope: scope, key: r.resource.id))
+                    .missingResource, .error, L("Profile “\(r.resource.id)” doesn't exist"),
+                    detail: L("Remove the assignment or restore the profile file."), scope: scope, key: r.resource.id))
         }
 
         for (file, target) in targets.sorted(by: { $0.key < $1.key }) {
@@ -355,18 +366,20 @@ public struct Planner {
             if let real = FS.realPath(file), FS.isInside(real, env.kitfoldHome) {
                 plan.issues.append(
                     Issue(
-                        .conflict, .error, "\(ab(file)) points into Kitfold's library",
-                        detail: "Writing it would feed Kitfold's output back into its own source. Replace the link with a regular file.",
+                        .conflict, .error, L("\(ab(file)) points into Kitfold's library"),
+                        detail: L("Writing it would feed Kitfold's output back into its own source. Replace the link with a regular file."),
                         paths: [file], scope: scope))
                 continue
             }
             let drifted = existing.filter(\.isModifiedOutsideKitfold)
             if !drifted.isEmpty && !overwriteDrift.contains(file) {
+                let blocks = drifted.map { "“\($0.profile)”" }.joined(separator: ", ")
                 plan.issues.append(
                     Issue(
-                        .blockDrift, .error, "\((file as NSString).lastPathComponent) was edited outside Kitfold",
-                        detail:
-                            "Profile block(s) \(drifted.map { "“\($0.profile)”" }.joined(separator: ", ")) in \(ab(file)) changed by hand. Keep the edit (copy it into the profile) or overwrite it.",
+                        .blockDrift, .error, L("\((file as NSString).lastPathComponent) was edited outside Kitfold"),
+                        detail: L(
+                            "Profile block(s) \(blocks) in \(ab(file)) changed by hand. Keep the edit (copy it into the profile) or overwrite it."
+                        ),
                         paths: [file], scope: scope, key: file))
                 continue
             }
@@ -391,30 +404,32 @@ public struct Planner {
                     })
                 else { continue }
                 overridden.append(agentID)
+                let fileName = (file as NSString).lastPathComponent, overrideName = (o.path as NSString).lastPathComponent
                 plan.issues.append(
                     Issue(
-                        .fallbackChange, .warning,
-                        "\(ag.adapter.name) won't read \((file as NSString).lastPathComponent) while \((o.path as NSString).lastPathComponent) exists",
-                        detail:
-                            "\(ab(o.path)) replaces \(ab(file)), so the profile has no effect on \(ag.adapter.name). Empty or remove the override file, or move its text into a profile.",
+                        .fallbackChange, .warning, L("\(ag.adapter.name) won't read \(fileName) while \(overrideName) exists"),
+                        detail: L(
+                            "\(ab(o.path)) replaces \(ab(file)), so the profile has no effect on \(ag.adapter.name). Empty or remove the override file, or move its text into a profile."
+                        ),
                         paths: [o.path, file], agent: agentID, scope: scope, key: o.path))
             }
             let agentNames = target.agents.filter { !overridden.contains($0) }.compactMap { snapshot.agent($0)?.adapter.name }
                 .joined(separator: ", ")
             let summary: String
             if profiles.isEmpty {
-                summary = "Remove Kitfold profiles from \(ab(file))"
+                summary = L("Remove Kitfold profiles from \(ab(file))")
             } else if current == nil {
-                summary = "Create \(ab(file)) with \(names)"
+                summary = L("Create \(ab(file)) with \(names)")
             } else {
-                summary = "Update \(names) in \(ab(file))"
+                summary = L("Update \(names) in \(ab(file))")
             }
             plan.changes.append(
                 PlannedChange(
                     .writeFile(path: file, before: current, after: after), summary: summary, agents: target.agents, scope: scope,
                     resource: profiles.count == 1 ? ResourceRef(.profile, profiles[0].id) : nil,
                     risk: drifted.isEmpty ? .safe : .caution,
-                    note: drifted.isEmpty ? (agentNames.isEmpty ? nil : "Read by \(agentNames)") : "Overwrites edits made outside Kitfold"))
+                    note: drifted.isEmpty
+                        ? (agentNames.isEmpty ? nil : L("Read by \(agentNames)")) : L("Overwrites edits made outside Kitfold")))
 
             // Agents sharing this target file get the union, even profiles they weren't assigned.
             let all = Set(profiles.map(\.id))
@@ -423,8 +438,8 @@ public struct Planner {
                 let name = snapshot.agent(agentID)?.adapter.name ?? agentID.rawValue
                 plan.issues.append(
                     Issue(
-                        .sharedInstructionFile, .warning, "\(name) also reads \((file as NSString).lastPathComponent)",
-                        detail: "\(ab(file)) is shared, so \(name) will see \(extra) too. Agents can't be isolated within one file.",
+                        .sharedInstructionFile, .warning, L("\(name) also reads \((file as NSString).lastPathComponent)"),
+                        detail: L("\(ab(file)) is shared, so \(name) will see \(extra) too. Agents can't be isolated within one file."),
                         paths: [file], agent: agentID, scope: scope, key: file))
             }
             // Who else reads this file? They get the same text.
@@ -437,9 +452,10 @@ public struct Planner {
                 if reads && !profiles.isEmpty {
                     plan.issues.append(
                         Issue(
-                            .sharedInstructionFile, .warning, "\(other.adapter.name) also reads \((file as NSString).lastPathComponent)",
-                            detail:
-                                "\(ab(file)) is shared, so \(other.adapter.name) will see \(names) too. Agents can't be isolated within one file.",
+                            .sharedInstructionFile, .warning, L("\(other.adapter.name) also reads \((file as NSString).lastPathComponent)"),
+                            detail: L(
+                                "\(ab(file)) is shared, so \(other.adapter.name) will see \(names) too. Agents can't be isolated within one file."
+                            ),
                             paths: [file], agent: other.id, scope: scope, key: file))
                 }
             }
@@ -452,9 +468,10 @@ public struct Planner {
                         plan.issues.append(
                             Issue(
                                 .fallbackChange, .warning,
-                                "\(ag.adapter.name) will stop reading \((f.file.path as NSString).lastPathComponent)",
-                                detail:
-                                    "Today \(ag.adapter.name) falls back to \(ab(f.file.path)) because \(ab(file)) doesn't exist. Creating it changes that.",
+                                L("\(ag.adapter.name) will stop reading \((f.file.path as NSString).lastPathComponent)"),
+                                detail: L(
+                                    "Today \(ag.adapter.name) falls back to \(ab(f.file.path)) because \(ab(file)) doesn't exist. Creating it changes that."
+                                ),
                                 paths: [file, f.file.path], agent: agentID, scope: scope))
                     }
                 }
@@ -488,8 +505,8 @@ public struct Planner {
                 plan.changes.append(
                     PlannedChange(
                         .writeFile(path: excludeFile, before: current, after: updated),
-                        summary: "Keep Kitfold's files in \(project.name) out of git", agents: [], scope: .project(root),
-                        note: ".git/info/exclude is local to this clone and never committed."))
+                        summary: L("Keep Kitfold's files in \(project.name) out of git"), agents: [], scope: .project(root),
+                        note: L(".git/info/exclude is local to this clone and never committed.")))
             }
         }
     }

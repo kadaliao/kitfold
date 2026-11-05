@@ -37,7 +37,7 @@ struct AgentLogo: View {
             mark.draw(in: &context, size: size, dark: dark)
         }
         .accessibilityElement()
-        .accessibilityLabel(Text(mark.name))
+        .accessibilityLabel(Text(L("\(mark.name) logo")))
         .accessibilityAddTraits(.isImage)
     }
 }
@@ -45,6 +45,7 @@ struct AgentLogo: View {
 extension AgentLogo {
     /// A logo: a square view box (padding included) and its paint layers, back to front.
     struct Mark {
+        /// The agent's name; the accessibility label is "<name> logo".
         let name: String
         let viewBox: CGRect
         let layers: [Layer]
@@ -122,7 +123,7 @@ extension AgentLogo.Mark {
 
     /// Anthropic's Claude spark in Claude terracotta.
     static let claude = AgentLogo.Mark(
-        name: "Claude Code logo", viewBox: CGRect(x: 0, y: 0, width: 24, height: 24),
+        name: "Claude Code", viewBox: CGRect(x: 0, y: 0, width: 24, height: 24),
         layers: [
             .init(
                 "M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352"
@@ -144,7 +145,7 @@ extension AgentLogo.Mark {
 
     /// OpenAI Codex: the cloud-shaped mark with a `>_` prompt, painted like the Codex app icon.
     static let codex = AgentLogo.Mark(
-        name: "Codex logo", viewBox: CGRect(x: -0.75, y: -0.75, width: 25.5, height: 25.5),
+        name: "Codex", viewBox: CGRect(x: -0.75, y: -0.75, width: 25.5, height: 25.5),
         layers: [
             .init(
                 "M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061"
@@ -167,7 +168,7 @@ extension AgentLogo.Mark {
 
     /// opencode's pixel "O": dark on light backgrounds, light on dark ones (the project's own two variants).
     static let openCode = AgentLogo.Mark(
-        name: "OpenCode logo", viewBox: CGRect(x: -45, y: -15, width: 330, height: 330),
+        name: "OpenCode", viewBox: CGRect(x: -45, y: -15, width: 330, height: 330),
         layers: [
             .init("M180 240H60V120H180V240Z", .adaptive(light: 0xCFCECD, dark: 0x4B4646)),
             .init("M180 60H60V240H180V60ZM240 300H0V0H240V300Z", .adaptive(light: 0x211E1E, dark: 0xF1ECEC), evenOdd: true),
@@ -175,7 +176,7 @@ extension AgentLogo.Mark {
 
     /// Gemini CLI's own mark: a `>` prompt on a dark tile with a Google gradient rim.
     static let geminiCLI = AgentLogo.Mark(
-        name: "Gemini CLI logo", viewBox: CGRect(x: -1.25, y: -1.25, width: 26.5, height: 26.5),
+        name: "Gemini CLI", viewBox: CGRect(x: -1.25, y: -1.25, width: 26.5, height: 26.5),
         layers: [
             .init(
                 "M0 4.391A4.391 4.391 0 014.391 0h15.217A4.391 4.391 0 0124 4.391v15.217A4.391 4.391 0 0119.608 24H4.391A4.391 4.391 0"

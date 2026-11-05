@@ -167,7 +167,8 @@ printf '# payments-api\n\nGo service. `make test` must pass.\n' > "$H/work/payme
 # --- Real assignments, applied through the CLI (gives links, profile blocks and history) ---
 swift build --product kitfold >/dev/null
 KF="$(swift build --show-bin-path)/kitfold"
-k() { "$KF" --home "$H" --no-color "$@" >/dev/null; }
+# History entries are written in KITFOLD_LANG (English by default), so screenshots in each language match.
+k() { "$KF" --home "$H" --no-color --lang "${KITFOLD_LANG:-en}" "$@" >/dev/null; }
 k assign code-review '*' --yes
 k assign release-notes claude-code --yes
 k assign release-notes codex --yes

@@ -49,11 +49,11 @@ public struct SkillEntry: Identifiable, Hashable, Sendable {
         let fm = Frontmatter.parse(text)
         let folder = (real as NSString).lastPathComponent
         var problems: [String] = []
-        if !fm.present { problems.append("SKILL.md has no frontmatter (name/description)") }
+        if !fm.present { problems.append(L("SKILL.md has no frontmatter (name/description)")) }
         if let e = fm.parseError { problems.append(e) }
         let name = fm["name"].flatMap { $0.isEmpty ? nil : $0 } ?? folder
-        if fm["description"]?.isEmpty ?? true { problems.append("Missing description — agents use it to decide when to load the skill") }
-        if !SkillEntry.isValidName(name) { problems.append("Name “\(name)” should be lowercase letters, digits and hyphens") }
+        if fm["description"]?.isEmpty ?? true { problems.append(L("Missing description — agents use it to decide when to load the skill")) }
+        if !SkillEntry.isValidName(name) { problems.append(L("Name “\(name)” should be lowercase letters, digits and hyphens")) }
         return SkillEntry(
             name: name, folderName: folder, description: fm["description"] ?? "", path: real, origin: origin,
             frontmatter: fm, skillFileHash: Hashing.short(text), modifiedAt: FS.modificationDate(file), problems: problems)

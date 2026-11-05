@@ -78,7 +78,7 @@ public final class Workspace: @unchecked Sendable {
         guard before != after else { return nil }
         return PlannedChange(
             .writeFile(path: env.configFile, before: before, after: after),
-            summary: "Save assignments to kitfold.json", agents: [], scope: .global)
+            summary: L("Save assignments to kitfold.json"), agents: [], scope: .global)
     }
 
     static func encode(_ c: KitfoldConfig) throws -> String {
@@ -156,16 +156,16 @@ public final class Workspace: @unchecked Sendable {
         return Plan(changes: [
             PlannedChange(
                 .writeFile(path: path, before: before, after: newText),
-                summary: "Edit \(env.abbreviate(path))", agents: agents, scope: scope)
+                summary: L("Edit \(env.abbreviate(path))"), agents: agents, scope: scope)
         ])
     }
 
     /// Keep an edit made outside Kitfold: copy the block's text into the profile, then re-stamp the block.
     public func adoptDrift(file: String, profile: String, snapshot: Snapshot) throws -> Plan {
         guard let text = FS.read(file), let block = ManagedBlock.findAll(in: text).first(where: { $0.profile == profile }) else {
-            throw KitfoldError.notFound("block \(profile) in \(file)")
+            throw KitfoldError.notFound(L("block \(profile) in \(file)"))
         }
-        guard var p = library.profiles().first(where: { $0.id == profile }) else { throw KitfoldError.notFound("profile \(profile)") }
+        guard var p = library.profiles().first(where: { $0.id == profile }) else { throw KitfoldError.notFound(L("profile \(profile)")) }
         p.body = block.body
         try saveProfile(p)
         return plan(config, snapshot: scan(probeVersions: false), overwriteDrift: [file])
@@ -205,25 +205,25 @@ public final class Workspace: @unchecked Sendable {
     /// Plan to bring a skill folder into the Kitfold library, leaving a link in its old place so
     /// every agent that saw it keeps seeing it. Undoable like any other plan.
     public func planAdopt(_ entry: SkillEntry, snapshot: Snapshot) throws -> Plan {
-        if entry.origin == .library { throw KitfoldError.invalid("\(entry.name) is already in the library") }
-        if case .bundled = entry.origin { throw KitfoldError.invalid("Plugin skills can't be moved") }
+        if entry.origin == .library { throw KitfoldError.invalid(L("\(entry.name) is already in the library")) }
+        if case .bundled = entry.origin { throw KitfoldError.invalid(L("Plugin skills can't be moved")) }
         if case .nested(let parent) = entry.origin {
-            throw KitfoldError.invalid("\(entry.name) lives inside “\(parent)”; move that skill instead")
+            throw KitfoldError.invalid(L("\(entry.name) lives inside “\(parent)”; move that skill instead"))
         }
         let dest = env.librarySkillsDir + "/" + entry.folderName
-        guard !FS.exists(dest) else { throw KitfoldError.invalid("The library already has a folder named \(entry.folderName)") }
+        guard !FS.exists(dest) else { throw KitfoldError.invalid(L("The library already has a folder named \(entry.folderName)")) }
         var changes = [
             PlannedChange(
                 .moveItem(from: entry.path, path: dest),
-                summary: "Move \(entry.name) into the Kitfold library", agents: [], scope: .global,
+                summary: L("Move \(entry.name) into the Kitfold library"), agents: [], scope: .global,
                 resource: ResourceRef(.skill, entry.name))
         ]
         changes.append(
             PlannedChange(
                 .createSymlink(path: entry.path, target: dest),
-                summary: "Leave a link at \(env.abbreviate(entry.path))", agents: [], scope: .global,
+                summary: L("Leave a link at \(env.abbreviate(entry.path))"), agents: [], scope: .global,
                 resource: ResourceRef(.skill, entry.name),
-                note: "Agents and tools that used the old path keep working."))
+                note: L("Agents and tools that used the old path keep working.")))
         // Agents that had it as a real folder in their own skills dir keep it — now as an explicit
         // assignment, so the planner treats the new link as intended rather than leftover.
         var draft = config
@@ -241,9 +241,10 @@ public final class Workspace: @unchecked Sendable {
         if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }), let owner = s.managedBy {
             issues.append(
                 Issue(
-                    .conflict, .warning, "\(owner) manages \(env.abbreviate(s.path))",
-                    detail:
-                        "After the move, \(owner) may treat \(entry.name) as replaced by a link. Updates from \(owner) will no longer reach it.",
+                    .conflict, .warning, L("\(owner) manages \(env.abbreviate(s.path))"),
+                    detail: L(
+                        "After the move, \(owner) may treat \(entry.name) as replaced by a link. Updates from \(owner) will no longer reach it."
+                    ),
                     paths: [entry.path], key: entry.path))
         }
         return Plan(changes: changes, issues: issues)

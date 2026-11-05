@@ -19,7 +19,10 @@ struct ProfilesView: View {
                                 let on = model.scopes.contains { model.profileState(p.id, agent: a.id, scope: $0).on }
                                 if on { AgentBadge(adapter: a.adapter, size: 14) }
                             }
-                            if !p.skills.isEmpty { Pill(text: "\(p.skills.count) skills", systemImage: "sparkles") }
+                            if !p.skills.isEmpty {
+                                Pill(
+                                    text: p.skills.count == 1 ? L("1 skill") : L("\(p.skills.count) skills"), systemImage: "sparkles")
+                            }
                         }
                     }
                     .padding(.vertical, 3)
@@ -30,13 +33,14 @@ struct ProfilesView: View {
             .overlay {
                 if model.profiles.isEmpty {
                     ContentUnavailableView {
-                        Label("No profiles yet", systemImage: "person.text.rectangle")
+                        Label(L("No profiles yet"), systemImage: "person.text.rectangle")
                     } description: {
                         Text(
-                            "A profile is a reusable set of instructions plus the skills that go with them — e.g. “Backend Developer” or “Code Reviewer”."
-                        )
+                            L(
+                                "A profile is a reusable set of instructions plus the skills that go with them — e.g. “Backend Developer” or “Code Reviewer”."
+                            ))
                     } actions: {
-                        Button("New Profile") { model.showNewProfile = true }
+                        Button(L("New Profile")) { model.showNewProfile = true }
                     }
                 }
             }
@@ -60,12 +64,12 @@ struct ProfilesView: View {
                 if let id = model.selectedProfileID, let p = model.profiles.first(where: { $0.id == id }) {
                     ProfileEditor(original: p).id(p.id + (p.modifiedAt?.description ?? ""))
                 } else {
-                    ContentUnavailableView("Select a profile", systemImage: "person.text.rectangle")
+                    ContentUnavailableView(L("Select a profile"), systemImage: "person.text.rectangle")
                 }
             }
             .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle("Profiles")
+        .navigationTitle(L("Profiles"))
     }
 }
 
@@ -77,7 +81,17 @@ struct ProfileEditor: View {
     @State private var compareWith: String = ""
     @State private var confirmDelete = false
 
-    enum Tab: String, CaseIterable { case edit = "Edit", preview = "Preview", compare = "Compare" }
+    enum Tab: CaseIterable {
+        case edit, preview, compare
+
+        var title: String {
+            switch self {
+            case .edit: return L("Edit")
+            case .preview: return L("Preview")
+            case .compare: return L("Compare")
+            }
+        }
+    }
 
     init(original: ProfileEntry) {
         self.original = original
@@ -90,37 +104,38 @@ struct ProfileEditor: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .firstTextBaseline) {
-                    TextField("Name", text: $p.name)
+                    TextField(L("Name"), text: $p.name)
                         .font(.system(size: 22, weight: .semibold, design: .rounded))
                         .textFieldStyle(.plain)
                     Spacer()
-                    Button("Delete…", role: .destructive) { confirmDelete = true }
-                    Button("Save") { model.saveProfile(p) }
+                    Button(L("Delete…"), role: .destructive) { confirmDelete = true }
+                    Button(L("Save")) { model.saveProfile(p) }
                         .keyboardShortcut("s")
                         .buttonStyle(.borderedProminent)
                         .disabled(!dirty)
                 }
-                TextField("Short description", text: $p.description).textFieldStyle(.roundedBorder)
+                TextField(L("Short description"), text: $p.description).textFieldStyle(.roundedBorder)
 
                 Card {
                     SectionTitle(
-                        title: "Assigned to",
-                        subtitle: "Profiles are written into each agent's own instruction file, one marked block per profile.")
+                        title: L("Assigned to"),
+                        subtitle: L("Profiles are written into each agent's own instruction file, one marked block per profile."))
                     ProfileGrid(profileID: p.id)
                 }
 
                 Card {
-                    SectionTitle(title: "Skills that come with it", subtitle: "Assigning the profile also gives the agent these skills.")
+                    SectionTitle(
+                        title: L("Skills that come with it"), subtitle: L("Assigning the profile also gives the agent these skills."))
                     SkillChips(skills: $p.skills)
                 }
 
                 Card {
                     HStack {
-                        Picker("", selection: $tab) { ForEach(Tab.allCases, id: \.self) { Text($0.rawValue) } }
+                        Picker("", selection: $tab) { ForEach(Tab.allCases, id: \.self) { Text($0.title) } }
                             .pickerStyle(.segmented).fixedSize()
                         Spacer()
-                        Stepper("Order \(p.order)", value: $p.order, in: 0...999, step: 10)
-                            .help("When several profiles go to the same agent, lower order comes first.")
+                        Stepper(L("Order \(p.order)"), value: $p.order, in: 0...999, step: 10)
+                            .help(L("When several profiles go to the same agent, lower order comes first."))
                             .fixedSize()
                     }
                     switch tab {
@@ -140,10 +155,10 @@ struct ProfileEditor: View {
             }
             .padding(20)
         }
-        .confirmationDialog("Move “\(p.name)” to Kitfold's trash?", isPresented: $confirmDelete) {
-            Button("Move to Trash", role: .destructive) { model.deleteProfile(p.id) }
+        .confirmationDialog(L("Move “\(p.name)” to Kitfold's trash?"), isPresented: $confirmDelete) {
+            Button(L("Move to Trash"), role: .destructive) { model.deleteProfile(p.id) }
         } message: {
-            Text("Its assignments are removed from the draft; apply to take it out of agent files.")
+            Text(L("Its assignments are removed from the draft; apply to take it out of agent files."))
         }
     }
 
@@ -156,26 +171,27 @@ struct ProfileEditor: View {
 
     var compare: some View {
         var options: [CompareOption] = deployedCopies().map { file, body in
-            CompareOption(id: "deployed:" + file, label: "Deployed in \(model.ab(file))", text: body)
+            CompareOption(id: "deployed:" + file, label: L("Deployed in \(model.ab(file))"), text: body)
         }
         for v in model.versionHistory(profile: p.id) {
+            let when = v.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Localization.language.locale))
             options.append(
                 CompareOption(
                     id: "version:" + v.path,
-                    label: "Saved \(v.date.formatted(date: .abbreviated, time: .shortened))",
+                    label: L("Saved \(when)"),
                     text: ProfileEntry.read(path: v.path)?.body ?? ""))
         }
         let selected = options.first { $0.id == compareWith } ?? options.first
         return VStack(alignment: .leading, spacing: 8) {
             if options.isEmpty {
-                Text("Nothing to compare yet — it hasn't been deployed or saved before.").foregroundStyle(.secondary)
+                Text(L("Nothing to compare yet — it hasn't been deployed or saved before.")).foregroundStyle(.secondary)
             } else {
-                Picker("Compare with", selection: Binding(get: { selected?.id ?? "" }, set: { compareWith = $0 })) {
+                Picker(L("Compare with"), selection: Binding(get: { selected?.id ?? "" }, set: { compareWith = $0 })) {
                     ForEach(options) { Text($0.label).tag($0.id) }
                 }
                 .fixedSize()
                 if let s = selected {
-                    DiffView(old: s.text, new: p.body, oldLabel: s.label, newLabel: "This editor")
+                    DiffView(old: s.text, new: p.body, oldLabel: s.label, newLabel: L("This editor"))
                 }
             }
         }
@@ -230,7 +246,7 @@ struct ProfileGrid: View {
 
     func targetHelp(_ a: AgentState, _ scope: Scope) -> String {
         guard let env = model.env, let f = a.adapter.primaryInstructionFile(scope, env) else { return a.adapter.name }
-        return "\(a.adapter.name): written to \(model.ab(f))"
+        return L("\(a.adapter.name): written to \(model.ab(f))")
     }
 }
 
@@ -262,7 +278,7 @@ struct SkillChips: View {
                     Button(n) { skills.append(n) }
                 }
             } label: {
-                Label("Add skill", systemImage: "plus")
+                Label(L("Add skill"), systemImage: "plus")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()

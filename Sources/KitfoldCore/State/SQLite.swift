@@ -11,7 +11,7 @@ final class SQLiteDB {
         try FileManager.default.createDirectory(
             atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
         guard sqlite3_open_v2(path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
-            throw KitfoldError.io("Can't open database \(path): \(lastError)")
+            throw KitfoldError.io(L("Can't open database \(path): \(lastError)"))
         }
         try exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=3000;")
     }

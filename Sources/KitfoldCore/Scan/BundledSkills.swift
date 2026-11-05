@@ -45,7 +45,7 @@ enum BundledSkills {
         for (key, value) in plugins.sorted(by: { $0.key < $1.key }) where enabled[key] == true {
             let installs = (value as? [[String: Any]]) ?? []
             let user = installs.first { ($0["scope"] as? String) == "user" } ?? installs.first
-            if let path = user?["installPath"] as? String { out.append(("Plugin \(key)", path)) }
+            if let path = user?["installPath"] as? String { out.append((L("Plugin \(key)"), path)) }
         }
         return out
     }
@@ -61,7 +61,7 @@ enum BundledSkills {
             let base = configDir + "/plugins/cache/\(parts[1])/\(parts[0])"
             let versions = FS.children(base).map { base + "/" + $0 }.filter(FS.isDirectoryFollowing)
             if let newest = versions.max(by: { (FS.modificationDate($0) ?? .distantPast) < (FS.modificationDate($1) ?? .distantPast) }) {
-                out.append(("Plugin \(key)", newest))
+                out.append((L("Plugin \(key)"), newest))
             }
         }
         return out
@@ -83,7 +83,7 @@ enum BundledSkills {
         return FS.children(base).compactMap { name -> (String, String)? in
             let dir = base + "/" + name
             guard FS.exists(dir + "/gemini-extension.json"), !disabled.contains(name) else { return nil }
-            return ("Extension \(name)", dir)
+            return (L("Extension \(name)"), dir)
         }
     }
 }

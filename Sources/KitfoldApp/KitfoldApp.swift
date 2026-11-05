@@ -5,11 +5,19 @@ import SwiftUI
 @main
 struct KitfoldDesktopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = AppModel()
+    @State private var model: AppModel
+
+    init() {
+        Localization.language = LanguageSettings.effective
+        _model = State(initialValue: AppModel())
+    }
 
     var body: some Scene {
+        let language = model.language
         WindowGroup("Kitfold") {
             RootView()
+                .id(language)
+                .environment(\.locale, language.locale)
                 .environment(model)
                 .frame(minWidth: 980, minHeight: 620)
                 .task {
@@ -18,30 +26,47 @@ struct KitfoldDesktopApp: App {
                 }
         }
         .windowToolbarStyle(.unified)
-        .commands {
-            CommandGroup(replacing: .newItem) {
-                Button("New Profile…") { model.showNewProfile = true }.keyboardShortcut("n")
-                Button("New Skill…") { model.showNewSkill = true }.keyboardShortcut("n", modifiers: [.command, .shift])
-            }
-            CommandMenu("Kitfold") {
-                Button("Quick Open…") { model.showPalette = true }.keyboardShortcut("k")
-                Button("Rescan") { model.rescan() }.keyboardShortcut("r")
-                Divider()
-                Button("Review Changes…") { model.showReview = true }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(!model.hasPendingChanges)
-                Button("Discard Changes") { model.discardDraft() }
-                    .disabled(!model.hasPendingChanges)
-                Divider()
-                Button("Dashboard") { model.selection = .dashboard }.keyboardShortcut("1")
-                Button("Skills") { model.selection = .skills }.keyboardShortcut("2")
-                Button("Profiles") { model.selection = .profiles }.keyboardShortcut("3")
-                Button("History") { model.selection = .history }.keyboardShortcut("4")
-            }
-        }
+        .commands { KitfoldCommands(model: model) }
 
         Settings {
-            SettingsView().environment(model).frame(width: 620, height: 480)
+            SettingsView()
+                .id(language)
+                .environment(\.locale, language.locale)
+                .environment(model)
+                .frame(width: 620, height: 480)
+        }
+    }
+}
+
+/// Kitfold's menu items. Each menu reads `model.language`, so SwiftUI rebuilds it when the language changes.
+struct KitfoldCommands: Commands {
+    let model: AppModel
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            let _ = model.language
+            Button(L("New Profile…")) { model.showNewProfile = true }.keyboardShortcut("n")
+            Button(L("New Skill…")) { model.showNewSkill = true }.keyboardShortcut("n", modifiers: [.command, .shift])
+        }
+        CommandMenu("Kitfold") {
+            let _ = model.language
+            Button(L("Quick Open…")) { model.showPalette = true }.keyboardShortcut("k")
+            Button(L("Rescan")) { model.rescan() }.keyboardShortcut("r")
+            Divider()
+            Button(L("Review Changes…")) { model.showReview = true }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!model.hasPendingChanges)
+            Button(L("Discard Changes")) { model.discardDraft() }
+                .disabled(!model.hasPendingChanges)
+            Divider()
+            Button(L("Dashboard")) { model.selection = .dashboard }.keyboardShortcut("1")
+            Button(L("Skills")) { model.selection = .skills }.keyboardShortcut("2")
+            Button(L("Profiles")) { model.selection = .profiles }.keyboardShortcut("3")
+            Button(L("History")) { model.selection = .history }.keyboardShortcut("4")
+        }
+        CommandGroup(replacing: .help) {
+            let _ = model.language
+            Button(L("Kitfold Tutorials")) { NSWorkspace.shared.open(Tutorials.url) }
         }
     }
 }
@@ -76,15 +101,15 @@ struct RootView: View {
                 Button {
                     model.rescan()
                 } label: {
-                    Label("Rescan", systemImage: "arrow.clockwise")
+                    Label(L("Rescan"), systemImage: "arrow.clockwise")
                 }
-                .help("Rescan agents and files (⌘R)")
+                .help(L("Rescan agents and files (⌘R)"))
                 Button {
                     model.showPalette = true
                 } label: {
-                    Label("Quick Open", systemImage: "magnifyingglass")
+                    Label(L("Quick Open"), systemImage: "magnifyingglass")
                 }
-                .help("Quick Open (⌘K)")
+                .help(L("Quick Open (⌘K)"))
             }
         }
         .sheet(isPresented: $model.showReview) { ReviewSheet(mode: .draft) }
@@ -95,9 +120,10 @@ struct RootView: View {
         .overlay { if model.showPalette { CommandPalette() } }
         .overlay(alignment: .top) { ToastView() }
         .alert(
-            "Something went wrong", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })
+            L("Something went wrong"),
+            isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })
         ) {
-            Button("OK", role: .cancel) {}
+            Button(L("OK"), role: .cancel) {}
         } message: {
             Text(model.errorMessage ?? "")
         }
@@ -107,7 +133,7 @@ struct RootView: View {
         if model.snapshot == nil {
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Reading your agents…").foregroundStyle(.secondary)
+                Text(L("Reading your agents…")).foregroundStyle(.secondary)
             }
         } else {
             switch model.selection ?? .dashboard {
@@ -129,12 +155,12 @@ struct Sidebar: View {
         @Bindable var model = model
         List(selection: $model.selection) {
             Section {
-                Label("Dashboard", systemImage: "square.grid.2x2").tag(SidebarItem.dashboard)
+                Label(L("Dashboard"), systemImage: "square.grid.2x2").tag(SidebarItem.dashboard)
             }
-            Section("Library") {
+            Section(L("Library")) {
                 Label {
                     HStack {
-                        Text("Skills"); Spacer(); count(model.snapshot?.skillNames.count)
+                        Text(L("Skills")); Spacer(); count(model.snapshot?.skillNames.count)
                     }
                 } icon: {
                     Image(systemName: "sparkles")
@@ -142,14 +168,14 @@ struct Sidebar: View {
                 .tag(SidebarItem.skills)
                 Label {
                     HStack {
-                        Text("Profiles"); Spacer(); count(model.profiles.count)
+                        Text(L("Profiles")); Spacer(); count(model.profiles.count)
                     }
                 } icon: {
                     Image(systemName: "person.text.rectangle")
                 }
                 .tag(SidebarItem.profiles)
             }
-            Section("Agents") {
+            Section(L("Agents")) {
                 ForEach(model.agents) { a in
                     HStack(spacing: 8) {
                         AgentBadge(adapter: a.adapter, size: 18, dimmed: !a.enabled)
@@ -168,7 +194,7 @@ struct Sidebar: View {
                         for n in names where !model.cell(skill: n, agent: a.id, scope: .global).willBeOn {
                             model.toggle(skill: n, agent: a.id, scope: .global)
                         }
-                        model.toast = "Added \(names.joined(separator: ", ")) to \(a.adapter.name) — review to apply."
+                        model.toast = L("Added \(names.joined(separator: ", ")) to \(a.adapter.name) — review to apply.")
                         return true
                     }
                 }
@@ -177,22 +203,22 @@ struct Sidebar: View {
                 ForEach(model.draft.projects) { p in
                     Label(p.name, systemImage: "folder").tag(SidebarItem.project(p.path))
                         .contextMenu {
-                            Button("Reveal in Finder") { model.reveal(p.path) }
-                            Button("Remove from Kitfold", role: .destructive) { model.removeProject(p.path) }
+                            Button(L("Reveal in Finder")) { model.reveal(p.path) }
+                            Button(L("Remove from Kitfold"), role: .destructive) { model.removeProject(p.path) }
                         }
                 }
                 Button {
                     pickProject()
                 } label: {
-                    Label("Add Project…", systemImage: "plus")
+                    Label(L("Add Project…"), systemImage: "plus")
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
             } header: {
-                Text("Projects")
+                Text(L("Projects"))
             }
             Section {
-                Label("History", systemImage: "clock.arrow.circlepath").tag(SidebarItem.history)
+                Label(L("History"), systemImage: "clock.arrow.circlepath").tag(SidebarItem.history)
             }
         }
         .listStyle(.sidebar)
@@ -206,8 +232,8 @@ struct Sidebar: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.prompt = "Add Project"
-        panel.message = "Choose a project folder. Kitfold uses its git root."
+        panel.prompt = L("Add Project")
+        panel.message = L("Choose a project folder. Kitfold uses its git root.")
         if panel.runModal() == .OK, let url = panel.url { model.addProject(url) }
     }
 }
@@ -220,17 +246,21 @@ struct PendingBar: View {
         HStack(spacing: 12) {
             Image(systemName: "circle.dashed").foregroundStyle(.tint)
             if model.isPlanning {
-                Text("Working out changes…").foregroundStyle(.secondary)
+                Text(L("Working out changes…")).foregroundStyle(.secondary)
             } else {
                 let n = model.pendingCount
                 let issues = model.plan?.issues.filter { $0.severity >= .warning }.count ?? 0
-                Text(n == 0 ? "Assignments changed — no files need to change" : "\(n) file change\(n == 1 ? "" : "s") pending")
-                    .font(.callout.weight(.medium))
-                if issues > 0 { Pill(text: "\(issues) to check", color: .orange, systemImage: "exclamationmark.triangle") }
+                Text(
+                    n == 0
+                        ? L("Assignments changed — no files need to change")
+                        : n == 1 ? L("1 file change pending") : L("\(n) file changes pending")
+                )
+                .font(.callout.weight(.medium))
+                if issues > 0 { Pill(text: L("\(issues) to check"), color: .orange, systemImage: "exclamationmark.triangle") }
             }
             Spacer()
-            Button("Discard") { model.discardDraft() }
-            Button("Review & Apply…") { model.showReview = true }
+            Button(L("Discard")) { model.discardDraft() }
+            Button(L("Review & Apply…")) { model.showReview = true }
                 .keyboardShortcut(.return, modifiers: .command)
                 .buttonStyle(.borderedProminent)
         }

@@ -51,13 +51,13 @@ public struct Frontmatter: Sendable, Hashable {
         guard let close = end else {
             return Frontmatter(
                 fields: [:], keyOrder: [], body: text, present: true,
-                parseError: "Frontmatter is not closed with ---")
+                parseError: L("Frontmatter is not closed with ---"))
         }
         let header = Array(lines[1..<close])
         let body = lines[(close + 1)...].joined(separator: "\n")
         var (fields, order, error) = parseHeader(header)
         if fields.isEmpty && error == nil && !header.allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
-            error = "Frontmatter has no readable keys"
+            error = L("Frontmatter has no readable keys")
         }
         return Frontmatter(fields: fields, keyOrder: order, body: body, present: true, parseError: error)
     }
@@ -79,7 +79,7 @@ public struct Frontmatter: Sendable, Hashable {
                 continue
             }
             guard let colon = findKeyColon(line) else {
-                error = error ?? "Unreadable frontmatter line: \(trimmed.prefix(60))"
+                error = error ?? L("Unreadable frontmatter line: \(trimmed.prefix(60))")
                 i += 1
                 continue
             }
