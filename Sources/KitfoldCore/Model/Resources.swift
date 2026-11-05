@@ -21,6 +21,17 @@ public enum SkillOrigin: Hashable, Sendable {
         default: return true
         }
     }
+
+    /// Folders Kitfold may delete: its own library, a registered source, an agent's own skills
+    /// folder. Not a plugin's (the agent's plugin system owns it), not a nested `SKILL.md` (the
+    /// skill around it owns the folder), and not a folder reached only through a link — that one
+    /// may be anything, anywhere (a repository checkout, someone's home-made collection).
+    public var isDeletable: Bool {
+        switch self {
+        case .library, .source, .agentLocal: return true
+        case .external, .bundled, .nested: return false
+        }
+    }
 }
 
 /// A skill directory known to Kitfold (one per real path).

@@ -207,7 +207,7 @@ The mark in front of each change:
 | `+ link` / `- link` | Create / remove a link |
 | `+ file` / `- file` | Create / delete a file (only files Kitfold created are ever deleted) |
 | `~ edit` | Change a file; the lines below show what changes |
-| `→ move` | Move a folder (when moving a skill into the library) |
+| `→ move` | Move a folder (when moving a skill into the library, or deleting one) |
 | `(caution)` | The change touches something Kitfold didn't create |
 
 The preview covers **everything** needed to make the disk match `kitfold.json`. If something else drifted earlier (say, a link Kitfold made was deleted by hand), it's put right in the same apply.
@@ -342,6 +342,59 @@ Apply 4 file changes? Re-run with --yes to apply.
 
 Items under **Needs attention** aren't changed automatically; the call is yours. [09 Troubleshooting](09-troubleshooting.md) explains each one. A file whose profile block was edited outside Kitfold is left out and listed under **Not written this time** instead; see [05 Profiles](05-profiles.md#9-a-profile-block-edited-outside-kitfold).
 
+## Deleting a skill: delete
+
+```
+kitfold delete <skill> [--yes]
+```
+
+`delete` takes a skill away from every agent and moves its folder to Kitfold's trash, `~/.kitfold/backups/trash/`. Like `assign`, without `--yes` it only previews:
+
+```console
+$ kitfold delete release-notes
+  - link ~/.claude/skills/release-notes
+    Unlink release-notes from Claude Code (no longer assigned)
+  - link ~/.codex/skills/release-notes
+    Unlink release-notes from Codex (no longer assigned)
+  → move ~/.kitfold/library/skills/release-notes → ~/.kitfold/backups/trash/release-notes-20261105-154705-f47912
+    Move release-notes to Kitfold's trash — The folder is kept in ~/.kitfold/backups/trash, and undo puts it back where it was.
+  ~ edit ~/.kitfold/kitfold.json
+    Save assignments to kitfold.json
+
+Needs attention
+  ! OpenCode will stop loading “release-notes”
+    OpenCode found it only in Claude Code's folder ~/.claude/skills. Switch “release-notes” on for OpenCode to keep it there.
+
+Apply 3 file changes? Re-run with --yes to apply.
+```
+
+The skill's assignments are cleared, so Kitfold takes back what it made for it, as `--clear` would for every agent: its links and its entries in the agents' own settings. Other links to the folder go too, so none is left broken; one Kitfold didn't make is marked `(caution)`. Profiles that bundle the skill drop it. With `--yes` it's applied, and `kitfold undo` puts it all back.
+
+Deleting from a folder that other agents read, or that another tool manages, says so:
+
+```console
+$ kitfold delete pdf-tools
+  - link ~/.claude/skills/pdf-tools (caution)
+    Remove the link at ~/.claude/skills/pdf-tools — This link wasn't created by Kitfold (another tool or by hand). Undo restores it.
+  → move ~/.agents/skills/pdf-tools → ~/.kitfold/backups/trash/pdf-tools-20261105-154705-1084a3 (caution)
+    Move pdf-tools to Kitfold's trash — The folder is kept in ~/.kitfold/backups/trash, and undo puts it back where it was.
+
+Needs attention
+  ! Codex, OpenCode, Gemini CLI read this folder
+    They lose “pdf-tools” when the folder goes.
+  ! skills CLI manages ~/.agents/skills
+    Deleting the folder doesn't tell skills CLI. Its next update may bring the skill back.
+
+Apply 2 file changes? Re-run with --yes to apply.
+```
+
+When several folders have the name, the library's copy is the one deleted, and the preview says the other stays. Plugin skills, nested skills and folders reached only through a link can't be deleted:
+
+```console
+$ kitfold delete github-pr
+error: Invalid: Plugin skills can't be deleted; switch the plugin off in the agent instead
+```
+
 ## History and undo
 
 ### history
@@ -453,6 +506,7 @@ kitfold status | plan | apply [--yes] | profiles
 kitfold skills [--all] [--project <path>] | agents [--project <path>]
 kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+kitfold delete <skill> [--yes]
 kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans
 ```

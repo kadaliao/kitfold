@@ -263,7 +263,7 @@ All in `~/.kitfold`:
 | `~/.kitfold/backups/<history ID>/` | Copies of the files an apply overwrote or deleted, including a `SKILL.md` saved in the app. Expand an entry in **History** and click **Backup** to see it in Finder |
 | `~/.kitfold/state.sqlite` | The history itself, including the before and after text of the files Kitfold changed. Undo uses this, not the backup folders |
 | `~/.kitfold/backups/profiles/` | Saved versions of profiles, the ones **Compare** uses |
-| `~/.kitfold/backups/trash/` | Deleted profiles |
+| `~/.kitfold/backups/trash/` | Deleted profiles and skills |
 
 How long backups are kept is set in **Settings › General** ("Keep backups for 30 days" by default). Older ones are cleaned up on a later apply, except `trash`. The **History & backups** row on the same tab shows the folder.
 

@@ -20,7 +20,7 @@ Kitfold 能看清每个 Coding Agent（Claude Code、Codex、OpenCode、Gemini C
 | [04 预览、应用和撤销](04-review-apply-undo.md) | 待应用栏、预览、需要注意的问题、历史记录和撤销 |
 | [05 用 Profile 管理指令](05-profiles.md) | 新建和编辑 Profile、附带技能、分配、对比版本、处理外部修改 |
 | [06 按项目配置](06-projects.md) | 添加项目、项目级技能和 Profile、在单个项目里隐藏全局技能 |
-| [07 管理技能库](07-skill-library.md) | 新建技能、导入目录、移入库、技能来源、技能的常见问题 |
+| [07 管理技能库](07-skill-library.md) | 新建技能、导入目录、移入库、删除技能、技能来源、技能的常见问题 |
 | [08 命令行](08-command-line.md) | `kitfold` 的每个命令、沙盒、在脚本里使用 |
 | [09 常见问题与排错](09-troubleshooting.md) | 每种健康检查问题的含义和处理办法，以及常见疑问 |
 

@@ -207,7 +207,7 @@ $ kitfold assign test-writer codex
 | `+ 链接` / `- 链接` | 创建 / 移除一个链接 |
 | `+ 文件` / `- 文件` | 创建 / 删除一个文件（删除只针对 Kitfold 自己创建的文件） |
 | `~ 修改` | 修改一个文件，下面跟着改动的内容 |
-| `→ 移动` | 移动一个目录（移入库时） |
+| `→ 移动` | 移动一个目录（移入库或删除技能时） |
 | `（注意）` | 这处变更会动到不是 Kitfold 创建的东西 |
 
 预览覆盖的是让磁盘和 `kitfold.json` 一致所需的**全部**变更。如果之前有别的地方走了样（比如手动删了一个 Kitfold 建的链接），也会在这次一起修好。
@@ -351,6 +351,59 @@ $ kitfold profile code-reviewer '*' --project '~/work/acme-web'
 
 “需要注意”里的事情不会自动改，要你自己判断。各种提示的意思见 [09 常见问题与排错](09-troubleshooting.md)。
 
+## 删除技能：delete
+
+```
+kitfold delete <技能> [--yes]
+```
+
+`delete` 让所有 Agent 都不再用到这个技能，并把它的目录移到 Kitfold 的废纸篓 `~/.kitfold/backups/trash/`。和 `assign` 一样，不加 `--yes` 只预览：
+
+```console
+$ kitfold delete release-notes
+  - 链接 ~/.claude/skills/release-notes
+    为 Claude Code 移除 release-notes 的链接（已不再分配）
+  - 链接 ~/.codex/skills/release-notes
+    为 Codex 移除 release-notes 的链接（已不再分配）
+  → 移动 ~/.kitfold/library/skills/release-notes → ~/.kitfold/backups/trash/release-notes-20261105-154817-42b6ea
+    把 release-notes 移到 Kitfold 的废纸篓 — 目录会保留在 ~/.kitfold/backups/trash，撤销会把它放回原处。
+  ~ 修改 ~/.kitfold/kitfold.json
+    把分配保存到 kitfold.json
+
+需要注意
+  ! OpenCode 将不再加载“release-notes”
+    OpenCode 只在 Claude Code 的目录 ~/.claude/skills 中找到它。为 OpenCode 打开“release-notes”，它就能继续加载。
+
+要应用 3 处文件变更吗？加上 --yes 重新运行即可应用。
+```
+
+技能的分配会被清除，所以 Kitfold 会收回为它做过的事，相当于对每个 Agent 都用了 `--clear`：它的链接，以及它在 Agent 自己设置里的条目。指向这个目录的其他链接也会移除，免得留下失效的链接；不是 Kitfold 创建的会标上“（注意）”。附带它的 Profile 会把它去掉。加上 `--yes` 才会应用，`kitfold undo` 可以把这些全部恢复。
+
+如果目录还有别的 Agent 在读，或者由别的工具管理，预览会说明：
+
+```console
+$ kitfold delete pdf-tools
+  - 链接 ~/.claude/skills/pdf-tools（注意）
+    移除 ~/.claude/skills/pdf-tools 处的链接 — 这个链接不是 Kitfold 创建的（来自其他工具或手动创建）。撤销可以恢复它。
+  → 移动 ~/.agents/skills/pdf-tools → ~/.kitfold/backups/trash/pdf-tools-20261105-154817-5cae69（注意）
+    把 pdf-tools 移到 Kitfold 的废纸篓 — 目录会保留在 ~/.kitfold/backups/trash，撤销会把它放回原处。
+
+需要注意
+  ! Codex、OpenCode、Gemini CLI 会读取这个目录
+    目录被删除后，它们就会失去“pdf-tools”。
+  ! skills CLI 管理着 ~/.agents/skills
+    在这里删除目录不会通知 skills CLI，它下次更新时可能会把这个技能带回来。
+
+要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
+```
+
+有多个同名目录时，删除的是库里那份，预览会说明另一个会保留。插件技能、嵌套技能和只通过链接到达的目录不能删除：
+
+```console
+$ kitfold delete github-pr
+错误：无法完成：插件技能无法删除，请在 Agent 里关闭这个插件
+```
+
 ## 历史记录和撤销
 
 ### history
@@ -462,6 +515,7 @@ kitfold status | plan | apply [--yes] | profiles
 kitfold skills [--all] [--project <path>] | agents [--project <path>]
 kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+kitfold delete <skill> [--yes]
 kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 选项：--home <dir>（沙盒 $HOME）、--no-color、--lang en|zh-Hans
 ```

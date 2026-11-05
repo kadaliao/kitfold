@@ -81,6 +81,8 @@ extension Translations {
             "这个项目还有分配，包括已关闭的。请先清除它们（行尾菜单里的“清除”）并应用，让 Kitfold 清理它在那里写入的文件。",
         "Move “%@” into the library": "将“%@”移入库",
         "Adopt %@": "将 %@ 移入库",
+        "Delete “%@”": "删除“%@”",
+        "Delete %@": "删除 %@",
         "Save %@": "保存 %@",
         "Edit %@": "编辑 %@",
         "Keep the edit to “%@”": "保留对“%@”的修改",

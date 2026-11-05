@@ -151,6 +151,24 @@ extension Translations {
         "%@ manages %@": "%@ 管理着 %@",
         "After the move, %@ may treat %@ as replaced by a link. Updates from %@ will no longer reach it.":
             "移动之后，%1$@ 可能会认为 %2$@ 已被换成链接，%3$@ 的更新将不再同步到它。",
+        "Plugin skills can't be deleted; switch the plugin off in the agent instead": "插件技能无法删除，请在 Agent 里关闭这个插件",
+        "%@ lives inside “%@”; delete that skill instead": "%@ 位于“%@”内部，请改为删除那个技能",
+        "%@ is only linked into an agent's folder from %@. Switch it off to remove the link; the folder itself is yours to delete.":
+            "%1$@ 只是从 %2$@ 链接进 Agent 的目录。关闭它即可移除链接；目录本身请你自己删除。",
+        "Remove the link at %@": "移除 %@ 处的链接",
+        "Take %@ out of profile “%@”": "把 %@ 从 Profile“%@”中移除",
+        "Move %@ to Kitfold's trash": "把 %@ 移到 Kitfold 的废纸篓",
+        "The folder is kept in %@, and undo puts it back where it was.": "目录会保留在 %@，撤销会把它放回原处。",
+        "%@ read this folder": "%@ 会读取这个目录",
+        "They lose “%@” when the folder goes.": "目录被删除后，它们就会失去“%@”。",
+        "Deleting the folder doesn't tell %@. Its next update may bring the skill back.":
+            "在这里删除目录不会通知 %@，它下次更新时可能会把这个技能带回来。",
+        "%@ is a clone of %@": "%@ 是 %@ 的克隆",
+        "Deleting the folder doesn't change the repository. The next `git pull` may bring the skill back.":
+            "删除目录不会改动仓库，下次 `git pull` 可能会把这个技能带回来。",
+        "Another folder is named “%@” too": "还有一个目录也叫“%@”",
+        "%@ stays, and agents may keep loading a skill by that name. Its assignments are cleared either way.":
+            "%@ 会保留，Agent 可能仍会加载同名的技能。它的分配无论如何都会被清除。",
 
         // LibraryStore.swift (the second paragraph of a new SKILL.md, and errors)
         "Skill name is empty": "技能名称为空",

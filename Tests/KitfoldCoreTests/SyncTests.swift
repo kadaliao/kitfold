@@ -277,6 +277,86 @@ extension Workspace {
     }
 }
 
+@Suite struct DeleteTests {
+    @Test func deletingALibrarySkillTakesBackEveryLinkAndUndoBringsItBack() throws {
+        let h = FakeHome()
+        h.installAgents()
+        let ws = try h.workspace()
+        _ = try ws.library.createSkill(name: "alpha", description: "Alpha skill")
+        try ws.assign(ResourceRef(.skill, "alpha"), .agent(.claudeCode), .on)
+        // A link someone else made to the same folder would be left broken.
+        h.link(".gemini/skills/alpha", to: ".kitfold/library/skills/alpha")
+
+        let snap = ws.snap()
+        let plan = try ws.planSkillDelete(try #require(snap.skill(named: "alpha")), snapshot: snap)
+        #expect(plan.changes.contains { $0.risk == .caution })  // the foreign link
+        try ws.apply(plan, summary: "delete")
+
+        #expect(h.kind(".kitfold/library/skills/alpha") == .missing)
+        #expect(h.kind(".claude/skills/alpha") == .missing)
+        #expect(h.kind(".gemini/skills/alpha") == .missing)
+        #expect(ws.config.rules(for: ResourceRef(.skill, "alpha")).isEmpty)
+        // Moved to the trash, not erased, and nothing is left to apply.
+        let trash = FS.children(ws.trashDir)
+        #expect(trash.count == 1 && trash[0].hasPrefix("alpha-"))
+        #expect(FS.exists(ws.trashDir + "/" + trash[0] + "/SKILL.md"))
+        #expect(ws.plan(ws.config, snapshot: ws.snap()).changes.isEmpty)
+
+        try ws.undo(ws.history().first!.id)
+        #expect(h.kind(".kitfold/library/skills/alpha") == .directory)
+        #expect(ws.config.state(ResourceRef(.skill, "alpha"), agent: .claudeCode, scope: .global) == .on)
+        #expect(ws.snap().agent(.claudeCode)!.visibleSkills(in: .global).map(\.name) == ["alpha"])
+        if case .symlink = h.kind(".gemini/skills/alpha") {} else { Testing.Issue.record("the other tool's link wasn't restored") }
+    }
+
+    @Test func deletingASharedSkillClearsProfilesAndNativeSwitches() throws {
+        let h = FakeHome()
+        h.installAgents()
+        h.skill(".agents/skills/pdf")  // Codex, OpenCode and Gemini CLI read this folder
+        let ws = try h.workspace()
+        _ = try ws.library.createProfile(name: "Writer", body: "Be brief.", skills: ["pdf", "lint"])
+        try ws.assign(ResourceRef(.skill, "pdf"), .agent(.openCode), .off)
+        #expect((h.read(".config/opencode/opencode.json") ?? "").contains("pdf"))
+
+        let snap = ws.snap()
+        let plan = try ws.planSkillDelete(try #require(snap.skill(named: "pdf")), snapshot: snap)
+        // The agents that load it from that folder are named; OpenCode already has it switched off.
+        let shared = try #require(plan.issues.first { $0.kind == .sharedSkillFolder })
+        #expect(Set(shared.affectedAgents) == [.codex, .geminiCLI])
+        try ws.apply(plan, summary: "delete")
+
+        #expect(h.kind(".agents/skills/pdf") == .missing)
+        #expect(try ws.profileEntry("writer").skills == ["lint"])
+        #expect(!(h.read(".config/opencode/opencode.json") ?? "").contains("pdf"))
+        #expect(ws.plan(ws.config, snapshot: ws.snap()).changes.isEmpty)
+        #expect(!ws.plan(ws.config, snapshot: ws.snap()).issues.contains { $0.kind == .missingResource })
+    }
+
+    @Test func deletingWhatBelongsToSomethingElseIsRefused() throws {
+        let h = FakeHome()
+        h.installAgents()
+        h.skill("dev/kit/beta")  // outside the library and every source
+        h.link(".claude/skills/beta", to: "dev/kit/beta")
+        h.skill(".agents/skills/suite")
+        h.skill(".agents/skills/suite/skills/inner")  // a nested SKILL.md
+        h.skill(".codex/skills/.system/imagegen")  // Codex rewrites this folder itself
+        let ws = try h.workspace()
+        let snap = ws.snap()
+        for name in ["beta", "inner", "imagegen"] {
+            let entry = try #require(snap.skill(named: name))
+            #expect(!entry.origin.isDeletable)
+            #expect(throws: KitfoldError.self) { try ws.planSkillDelete(entry, snapshot: snap) }
+        }
+        #expect(h.kind("dev/kit/beta") == .directory)
+        // A folder in an agent's own skills directory is Kitfold's to delete, though.
+        h.skill(".codex/skills/notebook-tools")
+        let after = ws.snap()
+        let entry = try #require(after.skill(named: "notebook-tools"))
+        try ws.apply(try ws.planSkillDelete(entry, snapshot: after), summary: "delete")
+        #expect(h.kind(".codex/skills/notebook-tools") == .missing)
+    }
+}
+
 @Suite struct PermissionTests {
     @Test func writesKeepModeAndBackupsArePrivate() throws {
         let h = FakeHome()

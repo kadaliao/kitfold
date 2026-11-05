@@ -91,6 +91,10 @@ extension Translations {
         "not saved: this rule wouldn't change anything. --force saves it anyway.":
             "没有保存：这条规则不会带来任何变化。加 --force 仍会保存。",
 
+        // delete
+        "no skill named %@. kitfold skills --all lists them.": "没有名为 %@ 的技能。kitfold skills --all 会列出所有技能。",
+        "Delete %@": "删除 %@",
+
         // history, undo
         " (undone)": "（已撤销）",
         "nothing to undo": "没有可撤销的操作",

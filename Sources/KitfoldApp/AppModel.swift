@@ -138,6 +138,10 @@ final class AppModel {
                     return
                 }
                 self.snapshot = snap
+                // A skill that's gone (deleted here, or outside) must not keep the details pane.
+                if let path = self.selectedSkillPath, !snap.catalog.contains(where: { $0.path == path }) {
+                    self.selectedSkillPath = nil
+                }
                 self.replan()
             }
         }
@@ -536,6 +540,16 @@ final class AppModel {
             let p = try ws.planAdopt(entry, snapshot: snap)
             reviewPlan = ReviewRequest(
                 title: L("Move “\(entry.name)” into the library"), plan: p, summary: L("Adopt \(entry.name)"))
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Deleting a skill is reviewed like any other change: the links it takes back, the profiles
+    /// it leaves, and the move to Kitfold's trash are all in the sheet, and undoable afterwards.
+    func reviewDeleteSkill(_ entry: SkillEntry) {
+        guard let ws = workspace, let snap = snapshot else { return }
+        do {
+            let p = try ws.planSkillDelete(entry, snapshot: snap)
+            reviewPlan = ReviewRequest(title: L("Delete “\(entry.name)”"), plan: p, summary: L("Delete \(entry.name)"))
         } catch { errorMessage = error.localizedDescription }
     }
 

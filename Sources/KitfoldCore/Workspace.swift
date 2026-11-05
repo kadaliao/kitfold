@@ -127,6 +127,8 @@ public final class Workspace: @unchecked Sendable {
 
     public func history(limit: Int = 100) -> [TransactionRecord] { store.transactions(limit: limit) }
 
+    func ab(_ p: String) -> String { env.abbreviate(p) }
+
     /// Read kitfold.json again. If it can't be decoded, the config stays as it was and the error is thrown once:
     /// the text is remembered, so `reloadConfigIfChanged` doesn't report the same broken file again.
     public func reloadConfig() throws {
@@ -270,6 +272,130 @@ public final class Workspace: @unchecked Sendable {
                     paths: [entry.path], key: entry.path))
         }
         return Plan(changes: changes, issues: issues)
+    }
+
+    /// Where deleted skills and profiles go. Backups are pruned; this folder never is.
+    public var trashDir: String { env.backupsDir + "/trash" }
+
+    /// Plan to delete a skill: take back every link to its folder, clear its rules (so the agents'
+    /// own switches Kitfold wrote for it go too), take it out of the profiles that bundle it, and
+    /// move the folder to Kitfold's trash. Nothing is erased, so an undo — or a later look in the
+    /// trash — brings it all back.
+    public func planSkillDelete(_ entry: SkillEntry, snapshot: Snapshot) throws -> Plan {
+        switch entry.origin {
+        case .library, .source, .agentLocal: break
+        case .bundled:
+            throw KitfoldError.invalid(L("Plugin skills can't be deleted; switch the plugin off in the agent instead"))
+        case .nested(let parent):
+            throw KitfoldError.invalid(L("\(entry.name) lives inside “\(parent)”; delete that skill instead"))
+        case .external:
+            throw KitfoldError.invalid(
+                L(
+                    "\(entry.name) is only linked into an agent's folder from \(env.abbreviate(entry.path)). Switch it off to remove the link; the folder itself is yours to delete."
+                ))
+        }
+        let ref = ResourceRef(.skill, entry.name)
+        /// The link's text as stored on disk (may be relative), so undo recreates it exactly.
+        func rawLink(_ path: String) -> String {
+            if case .symlink(let raw) = FS.kind(path) { return raw }
+            return ""
+        }
+        // Drop the rules and the profile entries first, then let the planner take back what
+        // Kitfold deployed for the skill — the same changes as switching it off everywhere.
+        var draft = config
+        draft.removeRules(for: ref)
+        let bundling = snapshot.profiles.filter { $0.skills.contains(entry.name) }
+        var snap = snapshot
+        snap.profiles = snapshot.profiles.map { p in
+            var p = p
+            p.skills.removeAll { $0 == entry.name }
+            return p
+        }
+        var plan = Planner(snapshot: snap, config: draft).plan()
+
+        // Links elsewhere that point at this folder: in a shared folder, in an unmanaged agent's
+        // folder, left behind by a Move into Library, made by another tool. Each would be a broken
+        // link once the folder is gone.
+        var done = Set(
+            plan.changes.compactMap { c -> String? in
+                if case .removeSymlink(let p, _) = c.change { return p }
+                return nil
+            })
+        for a in snapshot.agents {
+            for scope in snapshot.scopes {
+                for o in a.state(scope).skills
+                where o.isSymlink && o.realPath == entry.path && done.insert(o.entryPath).inserted {
+                    let owned = snapshot.ownedPaths.contains(o.entryPath)
+                    plan.changes.append(
+                        PlannedChange(
+                            .removeSymlink(path: o.entryPath, target: rawLink(o.entryPath)),
+                            summary: L("Remove the link at \(ab(o.entryPath))"), agents: [a.id], scope: scope, resource: ref,
+                            risk: owned ? .safe : .caution,
+                            note: owned ? nil : L("This link wasn't created by Kitfold (another tool or by hand). Undo restores it.")))
+                }
+            }
+        }
+        for p in bundling {
+            var left = p
+            left.skills.removeAll { $0 == entry.name }
+            let path = library.profilePath(id: p.id)
+            plan.changes.append(
+                PlannedChange(
+                    .writeFile(path: path, before: FS.read(path), after: left.rendered()),
+                    summary: L("Take \(entry.name) out of profile “\(p.name)”"), agents: [], scope: .global,
+                    resource: ResourceRef(.profile, p.id)))
+        }
+        plan.changes.append(
+            PlannedChange(
+                .moveItem(from: entry.path, path: trashDir + "/" + entry.folderName + "-" + Executor.newID()),
+                summary: L("Move \(entry.name) to Kitfold's trash"), agents: [], scope: .global, resource: ref,
+                risk: entry.origin == .library ? .safe : .caution,
+                note: L("The folder is kept in \(ab(trashDir)), and undo puts it back where it was.")))
+        if draft != config, let change = configChange(to: draft) { plan.changes.append(change) }
+
+        var issues: [Issue] = []
+        // A folder several agents read directly: they lose the skill with it, link or no link.
+        let readers = snapshot.managedAgents.filter { a in
+            snapshot.scopes.contains { scope in
+                snapshot.exposures(skill: entry.name, agent: a.id, scope: scope)
+                    .contains { $0.isActive && !$0.inherited && !$0.observed.isSymlink && $0.observed.realPath == entry.path }
+            }
+        }
+        if !readers.isEmpty {
+            issues.append(
+                Issue(
+                    .sharedSkillFolder, .warning, L("\(Localization.list(readers.map(\.name))) read this folder"),
+                    detail: L("They lose “\(entry.name)” when the folder goes."),
+                    paths: [entry.path], agent: readers[0].id, alsoAffects: readers.dropFirst().map(\.id), key: entry.name))
+        }
+        if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }) {
+            if let owner = s.managedBy {
+                issues.append(
+                    Issue(
+                        .conflict, .warning, L("\(owner) manages \(ab(s.path))"),
+                        detail: L("Deleting the folder doesn't tell \(owner). Its next update may bring the skill back."),
+                        paths: [entry.path], key: entry.path))
+            } else if let url = s.gitURL {
+                issues.append(
+                    Issue(
+                        .conflict, .warning, L("\(ab(s.path)) is a clone of \(url)"),
+                        detail: L("Deleting the folder doesn't change the repository. The next `git pull` may bring the skill back."),
+                        paths: [entry.path], key: entry.path))
+            }
+        }
+        // Rules go by name, so another folder with the same name takes the deleted one's place.
+        let sameName = snapshot.skillEntries(named: entry.name).filter { $0.path != entry.path }
+        if !sameName.isEmpty {
+            issues.append(
+                Issue(
+                    .duplicateName, .warning, L("Another folder is named “\(entry.name)” too"),
+                    detail: L(
+                        "\(Localization.list(sameName.map { ab($0.path) })) stays, and agents may keep loading a skill by that name. Its assignments are cleared either way."
+                    ),
+                    paths: sameName.map(\.path), key: entry.name))
+        }
+        plan.issues += issues
+        return plan
     }
 
     // MARK: projects

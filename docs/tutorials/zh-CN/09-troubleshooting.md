@@ -269,7 +269,7 @@ Kitfold 能用链接时就用链接：把技能链接进 Agent 自己的技能�
 | `~/.kitfold/backups/<历史记录 ID>/` | 每次应用前（包括保存 `SKILL.md`），被覆盖或删除的文件的副本。在“历史记录”里展开一条，点“备份”就能在访达中看到 |
 | `~/.kitfold/state.sqlite` | 历史记录本身，包括 Kitfold 改过的文件改前改后的内容。撤销靠的是它，不依赖上面的备份目录 |
 | `~/.kitfold/backups/profiles/` | Profile 的历史版本，“对比”用的就是它们 |
-| `~/.kitfold/backups/trash/` | 删除的 Profile |
+| `~/.kitfold/backups/trash/` | 删除的 Profile 和技能 |
 
 备份保留多久，在“设置 › 通用”里调（默认“备份保留 30 天”），过期的会在之后应用时清理，`trash` 除外。同一页的“历史记录和备份”一行显示的就是这个位置。
 

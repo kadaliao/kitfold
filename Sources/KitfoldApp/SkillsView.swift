@@ -96,6 +96,13 @@ struct SkillsView: View {
                         ForEach(entries) { e in
                             SkillRow(entry: e, scope: scope).tag(e.path)
                                 .draggable(e.name)  // drop onto an agent in the sidebar to assign
+                                .contextMenu {
+                                    Button(L("Reveal in Finder")) { model.reveal(e.path) }
+                                    if e.origin.isDeletable {
+                                        Divider()
+                                        Button(L("Delete…"), role: .destructive) { model.reviewDeleteSkill(e) }
+                                    }
+                                }
                         }
                     }
                     .listStyle(.inset)
@@ -332,6 +339,14 @@ struct SkillDetail: View {
                 model.openInEditor(entry.skillFile)
             } label: {
                 Label(L("Open"), systemImage: "square.and.pencil")
+            }
+            if entry.origin.isDeletable {
+                Button(role: .destructive) {
+                    model.reviewDeleteSkill(entry)
+                } label: {
+                    Label(L("Delete…"), systemImage: "trash")
+                }
+                .help(L("Take back every link to this skill and move its folder to Kitfold's trash. Reviewed first, and undoable."))
             }
         }
         .controlSize(.small)

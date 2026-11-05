@@ -10,6 +10,7 @@ import KitfoldCore
 //   kitfold plan                       changes needed to match kitfold.json
 //   kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 //   kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+//   kitfold delete <skill> [--yes]     move a skill's folder to Kitfold's trash
 //   kitfold apply [--yes]              apply the pending plan
 //   kitfold history [--project <path>] applied transactions
 //   kitfold undo <tx-id> [--yes]
@@ -387,6 +388,15 @@ case "assign", "profile":
     }
     confirmAndApply(plan, summary: summary)
 
+case "delete":
+    expectArgs(1...1, usage: "delete <skill> [--yes]")
+    let snap = ws.scan(probeVersions: false)
+    // The library's copy first, as everywhere else; the plan says when another folder has the name too.
+    guard let entry = snap.skill(named: args[0]) else { fail(L("no skill named \(args[0]). kitfold skills --all lists them.")) }
+    do {
+        confirmAndApply(try ws.planSkillDelete(entry, snapshot: snap), summary: L("Delete \(entry.name)"))
+    } catch { fail("\(error)") }
+
 case "history":
     expectArgs(0...0, usage: "history [--project <path>]")
     // A project's history: the applies that touched a file inside it.
@@ -416,6 +426,7 @@ case "help", "-h", "--help":
         kitfold skills [--all] [--project <path>] | agents [--project <path>]
         kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
         kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+        kitfold delete <skill> [--yes]
         kitfold history [--project <path>] | undo [<tx-id>] [--yes]
         """)
     print(L("flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans"))

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Delete a skill.** **Delete…** on a skill's page (or in the Skills list's context menu), and `kitfold delete <skill>` in the CLI.
+  - Kitfold takes back every link to the skill's folder, the entries it wrote for it in the agents' own settings, and its assignments; drops it from the profiles that bundle it; and moves the folder to `~/.kitfold/backups/trash/`.
+  - It's reviewed first like any change, and undo puts the folder, the links, the profiles and the assignments back.
+  - Skills in the library, in a source and local folders can be deleted. Plugin skills, nested skills and folders reached only through a link can't.
+  - The review warns when other agents load the skill from the same folder, when another tool manages the folder or it's a Git clone (an update may bring the skill back), and when another folder has the same name.
+
 ## [0.2.0] - 2026-11-05
 
 First prebuilt release: `Kitfold-0.2.0.dmg` on GitHub Releases, a universal app signed with a Developer ID and notarized. `make release` (`scripts/release.sh`) builds it.

@@ -46,6 +46,9 @@ extension Translations {
         "Move this folder into Kitfold's library and leave a link behind, so it can be assigned per agent.":
             "把这个目录移入 Kitfold 的库，并在原处留下一个链接，这样就能按 Agent 分配它。",
         "Open": "打开",
+        "Delete…": "删除…",
+        "Take back every link to this skill and move its folder to Kitfold's trash. Reviewed first, and undoable.":
+            "收回指向这个技能的所有链接，并把它的目录移到 Kitfold 的废纸篓。会先预览，之后也能撤销。",
         "Where agents load it from": "各 Agent 从哪加载它",
         "Global scope, in each agent's precedence order": "全局作用域，按各 Agent 的优先级排列",
         "No agent loads it yet.": "还没有 Agent 加载它。",

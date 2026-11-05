@@ -20,7 +20,7 @@ Kitfold shows what each coding agent (Claude Code, Codex, OpenCode, Gemini CLI) 
 | [04 Review, apply, undo](04-review-apply-undo.md) | The pending bar, the review, issues that need attention, History and undo |
 | [05 Profiles](05-profiles.md) | Creating and editing profiles, their skills, assigning them, comparing versions, outside edits |
 | [06 Per-project setups](06-projects.md) | Adding a project, project skills and profiles, hiding a global skill in one project |
-| [07 Your skill library](07-skill-library.md) | New skills, importing folders, moving into the library, skill sources, common skill problems |
+| [07 Your skill library](07-skill-library.md) | New skills, importing folders, moving into the library, deleting skills, skill sources, common skill problems |
 | [08 The command line](08-command-line.md) | Every `kitfold` command, the sandbox, scripting |
 | [09 Troubleshooting](09-troubleshooting.md) | What each health issue means and what to do, plus common questions |
 
