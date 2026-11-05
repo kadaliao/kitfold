@@ -23,6 +23,11 @@ All notable changes to this project are documented here. The format follows
   - a link made for one agent also reaches another agent, or another agent stops seeing a skill (OpenCode reads Claude Code's folder);
   - a non-empty `AGENTS.override.md` means a Codex profile has no effect;
   - an agent skips a skill because its SKILL.md lacks required frontmatter. OpenCode needs `name`, Codex `description`, Gemini CLI both. The effective view now leaves these out.
+- **Simplified Chinese.** The app, the CLI and every message from the core (health checks, previews, errors) are in English and Simplified Chinese.
+  - The language follows the system's preferred languages. Pick another in Settings › General › Language; it's stored as Kitfold's own language in macOS, so System Settings › Language & Region › Applications shows the same choice. The app switches at once.
+  - The CLI follows the system too; `--lang en|zh-Hans` or `KITFOLD_LANG` overrides it.
+  - `LocalizationTests` fails when a string has no translation or a translation is no longer used. See [docs/localization.md](docs/localization.md).
+- **Tutorials** in English and Chinese, from the first launch to troubleshooting, with screenshots of the demo home ([docs/tutorials](docs/tutorials/README.md)). Help › Kitfold Tutorials opens them; `scripts/tutorials/make.sh` regenerates the screenshots.
 - **Launch video:** `scripts/video/make.sh` renders the launch video and GIFs from the demo home.
 
 ### Changed
@@ -36,6 +41,9 @@ All notable changes to this project are documented here. The format follows
   - `kitfold.json`'s own diff isn't printed.
 
 ### Fixed
+- Cleaning up old backups no longer deletes every saved profile version and `SKILL.md` backup. It judged the whole `backups/profiles/` folder by the folder's own date; each version is now judged by its own.
+- The project page keeps its overview (agent cards, project profiles) in a small window. The skill matrix below it used to push it out of view.
+- Removing a project that still has assignments says to clear them. It used to say to switch them off, which leaves an "off" rule and still blocks removal.
 - Saving settings (projects, sources, preferences) no longer blocks undoing an earlier apply. Undo now reverts only that apply's rules.
 - Undoing "move into library" is refused while links made later still point into the moved folder.
 - Switching off skill `pdf` no longer removes a link named `pdf` that holds a different skill.

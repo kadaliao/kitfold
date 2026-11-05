@@ -48,6 +48,7 @@ Kitfold answers them, and lets you change the answer with a click, safely.
   - Unknown folders and other tools' managed blocks are never touched.
 - **Local-first.** No account, no cloud, no background service. Your intent lives in a readable `~/.kitfold/kitfold.json`.
 - **Keyboard-first.** ⌘K jumps to anything; ⌘↩ reviews and applies.
+- **English and Simplified Chinese.** Follows your system's language; pick another in Settings › General. The CLI takes `--lang`.
 
 | | |
 |---|---|
@@ -79,6 +80,8 @@ open build/Kitfold.app
 There are no prebuilt releases yet. `make run` starts the app straight from the build folder.
 
 **First launch is read-only.** Kitfold creates `~/.kitfold/` for its own data and registers `~/.agents/skills` (and Magpie's library, if present) as skill sources. Nothing else on disk changes until you flip a switch and confirm the preview.
+
+New to Kitfold? The [tutorials](docs/tutorials/en/README.md) walk through it step by step, from the first launch to troubleshooting. They're also under Help › Kitfold Tutorials.
 
 ### Command line
 
@@ -112,6 +115,7 @@ Details are in [docs/architecture.md](docs/architecture.md) (Chinese).
 
 ## Documentation
 
+- [Tutorials](docs/tutorials/en/README.md): using Kitfold, step by step
 - [Development guide](docs/development.md): building, testing, sandboxes, screenshots
 - [Adding an agent](docs/adding-an-agent.md)
 - [Design docs](docs/README.md): research, architecture, UX, roadmap (Chinese)

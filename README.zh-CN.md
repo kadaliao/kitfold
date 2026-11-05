@@ -48,12 +48,13 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
   - 不认识的目录、其他工具的托管块，一律不碰。
 - **本地优先**：不需要账号，不依赖云，不常驻后台。你的意图保存在一个可读的 `~/.kitfold/kitfold.json` 里。
 - **键盘优先**：⌘K 跳到任何地方，⌘↩ 预览并应用。
+- **中英文界面**：默认跟随系统语言，也可以在“设置 › 通用”里单独指定；命令行用 `--lang`。
 
 | | |
 |---|---|
-| ![Agent 页面，按来源分组列出它加载的每个技能](docs/assets/screenshots/01-agents.jpg) | ![技能 × Agent 矩阵](docs/assets/screenshots/02-matrix.jpg) |
-| ![带 diff 和设置变更的预览](docs/assets/screenshots/03-review.jpg) | ![技能详情](docs/assets/screenshots/04-skill.jpg) |
-| ![Profile 编辑器](docs/assets/screenshots/05-profiles.jpg) | ![Dashboard](docs/assets/screenshots/06-dashboard.jpg) |
+| ![Agent 页面，按来源分组列出它加载的每个技能](docs/assets/screenshots/zh-CN/01-agents.jpg) | ![技能 × Agent 矩阵](docs/assets/screenshots/zh-CN/02-matrix.jpg) |
+| ![带 diff 和设置变更的预览](docs/assets/screenshots/zh-CN/03-review.jpg) | ![技能详情](docs/assets/screenshots/zh-CN/04-skill.jpg) |
+| ![Profile 编辑器](docs/assets/screenshots/zh-CN/05-profiles.jpg) | ![概览](docs/assets/screenshots/zh-CN/06-dashboard.jpg) |
 
 ## 支持的 Agent
 
@@ -79,6 +80,8 @@ open build/Kitfold.app
 目前还没有预编译的发布包。`make run` 可以直接从构建目录启动 App。
 
 **首次启动是只读的。** Kitfold 会创建 `~/.kitfold/` 来存放自己的数据，并把 `~/.agents/skills`（以及 Magpie 的库，如果存在）登记为技能来源。在你拨动开关并确认预览之前，磁盘上的其他东西都不会改变。
+
+第一次用？[教程](docs/tutorials/zh-CN/README.md)从第一次打开讲到排错，一步一步来。App 里的“帮助 › Kitfold 教程”也能打开。
 
 ### 命令行
 
@@ -112,6 +115,7 @@ kitfold.json（你的意图） ─┐
 
 ## 文档
 
+- [教程](docs/tutorials/zh-CN/README.md)：一步一步学会用 Kitfold
 - [开发指南](docs/development.md)：构建、测试、沙盒、截图（英文）
 - [接入新 Agent](docs/adding-an-agent.md)（英文）
 - [设计文档](docs/README.md)：调研、架构、交互、路线图

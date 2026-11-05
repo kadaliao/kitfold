@@ -27,9 +27,15 @@
 | 界面 | 每个 Agent 用自己的标志；单个开关的历史记录写明做了什么 |
 | 诊断 | 链接同时影响别的 Agent 时提示；Codex 的 `AGENTS.override.md` 让 Profile 失效时提示；按各 Agent 要求的 frontmatter 判断技能是否会被跳过 |
 | 修复 | 一轮全面排查后的修复，见 [CHANGELOG](../CHANGELOG.md) |
+| 中文 | App、CLI 和核心产生的所有提示都有简体中文；默认跟随系统语言，可在设置里单独指定（与系统设置里的"App 语言"是同一个设置），CLI 用 `--lang` 或 `KITFOLD_LANG`。漏翻和多余的翻译由测试拦下，见 [localization](localization.md) |
+| 教程 | 中英文教程 9 篇，从第一次打开到排错，配演示数据的截图，见 [tutorials](tutorials/README.md)；帮助菜单里可以直接打开 |
 | 工具 | `scripts/video/make.sh` 生成发布视频和 GIF |
 
 已知限制：Codex 只认 `$CODEX_HOME/config.toml` 里的 `[[skills.config]]`，所以没法只在一个项目里对 Codex 隐藏技能，Kitfold 会说明这一点。
+
+## 已知问题
+
+写教程时发现、还没修的问题见 [known-issues](known-issues.md)，优先修第一部分（可能丢改动的那几条）。
 
 ## 下一步
 
