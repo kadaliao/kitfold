@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-05
+
+### Fixed
+- Deleting a skill that another agent loads through a shared folder (OpenCode reads `~/.claude/skills`) no longer warns that the agent "will stop loading" it and suggests switching it on there. Every agent loses a deleted skill.
+
 ## [0.3.0] - 2026-11-05
 
 ### Added
@@ -135,7 +140,8 @@ First version.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
 
-[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/kadaliao/kitfold/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kadaliao/kitfold/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kadaliao/kitfold/compare/f1fb7c2...v0.2.0
 [0.1.0]: https://github.com/kadaliao/kitfold/commit/f1fb7c2

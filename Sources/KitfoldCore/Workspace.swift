@@ -312,6 +312,9 @@ public final class Workspace: @unchecked Sendable {
             return p
         }
         var plan = Planner(snapshot: snap, config: draft).plan()
+        // The planner warns that taking a link back costs an agent that reads the same folder the
+        // skill, and says to switch it on there. Every agent loses a deleted skill, so drop that.
+        plan.issues.removeAll { $0.kind == .sharedSkillFolder && $0.key == entry.name }
 
         // Links elsewhere that point at this folder: in a shared folder, in an unmanaged agent's
         // folder, left behind by a Move into Library, made by another tool. Each would be a broken

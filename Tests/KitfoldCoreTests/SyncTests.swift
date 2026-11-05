@@ -332,6 +332,21 @@ extension Workspace {
         #expect(!ws.plan(ws.config, snapshot: ws.snap()).issues.contains { $0.kind == .missingResource })
     }
 
+    @Test func deletingDoesNotSuggestSwitchingTheSkillOnForAnotherAgent() throws {
+        let h = FakeHome()
+        h.installAgents()
+        let ws = try h.workspace()
+        _ = try ws.library.createSkill(name: "gamma", description: "Gamma")
+        try ws.assign(ResourceRef(.skill, "gamma"), .agent(.claudeCode), .on)
+        // OpenCode loads gamma only through Claude's link in ~/.claude/skills.
+        #expect(ws.snap().agent(.openCode)!.visibleSkills(in: .global).map(\.name) == ["gamma"])
+
+        let snap = ws.snap()
+        let plan = try ws.planSkillDelete(try #require(snap.skill(named: "gamma")), snapshot: snap)
+        // Switching off for Claude alone would warn about OpenCode; a delete takes it from everyone.
+        #expect(!plan.issues.contains { $0.kind == .sharedSkillFolder && $0.agent == .openCode })
+    }
+
     @Test func deletingWhatBelongsToSomethingElseIsRefused() throws {
         let h = FakeHome()
         h.installAgents()
