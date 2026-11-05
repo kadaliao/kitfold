@@ -64,6 +64,8 @@ public struct PlannedChange: Identifiable, Hashable, Sendable {
     /// the file's text is never displayed — agent settings files can hold secrets.
     public var details: [String]?
     public var ownership: [OwnershipEdit]
+    /// The write of kitfold.json itself. It records the rules; counts of "file changes" leave it out.
+    public var savesConfig = false
 
     public init(
         _ change: FileChange, summary: String, agents: [AgentID], scope: Scope, resource: ResourceRef? = nil,
@@ -89,5 +91,20 @@ public struct Plan: Sendable {
     public init(changes: [PlannedChange] = [], issues: [Issue] = []) { self.changes = changes; self.issues = issues }
 
     public var isEmpty: Bool { changes.isEmpty }
+    /// Changes to the agents' files: everything but saving kitfold.json. What the app and CLI count.
+    public var fileChanges: [PlannedChange] { changes.filter { !$0.savesConfig } }
+    /// Warnings and errors: what "to check" counts. Notes are listed but not counted.
+    public var toCheck: [Issue] { issues.filter { $0.severity >= .warning } }
+    /// Files this plan leaves alone although they're out of date: their profile blocks were edited outside Kitfold.
+    public var notWritten: [Issue] { issues.filter { $0.kind == .blockDrift } }
+    /// Everything else that needs a look.
+    public var otherIssues: [Issue] { issues.filter { $0.kind != .blockDrift } }
     public var hasCaution: Bool { changes.contains { $0.risk == .caution } }
+
+    /// Issues about `resource` for these agents in `scope`: why a rule for it may not take effect.
+    public func issues(about resource: ResourceRef, agents: Set<AgentID>, scope: Scope) -> [Issue] {
+        issues.filter { i in
+            i.key == resource.id && (i.scope == nil || i.scope == scope) && (i.agent == nil || !agents.isDisjoint(with: i.affectedAgents))
+        }
+    }
 }

@@ -66,8 +66,6 @@ extension Translations {
         "Review changes": "预览变更",
         "Action": "动作",
         "Rescan": "重新扫描",
-        "New profile": "新建 Profile",
-        "New skill": "新建技能",
         "Dashboard": "概览",
         "Go to": "前往",
         "History": "历史记录",

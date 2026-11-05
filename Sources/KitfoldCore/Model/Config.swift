@@ -66,6 +66,21 @@ public struct SkillSourceConfig: Hashable, Sendable, Codable, Identifiable {
     }
 }
 
+extension SkillSourceConfig {
+    /// Labels Kitfold gives the sources it finds on first launch. kitfold.json keeps them in English;
+    /// they're shown in the app's language until the user renames them.
+    static let firstRunLabels = ["agents": "Shared (~/.agents/skills)", "magpie": "Magpie library"]
+
+    public var displayLabel: String {
+        guard Self.firstRunLabels[id] == label else { return label }
+        switch id {
+        case "agents": return L("Shared (~/.agents/skills)")
+        case "magpie": return L("Magpie library")
+        default: return label
+        }
+    }
+}
+
 public struct AgentSettings: Hashable, Sendable, Codable {
     /// nil = automatic (managed when detected).
     public var enabled: Bool?
@@ -158,6 +173,28 @@ public struct KitfoldConfig: Hashable, Sendable, Codable {
     }
 
     public func rules(for resource: ResourceRef) -> [AssignmentRule] { rules.filter { $0.resource == resource } }
+
+    /// The rule edits `draft` made to `base`, replayed on top of this config. Keeps unapplied toggles
+    /// when kitfold.json changes underneath them, and lets undo revert one apply's rules only.
+    /// Where this config also changed a rule the draft edited, the draft wins; `overridden` counts those.
+    public func replaying(rulesOf draft: KitfoldConfig, since base: KitfoldConfig) -> (config: KitfoldConfig, overridden: Int) {
+        struct Key: Hashable {
+            var resource: ResourceRef
+            var scope: Scope
+            var agent: AgentSelector
+        }
+        var out = self
+        var overridden = 0
+        for k in Set((draft.rules + base.rules).map { Key(resource: $0.resource, scope: $0.scope, agent: $0.agent) }) {
+            let wanted = draft.rule(k.resource, agent: k.agent, scope: k.scope)?.state
+            let was = base.rule(k.resource, agent: k.agent, scope: k.scope)?.state
+            guard wanted != was else { continue }
+            let now = rule(k.resource, agent: k.agent, scope: k.scope)?.state
+            if now != was && now != wanted { overridden += 1 }
+            out.setRule(k.resource, agent: k.agent, scope: k.scope, state: wanted)
+        }
+        return (out, overridden)
+    }
 
     /// Drop specific rules that merely repeat the wildcard; keep a stable order for clean diffs.
     mutating func normalize() {

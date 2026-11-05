@@ -57,7 +57,7 @@ struct KitfoldCommands: Commands {
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!model.hasPendingChanges)
             Button(L("Discard Changes")) { model.discardDraft() }
-                .disabled(!model.hasPendingChanges)
+                .disabled(!model.hasDraftEdits)
             Divider()
             Button(L("Dashboard")) { model.selection = .dashboard }.keyboardShortcut("1")
             Button(L("Skills")) { model.selection = .skills }.keyboardShortcut("2")
@@ -119,6 +119,10 @@ struct RootView: View {
         .sheet(isPresented: $model.showNewSkill) { NewItemSheet(kind: .skill) }
         .overlay { if model.showPalette { CommandPalette() } }
         .overlay(alignment: .top) { ToastView() }
+        // Back from the terminal: pick up what the CLI changed.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.refreshIfChangedOutside()
+        }
         .alert(
             L("Something went wrong"),
             isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })
@@ -191,10 +195,7 @@ struct Sidebar: View {
                     }
                     .tag(SidebarItem.agent(a.id))
                     .dropDestination(for: String.self) { names, _ in
-                        for n in names where !model.cell(skill: n, agent: a.id, scope: .global).willBeOn {
-                            model.toggle(skill: n, agent: a.id, scope: .global)
-                        }
-                        model.toast = L("Added \(names.joined(separator: ", ")) to \(a.adapter.name) — review to apply.")
+                        model.drop(skills: names, on: a)
                         return true
                     }
                 }
@@ -249,7 +250,7 @@ struct PendingBar: View {
                 Text(L("Working out changes…")).foregroundStyle(.secondary)
             } else {
                 let n = model.pendingCount
-                let issues = model.plan?.issues.filter { $0.severity >= .warning }.count ?? 0
+                let issues = model.plan?.toCheck.count ?? 0
                 Text(
                     n == 0
                         ? L("Assignments changed — no files need to change")
@@ -259,7 +260,8 @@ struct PendingBar: View {
                 if issues > 0 { Pill(text: L("\(issues) to check"), color: .orange, systemImage: "exclamationmark.triangle") }
             }
             Spacer()
-            Button(L("Discard")) { model.discardDraft() }
+            // Files out of line with saved rules (an edited profile) leave nothing to discard.
+            if model.hasDraftEdits { Button(L("Discard")) { model.discardDraft() } }
             Button(L("Review & Apply…")) { model.showReview = true }
                 .keyboardShortcut(.return, modifiers: .command)
                 .buttonStyle(.borderedProminent)

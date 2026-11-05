@@ -38,7 +38,13 @@ struct DashboardView: View {
         let time = snap.scannedAt.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Localization.language.locale))
         let agents = snap.managedAgents.count, skills = snap.skillNames.count
         let profiles = snap.profiles.count, projects = snap.config.projects.count
-        return L("Scanned \(time) · \(agents) agents · \(skills) skills · \(profiles) profiles · \(projects) projects")
+        return [
+            L("Scanned \(time)"),
+            agents == 1 ? L("1 agent") : L("\(agents) agents"),
+            skills == 1 ? L("1 skill") : L("\(skills) skills"),
+            profiles == 1 ? L("1 profile") : L("\(profiles) profiles"),
+            projects == 1 ? L("1 project") : L("\(projects) projects"),
+        ].joined(separator: " · ")
     }
 
     func agentCards(_ snap: Snapshot) -> some View {
@@ -102,7 +108,7 @@ struct DashboardView: View {
                 ForEach(snap.config.sources) { s in
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
-                            Text(s.label).font(.callout)
+                            Text(s.displayLabel).font(.callout)
                             if let m = s.managedBy { Pill(text: m) }
                         }
                         Text(s.path).font(.caption.monospaced()).foregroundStyle(.secondary)

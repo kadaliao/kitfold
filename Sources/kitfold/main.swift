@@ -4,13 +4,14 @@ import KitfoldCore
 // kitfold — command-line front end to the same core the app uses.
 //
 //   kitfold status                     agents, context size, issues
-//   kitfold skills [--all]             skill × agent matrix (what each agent actually loads)
-//   kitfold agents                     where each agent looks, which files it loads
+//   kitfold skills [--all] [--project <path>]   skill × agent matrix (what each agent actually loads)
+//   kitfold agents [--project <path>]  where each agent looks, which files it loads
+//   kitfold profiles                   profile ids and names
 //   kitfold plan                       changes needed to match kitfold.json
-//   kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--yes]
-//   kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--yes]
+//   kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+//   kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 //   kitfold apply [--yes]              apply the pending plan
-//   kitfold history                    applied transactions
+//   kitfold history [--project <path>] applied transactions
 //   kitfold undo <tx-id> [--yes]
 //
 // Global flags: --home <dir> (pretend this is $HOME; for trying things safely), --no-color,
@@ -64,6 +65,7 @@ func pad(_ s: String, _ width: Int) -> String {
 }
 
 func fail(_ msg: String) -> Never {
+    fflush(stdout)  // what was printed before explains the error
     FileHandle.standardError.write(Data((red(L("error: ")) + msg + "\n").utf8))
     exit(1)
 }
@@ -77,13 +79,18 @@ if let tag = option("--lang") {
 var env = KitfoldEnvironment.current()
 if let home = option("--home") {
     let h = FS.standardize(FS.expandTilde(home, home: NSHomeDirectory()))
-    env = KitfoldEnvironment(home: h, variables: ["PATH": "/usr/bin:/bin"])
+    // A sandbox: no PATH or folder variables from the real environment, only switches that change what an agent reads.
+    var variables = ["PATH": "/usr/bin:/bin"]
+    for key in BuiltinAgents.openCodeSkipsClaude { variables[key] = ProcessInfo.processInfo.environment[key] }
+    env = KitfoldEnvironment(home: h, variables: variables)
 }
 let yes = flag("--yes") || flag("-y")
 let projectArg = option("--project")
 let showAll = flag("--all")
 let clearFlag = flag("--clear")
 let offFlag = flag("--off")
+let force = flag("--force")
+let wantsHelp = flag("--help") || flag("-h")
 // Anything else that looks like an option is a typo; never guess (`--of` must not mean "on").
 if let unknown = args.first(where: { $0.hasPrefix("-") }) { fail(L("unknown option \(unknown). Try kitfold help")) }
 if clearFlag && offFlag { fail(L("use either --off or --clear")) }
@@ -136,9 +143,13 @@ func printPlan(_ plan: Plan) {
             }
         }
     }
-    if !plan.issues.isEmpty {
+    if !plan.notWritten.isEmpty {
+        print(bold("\n" + L("Not written this time")))
+        printIssues(plan.notWritten)
+    }
+    if !plan.otherIssues.isEmpty {
         print(bold("\n" + L("Needs attention")))
-        printIssues(plan.issues)
+        printIssues(plan.otherIssues)
     }
 }
 
@@ -146,7 +157,14 @@ func confirmAndApply(_ plan: Plan, summary: String) {
     printPlan(plan)
     guard !plan.changes.isEmpty else { return }
     if !yes {
-        print("\n" + L("Apply \(plan.changes.count) change(s)? Re-run with --yes to apply."))
+        let n = plan.fileChanges.count
+        print(
+            "\n"
+                + (n == 0
+                    ? L("Only the assignments are saved. Re-run with --yes to save them.")
+                    : n == 1
+                        ? L("Apply 1 file change? Re-run with --yes to apply.") : L("Apply \(n) file changes? Re-run with --yes to apply."))
+        )
         return
     }
     do {
@@ -161,6 +179,18 @@ func scope() -> Scope {
     let abs = FS.absolute(FS.expandTilde(p, home: env.home), relativeTo: FileManager.default.currentDirectoryPath)
     guard FS.isDirectoryFollowing(abs) else { fail(L("no such folder: \(p)")) }
     return .project(FS.gitRoot(from: abs) ?? abs)
+}
+
+/// `config` with the `--project` folder in its projects, so any folder can be looked at or assigned to.
+func including(_ sc: Scope, in config: KitfoldConfig) -> KitfoldConfig {
+    var c = config
+    if case .project(let p) = sc, !c.projects.contains(where: { $0.path == p }) { c.projects.append(ProjectConfig(path: p)) }
+    return c
+}
+
+func scan(_ config: KitfoldConfig, probeVersions: Bool = false) -> Snapshot {
+    Scanner(env: env, adapters: ws.adapters).scan(
+        config: config, ownedPaths: ws.store.ownedPaths(), ownedSettings: ws.store.ownedSettings(), probeVersions: probeVersions)
 }
 
 /// Commands take a fixed number of arguments; extra ones are mistakes.
@@ -180,23 +210,26 @@ func roleLabel(_ role: SkillRootSpec.Role) -> String {
 func selector(_ s: String) -> AgentSelector {
     if s == "*" || s == "all" { return .all }
     guard ws.adapters.contains(where: { $0.id.rawValue == s }) else {
-        let known = ws.adapters.map(\.id.rawValue).joined(separator: ", ")
-        fail(L("unknown agent \(s) (known: \(known), *)"))
+        let known = Localization.list(ws.adapters.map(\.id.rawValue) + ["*"])
+        fail(L("unknown agent \(s) (known: \(known))"))
     }
     return .agent(AgentID(s))
 }
 
-let command = args.first ?? "status"
-if !args.isEmpty { args.removeFirst() }
+let command = wantsHelp ? "help" : (args.first ?? "status")
+if !args.isEmpty && !wantsHelp { args.removeFirst() }
 
 switch command {
 case "status":
     expectArgs(0...0, usage: "status")
     let snap = ws.scan()
     let librarySkills = snap.catalog.filter { $0.origin == .library }.count
-    print(
-        bold("Kitfold")
-            + dim("  \(ab(env.kitfoldHome))  ·  " + L("library: \(librarySkills) skills, \(snap.profiles.count) profiles")))
+    let profileCount = snap.profiles.count
+    let library = Localization.list([
+        librarySkills == 1 ? L("1 skill") : L("\(librarySkills) skills"),
+        profileCount == 1 ? L("1 profile") : L("\(profileCount) profiles"),
+    ])
+    print(bold("Kitfold") + dim("  \(ab(env.kitfoldHome))  ·  " + L("library: \(library)")))
     print()
     for a in snap.agents {
         let inst = a.installation
@@ -204,17 +237,24 @@ case "status":
         let est = snap.contextEstimate(agent: a.id, scope: .global)
         print("\(bold(pad(a.adapter.name, 12))) \(state) \(dim(inst.version ?? ""))")
         let config = ab(inst.configDir)
-        print(dim("  " + L("\(est.skillCount) skills active  ·  ~\(est.approxTokens) tokens always loaded  ·  config \(config)")))
+        print(
+            dim(
+                "  "
+                    + (est.skillCount == 1
+                        ? L("1 skill active  ·  ~\(est.approxTokens) tokens always loaded  ·  config \(config)")
+                        : L("\(est.skillCount) skills active  ·  ~\(est.approxTokens) tokens always loaded  ·  config \(config)"))))
     }
     let issues = snap.issues.filter { $0.severity >= .warning }
     let notes = snap.issues.count - issues.count
-    print(bold("\n" + L("Issues")) + dim(L(" (\(issues.count) warnings/errors, \(notes) notes)")))
+    let problems = issues.count == 1 ? L("1 warning or error") : L("\(issues.count) warnings or errors")
+    let noteCount = notes == 1 ? L("1 note") : L("\(notes) notes")
+    print(bold("\n" + L("Issues")) + dim(L(" (\(problems), \(noteCount))")))
     printIssues(issues, limit: 25)
 
 case "skills":
     expectArgs(0...0, usage: "skills [--all] [--project <path>]")
-    let snap = ws.scan(probeVersions: false)
     let sc = scope()
+    let snap = scan(including(sc, in: ws.config))
     let agents = snap.managedAgents
     let width = min(40, (snap.skillNames.map(displayWidth).max() ?? 10) + 2)
     print(
@@ -253,9 +293,9 @@ case "skills":
     print(dim("\n" + legend.joined(separator: "  ")))
 
 case "agents":
-    expectArgs(0...0, usage: "agents")
-    let snap = ws.scan()
+    expectArgs(0...0, usage: "agents [--project <path>]")
     let sc = scope()
+    let snap = scan(including(sc, in: ws.config), probeVersions: true)
     for a in snap.agents {
         print(bold(a.adapter.name) + dim("  " + (a.enabled ? L("managed") : L("not managed"))))
         print(dim("  " + L("skills folders (precedence order):")))
@@ -272,6 +312,15 @@ case "agents":
         print()
     }
 
+case "profiles":
+    expectArgs(0...0, usage: "profiles")
+    let snap = ws.scan(probeVersions: false)
+    if snap.profiles.isEmpty { print(dim(L("No profiles yet."))) }
+    let width = min(30, (snap.profiles.map { displayWidth($0.id) }.max() ?? 10) + 2)
+    for p in snap.profiles.sorted(by: { $0.id < $1.id }) {
+        print(pad(p.id, width) + p.name + (p.description.isEmpty ? "" : dim("  " + p.description)))
+    }
+
 case "plan":
     expectArgs(0...0, usage: "plan")
     let snap = ws.scan(probeVersions: false)
@@ -283,23 +332,22 @@ case "apply":
     confirmAndApply(ws.plan(ws.config, snapshot: snap), summary: L("Apply kitfold.json"))
 
 case "assign", "profile":
-    expectArgs(2...2, usage: "\(command) <name> <agent|*> [--off|--clear] [--project <path>] [--yes]")
+    expectArgs(2...2, usage: "\(command) <name> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]")
     let kind: ResourceKind = command == "assign" ? .skill : .profile
     let ref = ResourceRef(kind, args[0])
     let sel = selector(args[1])
     let state: RuleState? = clearFlag ? nil : (offFlag ? .off : .on)
-    var draft = ws.config
     let sc = scope()
-    if case .project(let p) = sc, !draft.projects.contains(where: { $0.path == p }) { draft.projects.append(ProjectConfig(path: p)) }
+    var draft = including(sc, in: ws.config)
     if sel == .all { draft.setAll(ref, scope: sc, state: state) } else { draft.setRule(ref, agent: sel, scope: sc, state: state) }
-    let snap = Scanner(env: env, adapters: ws.adapters).scan(
-        config: draft, ownedPaths: ws.store.ownedPaths(), ownedSettings: ws.store.ownedSettings(), probeVersions: false)
+    let snap = scan(draft)
     // nil: all agents. They get sentences of their own: Chinese puts a space before an agent's name, not before 所有 Agent.
     let who: String? = {
         guard case .agent(let id) = sel else { return nil }
         return ws.adapters.first { $0.id == id }?.name ?? id.rawValue
     }()
-    let what = kind == .profile ? L("profile \(ref.id)") : ref.id
+    // The history shows names, as the app does; the id is only what's typed.
+    let what = kind == .profile ? L("profile \(snap.profileName(ref.id))") : ref.id
     let project = sc.projectPath.map { ($0 as NSString).lastPathComponent }
     let summary: String
     switch (state, who, project) {
@@ -316,13 +364,37 @@ case "assign", "profile":
     case (nil, nil, nil): summary = L("Reset \(what) for all agents")
     case (nil, nil, let p?): summary = L("Reset \(what) for all agents in \(p)")
     }
-    confirmAndApply(ws.plan(draft, snapshot: snap), summary: summary)
+    let plan = ws.plan(draft, snapshot: snap)
+    // A rule that can never take effect would sit in kitfold.json doing nothing (a typo, a profile's
+    // name instead of its id, a switch the agent can't make). Clearing one is always allowed.
+    if state != nil && !force && draft != ws.config {
+        if kind == .skill && snap.skill(named: ref.id) == nil {
+            fail(L("no skill named \(ref.id). kitfold skills --all lists them; --force saves the rule anyway."))
+        }
+        if kind == .profile && snap.profile(ref.id) == nil {
+            let known = Localization.list(snap.profiles.map(\.id).sorted())
+            fail(L("no profile with id \(ref.id) (known: \(known)). --force saves the rule anyway."))
+        }
+        let agents: Set<AgentID> = {
+            if case .agent(let id) = sel { return [id] }
+            return Set(snap.managedAgents.map(\.id))
+        }()
+        let blockers = plan.issues(about: ref, agents: agents, scope: sc)
+        if !blockers.isEmpty && !plan.changes.contains(where: { $0.change.path != env.configFile }) {
+            printIssues(blockers)
+            fail(L("not saved: this rule wouldn't change anything. --force saves it anyway."))
+        }
+    }
+    confirmAndApply(plan, summary: summary)
 
 case "history":
-    expectArgs(0...0, usage: "history")
-    for tx in ws.history() {
+    expectArgs(0...0, usage: "history [--project <path>]")
+    // A project's history: the applies that touched a file inside it.
+    let root = scope().projectPath
+    for tx in ws.history() where root == nil || tx.operations.contains(where: { FS.isInside($0.change.path, root!) }) {
         let undone = tx.undoneBy != nil ? dim(L(" (undone)")) : ""
-        print("\(tx.id)  \(tx.summary)\(undone)  " + dim(L("\(tx.operations.count) ops")))
+        let n = tx.operations.count
+        print("\(tx.id)  \(tx.summary)\(undone)  " + dim(n == 1 ? L("1 operation") : L("\(n) operations")))
     }
 
 case "undo":
@@ -330,7 +402,9 @@ case "undo":
     // The newest apply that's still in effect (undoing an undo would redo it).
     guard let id = args.first ?? ws.history().first(where: { $0.canUndo && $0.kind != "undo" })?.id else { fail(L("nothing to undo")) }
     guard let tx = ws.store.transaction(id: id) else { fail(L("no transaction \(id)")) }
-    print(L("Undo “\(tx.summary)” (\(tx.operations.count) operations)"))
+    print(
+        tx.operations.count == 1
+            ? L("Undo “\(tx.summary)” (1 operation)") : L("Undo “\(tx.summary)” (\(tx.operations.count) operations)"))
     for op in tx.operations.reversed() { print(dim("  \(op.summary)")) }
     if !yes { print("\n" + L("Re-run with --yes to undo.")); exit(0) }
     do { try ws.undo(id); print(green(L("Undone."))) } catch { fail("\(error)") }
@@ -338,10 +412,11 @@ case "undo":
 case "help", "-h", "--help":
     print(
         """
-        kitfold status | skills [--all] | agents | plan | apply [--yes]
-        kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--yes]
-        kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--yes]
-        kitfold history | undo [<tx-id>] [--yes]
+        kitfold status | plan | apply [--yes] | profiles
+        kitfold skills [--all] [--project <path>] | agents [--project <path>]
+        kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+        kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
+        kitfold history [--project <path>] | undo [<tx-id>] [--yes]
         """)
     print(L("flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans"))
 

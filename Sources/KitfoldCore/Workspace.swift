@@ -14,6 +14,8 @@ public final class Workspace: @unchecked Sendable {
     public private(set) var config: KitfoldConfig
     /// True when kitfold.json didn't exist yet (first launch).
     public let isFirstRun: Bool
+    /// kitfold.json as this workspace last read or wrote it, to notice edits made elsewhere (the CLI, an editor).
+    private var configText: String?
 
     public init(env: KitfoldEnvironment = .current(), adapters: [AgentAdapter] = BuiltinAgents.adapters) throws {
         self.env = env
@@ -31,6 +33,7 @@ public final class Workspace: @unchecked Sendable {
             isFirstRun = true
             try config.save(to: env.configFile)
         }
+        configText = FS.read(env.configFile)
     }
 
     /// First-run config: no rules (so nothing changes), plus well-known skill folders as sources.
@@ -41,13 +44,15 @@ public final class Workspace: @unchecked Sendable {
             let lock = FS.exists(env.expand("~/.agents/.skill-lock.json"))
             c.sources.append(
                 SkillSourceConfig(
-                    id: "agents", label: "Shared (~/.agents/skills)", path: "~/.agents/skills",
+                    id: "agents", label: SkillSourceConfig.firstRunLabels["agents"]!, path: "~/.agents/skills",
                     managedBy: lock ? "skills CLI" : nil))
         }
         let magpie = env.expand("~/.config/magpie/library/skills")
         if FS.isDirectoryFollowing(magpie) {
             c.sources.append(
-                SkillSourceConfig(id: "magpie", label: "Magpie library", path: "~/.config/magpie/library/skills", managedBy: "Magpie"))
+                SkillSourceConfig(
+                    id: "magpie", label: SkillSourceConfig.firstRunLabels["magpie"]!, path: "~/.config/magpie/library/skills",
+                    managedBy: "Magpie"))
         }
         return c
     }
@@ -76,9 +81,11 @@ public final class Workspace: @unchecked Sendable {
         guard let after = try? Workspace.encode(d) else { return nil }
         let before = FS.read(env.configFile)
         guard before != after else { return nil }
-        return PlannedChange(
+        var change = PlannedChange(
             .writeFile(path: env.configFile, before: before, after: after),
             summary: L("Save assignments to kitfold.json"), agents: [], scope: .global)
+        change.savesConfig = true
+        return change
     }
 
     static func encode(_ c: KitfoldConfig) throws -> String {
@@ -111,20 +118,8 @@ public final class Workspace: @unchecked Sendable {
             let current = FS.read(path), current != from
         else { return change }
         let decode = { (s: String) in try? JSONDecoder().decode(KitfoldConfig.self, from: Data(s.utf8)) }
-        guard let a = decode(from), let b = decode(to), var now = decode(current) else { return change }
-        struct Key: Hashable {
-            var resource: ResourceRef
-            var scope: Scope
-            var agent: AgentSelector
-        }
-        let keys = Set((a.rules + b.rules).map { Key(resource: $0.resource, scope: $0.scope, agent: $0.agent) })
-        for k in keys {
-            let wanted = b.rule(k.resource, agent: k.agent, scope: k.scope)?.state
-            if a.rule(k.resource, agent: k.agent, scope: k.scope)?.state != wanted {
-                now.setRule(k.resource, agent: k.agent, scope: k.scope, state: wanted)
-            }
-        }
-        guard let text = try? Workspace.encode(now) else { return change }
+        guard let a = decode(from), let b = decode(to), let now = decode(current) else { return change }
+        guard let text = try? Workspace.encode(now.replaying(rulesOf: b, since: a).config) else { return change }
         var c = change
         c.change = .writeFile(path: path, before: current, after: text)
         return c
@@ -132,18 +127,36 @@ public final class Workspace: @unchecked Sendable {
 
     public func history(limit: Int = 100) -> [TransactionRecord] { store.transactions(limit: limit) }
 
+    /// Read kitfold.json again. If it can't be decoded, the config stays as it was and the error is thrown once:
+    /// the text is remembered, so `reloadConfigIfChanged` doesn't report the same broken file again.
     public func reloadConfig() throws {
-        if var c = try KitfoldConfig.load(from: env.configFile) {
-            c.resolvePaths(env)
-            config = c
-        }
+        let text = FS.read(env.configFile)
+        configText = text
+        guard let text else { return }
+        var c = try JSONDecoder().decode(KitfoldConfig.self, from: Data(text.utf8))
+        c.resolvePaths(env)
+        config = c
+    }
+
+    /// kitfold.json no longer has the text this workspace last read or wrote: something else changed it.
+    public var configChangedOnDisk: Bool { FS.read(env.configFile) != configText }
+
+    /// Reload kitfold.json if it was changed outside this workspace. Returns the config as it was before,
+    /// or nil when nothing changed, so a caller holding unapplied edits can replay them on the new one.
+    public func reloadConfigIfChanged() throws -> KitfoldConfig? {
+        guard configChangedOnDisk else { return nil }
+        let before = config
+        try reloadConfig()
+        return before
     }
 
     /// Settings that don't touch agent files (sources, projects list, preferences) are saved directly.
     public func saveConfigDirectly(_ c: KitfoldConfig) throws {
         var c = c
         c.normalize()
-        try c.save(to: env.configFile)
+        let text = try Workspace.encode(c)
+        try FS.write(text, to: env.configFile)
+        configText = text
         config = c
     }
 
@@ -160,15 +173,27 @@ public final class Workspace: @unchecked Sendable {
         ])
     }
 
-    /// Keep an edit made outside Kitfold: copy the block's text into the profile, then re-stamp the block.
+    /// Keep an edit made outside Kitfold: copy the block's text into the profile, then re-stamp the block
+    /// (and update other files using the profile). The profile is written as part of the plan, so
+    /// cancelling the review changes nothing and undo puts the old profile back.
     public func adoptDrift(file: String, profile: String, snapshot: Snapshot) throws -> Plan {
         guard let text = FS.read(file), let block = ManagedBlock.findAll(in: text).first(where: { $0.profile == profile }) else {
             throw KitfoldError.notFound(L("block \(profile) in \(file)"))
         }
         guard var p = library.profiles().first(where: { $0.id == profile }) else { throw KitfoldError.notFound(L("profile \(profile)")) }
+        let path = library.profilePath(id: p.id)
+        let before = FS.read(path)
         p.body = block.body
-        try saveProfile(p)
-        return plan(config, snapshot: scan(probeVersions: false), overwriteDrift: [file])
+        var snap = snapshot
+        snap.profiles = snap.profiles.filter { $0.id != p.id } + [p]
+        var plan = self.plan(config, snapshot: snap, overwriteDrift: [file])
+        if before != p.rendered() {
+            plan.changes.insert(
+                PlannedChange(
+                    .writeFile(path: path, before: before, after: p.rendered()), summary: L("Copy the edit into profile “\(p.name)”"),
+                    agents: [], scope: .global, resource: ResourceRef(.profile, p.id)), at: 0)
+        }
+        return plan
     }
 
     // MARK: profiles (library edits keep a version history)
@@ -194,12 +219,9 @@ public final class Workspace: @unchecked Sendable {
 
     // MARK: skills
 
-    /// Save SKILL.md, keeping the previous version in backups.
-    public func saveSkillFile(_ entry: SkillEntry, text: String) throws {
-        if let old = FS.read(entry.skillFile), old != text {
-            try FS.writePrivate(old, to: env.backupsDir + "/skills/\(entry.folderName)/\(Executor.newID()).md")
-        }
-        try FS.write(text, to: entry.skillFile)
+    /// Saving SKILL.md is an apply of its own: the old text is backed up, and History can undo it.
+    public func planSkillEdit(_ entry: SkillEntry, text: String) -> (plan: Plan, summary: String) {
+        (planEdit(path: entry.skillFile, newText: text, agents: [], scope: .global), L("Edit SKILL.md of “\(entry.name)”"))
     }
 
     /// Plan to bring a skill folder into the Kitfold library, leaving a link in its old place so

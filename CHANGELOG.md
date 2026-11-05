@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows
   - a link made for one agent also reaches another agent, or another agent stops seeing a skill (OpenCode reads Claude Code's folder);
   - a non-empty `AGENTS.override.md` means a Codex profile has no effect;
   - an agent skips a skill because its SKILL.md lacks required frontmatter. OpenCode needs `name`, Codex `description`, Gemini CLI both. The effective view now leaves these out.
+- **CLI:** `kitfold profiles` lists profile ids and names; `history --project <path>` lists the applies that touched a project; `skills` and `agents` take `--project` for any folder, added or not.
+- **OpenCode's switches for Claude Code's skills:** with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` or `OPENCODE_DISABLE_CLAUDE_CODE` set to a true value, OpenCode is shown not reading `~/.claude/skills` or a project's `.claude/skills` (checked against OpenCode 1.19.4).
 - **Simplified Chinese.** The app, the CLI and every message from the core (health checks, previews, errors) are in English and Simplified Chinese.
   - The language follows the system's preferred languages. Pick another in Settings › General › Language; it's stored as Kitfold's own language in macOS, so System Settings › Language & Region › Applications shows the same choice. The app switches at once.
   - The CLI follows the system too; `--lang en|zh-Hans` or `KITFOLD_LANG` overrides it.
@@ -38,7 +40,16 @@ All notable changes to this project are documented here. The format follows
   - unknown options, extra arguments and options without a value are errors (`--of` no longer means "on");
   - `--project` accepts relative paths;
   - `undo` without an id steps back instead of redoing what was just undone;
-  - `kitfold.json`'s own diff isn't printed.
+  - `kitfold.json`'s own diff isn't printed;
+  - `assign` and `profile` refuse a rule that can't take effect: a skill or profile id that doesn't exist, or a switch the agent can't make (Codex can't hide a global skill in one project). Nothing is saved; `--force` saves it anyway. `--clear` is always allowed.
+- Saving `SKILL.md` is an apply of its own, so History can undo it. Its old text used to go to `backups/skills/` only.
+- Files left alone because a profile block in them was edited outside Kitfold are listed under **Not written this time** in the review sheet and the CLI. It's a warning, as in the health check; the review called it an error.
+- Counts agree: the pending bar, the review sheet and the CLI count file changes (not `kitfold.json`), and "to check" counts warnings and errors, not notes.
+- The app shows profile names instead of ids in reviews and history; so do the CLI's history summaries.
+- The agent page lists each skill once, under the route it loads through, and mentions the other folders it's found in.
+- A matrix cell whose rule can't take effect is marked, with the reason in its tooltip.
+- Skills dropped on an agent go to the scope the Skills page shows. Skills can be dragged from the matrix too; clicking a name there opens its details.
+- Quick Open goes to Skills and Profiles too.
 
 ### Fixed
 - Cleaning up old backups no longer deletes every saved profile version and `SKILL.md` backup. It judged the whole `backups/profiles/` folder by the folder's own date; each version is now judged by its own.
@@ -57,6 +68,17 @@ All notable changes to this project are documented here. The format follows
   - Apply waits for the latest plan;
   - planning no longer reads shared state off the main thread.
 - A skill switched off in an agent's settings is listed once on the agent page, even when the agent finds it in two folders.
+- The app reloads `kitfold.json` when the CLI or an editor changes it (on rescan, on the next toggle, and when the app comes back to the front), keeping unapplied toggles on top. Its next apply used to write the old rules back and take back the CLI's links.
+- Editing a profile that's assigned shows the pending bar and enables Review Changes. Only Quick Open could apply it.
+- "Keep edit" writes the profile when the review is applied, not when it opens; Cancel leaves it alone, and undo restores it.
+- "… will load “x” too" and "… will stop loading “x”" are said once per change instead of once per project, and not when that agent has its own rule. A missing skill is one issue per scope, naming every agent.
+- Messages:
+  - a folder-name conflict suggests deleting the copy or renaming, not importing (which copies and leaves the folder);
+  - the skill-name rule mentions `_` and `:`, which it accepts;
+  - "If this file is committed…" appears only for project files the user already had;
+  - "reaches N skills through two folders" names only the folders involved.
+- CLI: `--help` and `-h` work; English plurals ("1 operation", "1 note"); an error now appears after the lines that explain it.
+- Chinese: names are listed with “、”, quoted names have no stray spaces, and the sources added on first launch are shown in Chinese until renamed.
 
 ### Security
 - `state.sqlite` keeps before/after copies of the files Kitfold edits, so it is now owner-only (0600).

@@ -53,7 +53,9 @@ public struct SkillEntry: Identifiable, Hashable, Sendable {
         if let e = fm.parseError { problems.append(e) }
         let name = fm["name"].flatMap { $0.isEmpty ? nil : $0 } ?? folder
         if fm["description"]?.isEmpty ?? true { problems.append(L("Missing description — agents use it to decide when to load the skill")) }
-        if !SkillEntry.isValidName(name) { problems.append(L("Name “\(name)” should be lowercase letters, digits and hyphens")) }
+        if !SkillEntry.isValidName(name) {
+            problems.append(L("Name “\(name)” should be at most 64 characters: lowercase letters, digits, “-”, “_” or “:”"))
+        }
         return SkillEntry(
             name: name, folderName: folder, description: fm["description"] ?? "", path: real, origin: origin,
             frontmatter: fm, skillFileHash: Hashing.short(text), modifiedAt: FS.modificationDate(file), problems: problems)

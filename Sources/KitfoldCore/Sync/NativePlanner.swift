@@ -217,7 +217,8 @@ extension Planner {
         }
 
         let changesUserEntry = !userRemovals.isEmpty || !replaced.isEmpty
-        let maybeCommitted = !scope.isGlobal && current != nil && m != .claudeSettings
+        // A project file the user already had may be in git; one Kitfold created is kept out of it.
+        let maybeCommitted = !scope.isGlobal && current != nil && !snapshot.ownedPaths.contains(target.file) && m != .claudeSettings
         let note: String?
         switch (changesUserEntry, maybeCommitted) {
         case (true, true):
@@ -247,7 +248,7 @@ extension Planner {
 
     func list(_ names: Set<String>) -> String {
         let sorted = names.sorted()
-        return sorted.count <= 3 ? sorted.joined(separator: ", ") : sorted.prefix(3).joined(separator: ", ") + " +\(sorted.count - 3)"
+        return sorted.count <= 3 ? Localization.list(sorted) : Localization.list(Array(sorted.prefix(3))) + " +\(sorted.count - 3)"
     }
 
     /// The rule names exactly this skill (not a wildcard or "everything").

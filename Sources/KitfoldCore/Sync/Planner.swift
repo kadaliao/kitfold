@@ -36,6 +36,7 @@ public struct Planner {
         // Pass 3: what links can't hide, the agent's own settings do.
         planNativeSettings(&plan)
         noteSharedFolders(&plan)
+        noteMissingSkills(&plan)
         for scope in snapshot.scopes { planProfiles(scope, &plan) }
         planGitExcludes(&plan)
         // Stable, readable order: removals before creations on the same path.
@@ -86,14 +87,7 @@ public struct Planner {
             if additions != (state == .on) { continue }
             switch state {
             case .on:
-                guard let entry = snapshot.skill(named: name) else {
-                    plan.issues.append(
-                        Issue(
-                            .missingResource, .error, L("Skill “\(name)” isn't in the library"),
-                            detail: L("It's assigned to \(a.name) but no folder with that name was found."),
-                            agent: a.id, scope: scope, key: name))
-                    continue
-                }
+                guard let entry = snapshot.skill(named: name) else { continue }  // see noteMissingSkills
                 if case .bundled = entry.origin {
                     plan.issues.append(
                         Issue(
@@ -132,12 +126,13 @@ public struct Planner {
                 }
                 let linkPath = dir + "/" + linkName(entry)
                 let linkSummary =
-                    via.map { L("Link \(name) for \(a.name) (via profile “\($0)”)") } ?? L("Link \(name) for \(a.name) (assigned)")
+                    via.map { L("Link \(name) for \(a.name) (via profile “\(snapshot.profileName($0))”)") }
+                    ?? L("Link \(name) for \(a.name) (assigned)")
                 let others = exposures.filter { $0.observed.realPath != entry.path }
                 let note =
                     others.isEmpty
                     ? nil
-                    : L("Another “\(name)” is also visible: \(others.map { ab($0.observed.entryPath) }.joined(separator: ", "))")
+                    : L("Another “\(name)” is also visible: \(Localization.list(others.map { ab($0.observed.entryPath) }))")
                 switch removed.contains(linkPath) ? FS.Kind.missing : FS.kind(linkPath) {
                 case .missing:
                     plan.changes.append(
@@ -161,7 +156,7 @@ public struct Planner {
                         Issue(
                             .conflict, .error, L("A folder named “\(linkName(entry))” already exists for \(a.name)"),
                             detail: L(
-                                "\(ab(linkPath)) isn't managed by Kitfold, so it won't be replaced. Import it into the library or rename one of them."
+                                "\(ab(linkPath)) is a real folder Kitfold didn't create, so it won't be replaced. If it's a copy of this skill, delete it and apply again; otherwise rename one of the two."
                             ),
                             paths: [linkPath], agent: a.id, scope: scope, key: name))
                 }
@@ -197,7 +192,7 @@ public struct Planner {
                             Issue(
                                 .conflict, .warning, L("“\(name)” is a real folder in \(a.name)'s skills"),
                                 detail: L(
-                                    "\(ab(o.entryPath)) isn't a link, so Kitfold won't delete it. Import it into the library first, then it can be switched off."
+                                    "\(ab(o.entryPath)) isn't a link, so Kitfold won't delete it. Move it into the library first (Move into Library on the Skills page), then it can be switched off."
                                 ),
                                 paths: [o.entryPath], agent: a.id, scope: scope, key: name))
                     case .sharedDir:
@@ -259,6 +254,44 @@ public struct Planner {
 
     func hasNativeSwitch(_ a: AgentAdapter) -> Bool { a.descriptor.skillDisable != .none }
 
+    func projectName(_ scope: Scope) -> String {
+        guard let path = scope.projectPath else { return "" }
+        return config.projects.first { $0.path == path }?.name ?? (path as NSString).lastPathComponent
+    }
+
+    /// A skill given to agents that isn't anywhere: one issue per skill and scope, naming every agent.
+    func noteMissingSkills(_ plan: inout Plan) {
+        for scope in snapshot.scopes {
+            var names = Set(config.rules.filter { $0.resource.kind == .skill && $0.scope == scope }.map(\.resource.id))
+            for p in snapshot.profiles { names.formUnion(p.skills) }
+            for name in names.sorted() where snapshot.skill(named: name) == nil {
+                var agents: [AgentState] = []
+                var profiles: [String] = []
+                for a in snapshot.managedAgents {
+                    let wanted = desiredSkill(name, agent: a.id, scope: scope)
+                    guard wanted.state == .on else { continue }
+                    agents.append(a)
+                    if let id = wanted.viaProfile, !profiles.contains("“\(snapshot.profileName(id))”") {
+                        profiles.append("“\(snapshot.profileName(id))”")
+                    }
+                }
+                guard let first = agents.first else { continue }
+                let who = Localization.list(agents.map(\.name))
+                var detail =
+                    scope.isGlobal
+                    ? L("It's assigned to \(who) but no folder with that name was found.")
+                    : L("It's assigned to \(who) in \(projectName(scope)) but no folder with that name was found.")
+                if !profiles.isEmpty {
+                    detail = Localization.sentences([detail, L("Profile \(Localization.list(profiles)) includes it.")])
+                }
+                plan.issues.append(
+                    Issue(
+                        .missingResource, .error, L("Skill “\(name)” isn't in the library"), detail: detail,
+                        agent: first.id, alsoAffects: agents.dropFirst().map(\.id), scope: scope, key: name))
+            }
+        }
+    }
+
     /// A link Kitfold adds to (or removes from) one agent's folder also changes what an agent that
     /// reads that folder sees — OpenCode reads ~/.claude/skills. Say so when that agent has no rule
     /// of its own for the skill (with a rule, the planner already handles it).
@@ -284,35 +317,44 @@ public struct Planner {
             }
             let dir = (path as NSString).deletingLastPathComponent
             let ownerName = snapshot.agent(owner)?.adapter.name ?? owner.rawValue
+            // Said once, for the scope of the link: projects inherit a global change, and the other
+            // agent's own rule (in that project or globally) already decides what it loads.
+            let scope = c.scope
             for other in snapshot.managedAgents where other.id != owner {
-                for scope in snapshot.scopes where scope == c.scope || (c.scope.isGlobal && !scope.isGlobal) {
-                    guard desiredSkill(ref.id, agent: other.id, scope: scope).state == nil else { continue }
-                    var roots = other.adapter.skillRoots(scope, env)
-                    if !scope.isGlobal { roots += other.adapter.skillRoots(.global, env) }
-                    guard roots.contains(where: { $0.path == dir && $0.spec.role != .primary }) else { continue }
-                    let seen = snapshot.exposures(skill: ref.id, agent: other.id, scope: scope)
-                        .filter { $0.isActive && !removed.contains($0.observed.entryPath) }
-                    if adding && seen.isEmpty {
-                        plan.issues.append(
-                            Issue(
-                                .sharedSkillFolder, .warning, L("\(other.adapter.name) will load “\(ref.id)” too"),
-                                detail: L(
-                                    "\(other.adapter.name) also reads \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” off for \(other.adapter.name) to keep it to \(ownerName)."
-                                ),
-                                paths: [path], agent: other.id, scope: scope, key: ref.id))
-                    } else if !adding && seen.isEmpty
-                        && snapshot.exposures(skill: ref.id, agent: other.id, scope: scope).contains(where: {
-                            $0.isActive && $0.observed.entryPath == path
-                        })
-                    {
-                        plan.issues.append(
-                            Issue(
-                                .sharedSkillFolder, .warning, L("\(other.adapter.name) will stop loading “\(ref.id)”"),
-                                detail: L(
-                                    "\(other.adapter.name) found it only in \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” on for \(other.adapter.name) to keep it there."
-                                ),
-                                paths: [path], agent: other.id, scope: scope, key: ref.id))
-                    }
+                guard desiredSkill(ref.id, agent: other.id, scope: scope).state == nil,
+                    scope.isGlobal || desiredSkill(ref.id, agent: other.id, scope: .global).state == nil
+                else { continue }
+                var roots = other.adapter.skillRoots(scope, env)
+                if !scope.isGlobal { roots += other.adapter.skillRoots(.global, env) }
+                guard roots.contains(where: { $0.path == dir && $0.spec.role != .primary }) else { continue }
+                let name = other.adapter.name
+                let seen = snapshot.exposures(skill: ref.id, agent: other.id, scope: scope)
+                    .filter { $0.isActive && !removed.contains($0.observed.entryPath) }
+                if adding && seen.isEmpty {
+                    plan.issues.append(
+                        Issue(
+                            .sharedSkillFolder, .warning,
+                            scope.isGlobal
+                                ? L("\(name) will load “\(ref.id)” too") : L("\(name) will load “\(ref.id)” too in \(projectName(scope))"),
+                            detail: L(
+                                "\(name) also reads \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” off for \(name) to keep it to \(ownerName)."
+                            ),
+                            paths: [path], agent: other.id, scope: scope, key: ref.id))
+                } else if !adding && seen.isEmpty
+                    && snapshot.exposures(skill: ref.id, agent: other.id, scope: scope).contains(where: {
+                        $0.isActive && $0.observed.entryPath == path
+                    })
+                {
+                    plan.issues.append(
+                        Issue(
+                            .sharedSkillFolder, .warning,
+                            scope.isGlobal
+                                ? L("\(name) will stop loading “\(ref.id)”")
+                                : L("\(name) will stop loading “\(ref.id)” in \(projectName(scope))"),
+                            detail: L(
+                                "\(name) found it only in \(ownerName)'s folder \(ab(dir)). Switch “\(ref.id)” on for \(name) to keep it there."
+                            ),
+                            paths: [path], agent: other.id, scope: scope, key: ref.id))
                 }
             }
         }
@@ -372,13 +414,14 @@ public struct Planner {
                 continue
             }
             let drifted = existing.filter(\.isModifiedOutsideKitfold)
+            // The file is left out of this apply (see Plan.notWritten); the rest goes ahead.
             if !drifted.isEmpty && !overwriteDrift.contains(file) {
-                let blocks = drifted.map { "“\($0.profile)”" }.joined(separator: ", ")
+                let blocks = Localization.list(drifted.map { "“\(snapshot.profileName($0.profile))”" })
                 plan.issues.append(
                     Issue(
-                        .blockDrift, .error, L("\((file as NSString).lastPathComponent) was edited outside Kitfold"),
+                        .blockDrift, .warning, L("\(ab(file)) won't be written"),
                         detail: L(
-                            "Profile block(s) \(blocks) in \(ab(file)) changed by hand. Keep the edit (copy it into the profile) or overwrite it."
+                            "Its block for \(blocks) was edited outside Kitfold. On the agent's page, keep the edit (copy it into the profile) or overwrite it, then apply again."
                         ),
                         paths: [file], scope: scope, key: file))
                 continue
@@ -393,7 +436,7 @@ public struct Planner {
             }
             if after == current { continue }
 
-            let names = profiles.map(\.name).joined(separator: ", ")
+            let names = Localization.list(profiles.map(\.name))
             // An override file (Codex's AGENTS.override.md) replaces this one while it isn't empty.
             var overridden: [AgentID] = []
             for agentID in target.agents where !profiles.isEmpty {
@@ -413,8 +456,8 @@ public struct Planner {
                         ),
                         paths: [o.path, file], agent: agentID, scope: scope, key: o.path))
             }
-            let agentNames = target.agents.filter { !overridden.contains($0) }.compactMap { snapshot.agent($0)?.adapter.name }
-                .joined(separator: ", ")
+            let agentNames = Localization.list(
+                target.agents.filter { !overridden.contains($0) }.compactMap { snapshot.agent($0)?.adapter.name })
             let summary: String
             if profiles.isEmpty {
                 summary = L("Remove Kitfold profiles from \(ab(file))")
@@ -434,7 +477,7 @@ public struct Planner {
             // Agents sharing this target file get the union, even profiles they weren't assigned.
             let all = Set(profiles.map(\.id))
             for (agentID, mine) in target.wanted.sorted(by: { $0.key < $1.key }) where mine != all && !all.isEmpty {
-                let extra = profiles.filter { !mine.contains($0.id) }.map(\.name).joined(separator: ", ")
+                let extra = Localization.list(profiles.filter { !mine.contains($0.id) }.map(\.name))
                 let name = snapshot.agent(agentID)?.adapter.name ?? agentID.rawValue
                 plan.issues.append(
                     Issue(

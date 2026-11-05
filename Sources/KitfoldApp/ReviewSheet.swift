@@ -39,19 +39,22 @@ struct ReviewSheet: View {
                 List {
                     if !plan.changes.isEmpty {
                         Section(L("Changes")) {
-                            let ordered =
-                                plan.changes.filter { !$0.change.path.hasSuffix("/kitfold.json") }
-                                + plan.changes.filter { $0.change.path.hasSuffix("/kitfold.json") }
-                            let fileEdits = ordered.filter { $0.isExpandable && !$0.change.path.hasSuffix("/kitfold.json") }.count
+                            let ordered = plan.fileChanges + plan.changes.filter(\.savesConfig)
+                            let fileEdits = plan.fileChanges.filter(\.isExpandable).count
                             ForEach(ordered) { c in
                                 // Few file edits: show their diffs right away.
-                                ChangeRow(change: c, startExpanded: fileEdits <= 3 && !c.change.path.hasSuffix("/kitfold.json"))
+                                ChangeRow(change: c, startExpanded: fileEdits <= 3 && !c.savesConfig)
                             }
                         }
                     }
-                    if !plan.issues.isEmpty {
+                    if !plan.notWritten.isEmpty {
+                        Section(L("Not written this time")) {
+                            ForEach(plan.notWritten) { IssueRow(issue: $0) }
+                        }
+                    }
+                    if !plan.otherIssues.isEmpty {
                         Section(L("Needs attention — not changed automatically")) {
-                            ForEach(plan.issues.sorted { $0.severity > $1.severity }) { IssueRow(issue: $0) }
+                            ForEach(plan.otherIssues.sorted { $0.severity > $1.severity }) { IssueRow(issue: $0) }
                         }
                     }
                     if plan.changes.isEmpty && plan.issues.isEmpty {
@@ -81,11 +84,16 @@ struct ReviewSheet: View {
         .padding(20)
     }
 
+    /// Same counts as the pending bar and the CLI: files only (not kitfold.json), warnings and errors only.
     func counts(_ plan: Plan) -> String {
-        let n = plan.changes.count, caution = plan.changes.filter { $0.risk == .caution }.count
-        var parts = [n == 1 ? L("1 change") : L("\(n) changes")]
+        let n = plan.fileChanges.count, caution = plan.changes.filter { $0.risk == .caution }.count
+        var parts = [
+            n == 0
+                ? (plan.changes.isEmpty ? L("No changes") : L("Only the assignments are saved"))
+                : n == 1 ? L("1 file change") : L("\(n) file changes")
+        ]
         if caution > 0 { parts.append(L("\(caution) touch files Kitfold didn't create")) }
-        if !plan.issues.isEmpty { parts.append(L("\(plan.issues.count) to check")) }
+        if !plan.toCheck.isEmpty { parts.append(L("\(plan.toCheck.count) to check")) }
         return parts.joined(separator: " · ")
     }
 

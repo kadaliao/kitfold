@@ -79,6 +79,14 @@ struct ReachCell: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(symbolColor)
             }
+            .overlay(alignment: .topTrailing) {
+                if state.blocked != nil {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white, .orange)
+                        .offset(x: 4, y: -4)
+                }
+            }
         }
         .buttonStyle(.plain)
         .help(helpText)
@@ -125,8 +133,9 @@ struct ReachCell: View {
     }
 
     private var helpText: String {
-        guard state.pending else { return reachText }
-        return on ? L("\(reachText) — will be switched on") : L("\(reachText) — will be switched off")
+        let text =
+            !state.pending ? reachText : on ? L("\(reachText) — will be switched on") : L("\(reachText) — will be switched off")
+        return state.blocked.map { text + "\n" + L("This switch has no effect: \($0)") } ?? text
     }
 
     private var reachText: String {

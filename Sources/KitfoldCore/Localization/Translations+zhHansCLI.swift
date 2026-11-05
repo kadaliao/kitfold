@@ -20,22 +20,32 @@ extension Translations {
         "- file": "- 文件",
         "~ edit": "~ 修改",
         "→ move": "→ 移动",
+        "Not written this time": "这次不会写入",
         "Needs attention": "需要注意",
-        "Apply %@ change(s)? Re-run with --yes to apply.": "要应用 %@ 处文件变更吗？加上 --yes 重新运行即可应用。",
+        "Only the assignments are saved. Re-run with --yes to save them.": "只会保存分配，没有文件需要变更。加上 --yes 重新运行即可保存。",
+        "Apply 1 file change? Re-run with --yes to apply.": "要应用 1 处文件变更吗？加上 --yes 重新运行即可应用。",
+        "Apply %@ file changes? Re-run with --yes to apply.": "要应用 %@ 处文件变更吗？加上 --yes 重新运行即可应用。",
         "Applied.": "已应用。",
         " Undo with: kitfold undo %@": "撤销请运行：kitfold undo %@",
         "no such folder: %@": "找不到目录：%@",
         "usage: kitfold %@": "用法：kitfold %@",
-        "unknown agent %@ (known: %@, *)": "未知的 Agent %@（可选：%@, *）",
+        "unknown agent %@ (known: %@)": "未知的 Agent %@（可选：%@）",
 
         // status
-        "library: %@ skills, %@ profiles": "库：%@ 个技能，%@ 个 Profile",
+        "library: %@": "库：%@",
+        "1 profile": "1 个 Profile",
+        "%@ profiles": "%@ 个 Profile",
         "installed": "已安装",
         "config only": "只有配置",
         "not found": "未找到",
+        "1 skill active  ·  ~%@ tokens always loaded  ·  config %@": "1 个技能生效  ·  始终加载约 %@ token  ·  配置 %@",
         "%@ skills active  ·  ~%@ tokens always loaded  ·  config %@": "%@ 个技能生效  ·  始终加载约 %@ token  ·  配置 %@",
         "Issues": "问题",
-        " (%@ warnings/errors, %@ notes)": "（%@ 个警告或错误，%@ 条提示）",
+        "1 warning or error": "1 个警告或错误",
+        "%@ warnings or errors": "%@ 个警告或错误",
+        "1 note": "1 条提示",
+        "%@ notes": "%@ 条提示",
+        " (%@, %@)": "（%@，%@）",
 
         // skills legend
         "● Kitfold link": "● Kitfold 链接",
@@ -56,6 +66,9 @@ extension Translations {
         "present, not loaded": "存在，未加载",
         "absent": "不存在",
 
+        // profiles
+        "No profiles yet.": "还没有 Profile。",
+
         // apply, assign, profile (transaction summaries, kept in the history)
         "Apply kitfold.json": "应用 kitfold.json",
         "profile %@": "Profile %@",
@@ -71,12 +84,18 @@ extension Translations {
         "Reset %@ for %@ in %@": "在 %3$@ 中为 %2$@ 重置 %1$@",
         "Reset %@ for all agents": "为所有 Agent 重置 %@",
         "Reset %@ for all agents in %@": "在 %2$@ 中为所有 Agent 重置 %1$@",
+        "no skill named %@. kitfold skills --all lists them; --force saves the rule anyway.":
+            "没有名为 %@ 的技能。kitfold skills --all 会列出所有技能；加 --force 仍会保存这条规则。",
+        "no profile with id %@ (known: %@). --force saves the rule anyway.":
+            "没有 id 为 %@ 的 Profile（现有：%@）。加 --force 仍会保存这条规则。",
+        "not saved: this rule wouldn't change anything. --force saves it anyway.":
+            "没有保存：这条规则不会带来任何变化。加 --force 仍会保存。",
 
         // history, undo
         " (undone)": "（已撤销）",
-        "%@ ops": "%@ 项操作",
         "nothing to undo": "没有可撤销的操作",
         "no transaction %@": "历史记录里没有 %@",
+        "Undo “%@” (1 operation)": "撤销“%@”（1 项操作）",
         "Undo “%@” (%@ operations)": "撤销“%@”（%@ 项操作）",
         "Re-run with --yes to undo.": "加上 --yes 重新运行即可撤销。",
         "Undone.": "已撤销。",

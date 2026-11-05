@@ -38,14 +38,22 @@ public struct SkillRootSpec: Sendable, Hashable, Codable {
     public var note: String
     /// Whether this behavior was verified against docs/source (vs. assumed).
     public var verified: Bool
+    /// Environment variables that, set to a true value, make the agent skip this folder.
+    public var skippedWhen: [String]
 
     public init(
         _ base: PathBase, _ path: String, scope: ScopeKind, role: Role, owner: AgentID? = nil,
-        nestedDepth: Int = 0, ignore: [String] = [], note: String = "", verified: Bool = true
+        nestedDepth: Int = 0, ignore: [String] = [], note: String = "", verified: Bool = true, skippedWhen: [String] = []
     ) {
         self.base = base; self.path = path; self.scope = scope; self.role = role; self.owner = owner
         self.nestedDepth = nestedDepth; self.ignore = ignore; self.note = note; self.verified = verified
+        self.skippedWhen = skippedWhen
     }
+
+    /// The values OpenCode reads as true (`1`, `true`, `yes`, `on`, `y`).
+    static func isTrue(_ value: String?) -> Bool { ["1", "true", "yes", "on", "y"].contains(value ?? "") }
+
+    func isSkipped(in env: KitfoldEnvironment) -> Bool { skippedWhen.contains { Self.isTrue(env.variables[$0]) } }
 }
 
 /// One instruction file (or a `dir/*.md` pattern) an agent loads.
@@ -179,7 +187,7 @@ public struct AgentAdapter: Sendable, Hashable, Identifiable {
 
     public func skillRoots(_ scope: Scope, _ env: KitfoldEnvironment) -> [ResolvedSkillRoot] {
         let kind: ScopeKind = scope.isGlobal ? .global : .project
-        return descriptor.skillRoots.filter { $0.scope == kind }.compactMap { spec in
+        return descriptor.skillRoots.filter { $0.scope == kind && !$0.isSkipped(in: env) }.compactMap { spec in
             resolve(spec.base, spec.path, scope: scope, env: env).map {
                 ResolvedSkillRoot(path: $0, spec: spec, agent: id, scope: scope)
             }

@@ -30,9 +30,8 @@ struct AgentView: View {
             }
             .navigationTitle(agent.adapter.name)
             .dropDestination(for: String.self) { names, _ in
-                for n in names where !model.cell(skill: n, agent: agentID, scope: scope).willBeOn {
-                    model.toggle(skill: n, agent: agentID, scope: scope)
-                }
+                guard let a = model.snapshot?.agent(agentID) else { return false }
+                model.drop(skills: names, on: a, scope: scope)
                 return true
             }
         }
@@ -69,13 +68,7 @@ struct AgentView: View {
                     L("Managed by Kitfold"),
                     isOn: Binding(
                         get: { a.enabled },
-                        set: { on in
-                            var c = model.draft
-                            var s = c.agents[a.id.rawValue] ?? AgentSettings()
-                            s.enabled = on
-                            c.agents[a.id.rawValue] = s
-                            model.saveDirect(c)
-                        })
+                        set: { on in model.saveSettings { $0.agents[a.id.rawValue, default: AgentSettings()].enabled = on } })
                 )
                 .toggleStyle(.switch)
                 VStack(alignment: .trailing, spacing: 2) {
@@ -119,16 +112,32 @@ struct AgentView: View {
         }
     }
 
-    func uniqueByName(_ items: [Reach]) -> [Reach] {
-        var seen = Set<String>()
-        return items.filter { seen.insert($0.skill.name).inserted }
+    /// One skill on the agent page: the way it reaches the agent, and the other folders it's also found in.
+    struct SkillListing {
+        var main: Reach
+        var alsoIn: [String]
+    }
+
+    /// Each skill once, under the route that wins (the first active one, in precedence order; for a skill
+    /// that's switched off, the first place it's found). The other folders are mentioned on its row.
+    func listings(_ reach: [Reach]) -> [SkillListing] {
+        var byName: [String: [Reach]] = [:]
+        for r in reach { byName[r.skill.name, default: []].append(r) }
+        return byName.values.map { found in
+            let main = found.first(where: { $0.skill.isActive }) ?? found[0]
+            var roots: [String] = []
+            for r in found where r.skill.root.path != main.skill.root.path && !roots.contains(r.skill.root.path) {
+                roots.append(r.skill.root.path)
+            }
+            return SkillListing(main: main, alsoIn: roots)
+        }
     }
 
     func skills(_ a: AgentState, _ snap: Snapshot) -> some View {
         let reach = a.reachableSkills(in: scope).filter { $0.skill.isReadable }
         let q = filter.lowercased()
         let filtered = reach.filter { q.isEmpty || $0.skill.name.lowercased().contains(q) }
-        let groups = Dictionary(grouping: filtered, by: group)
+        let groups = Dictionary(grouping: listings(filtered), by: { group($0.main) })
         let pendingAdds = model.draft.rules.filter {
             $0.resource.kind == .skill && $0.scope == scope && $0.state == .on && ($0.agent == .all || $0.agent == .agent(agentID))
         }.map(\.resource.id).filter { n in !reach.contains { $0.skill.name == n } }
@@ -154,20 +163,21 @@ struct AgentView: View {
                 }
             }
             ForEach(SkillGroup.allCases, id: \.self) { g in
-                // A switched-off skill is off however many folders it's found in: list it once.
-                if let all = groups[g], case let items = g == .disabled ? uniqueByName(all) : all, !items.isEmpty {
+                if let items = groups[g], !items.isEmpty {
                     DisclosureGroup(isExpanded: Binding(get: { expanded[g] ?? (items.count <= 6) }, set: { expanded[g] = $0 })) {
-                        ForEach(items.sorted { $0.skill.name < $1.skill.name }, id: \.skill.id) { r in
+                        ForEach(items.sorted { $0.main.skill.name < $1.main.skill.name }, id: \.main.skill.id) { item in
+                            let r = item.main
                             skillRow(
                                 name: r.skill.name, path: r.skill.entryPath, a: a,
-                                note: r.skill.isSymlink ? r.skill.linkTarget.map { "→ " + model.ab($0) } : nil)
+                                note: r.skill.isSymlink ? r.skill.linkTarget.map { "→ " + model.ab($0) } : nil,
+                                alsoIn: item.alsoIn)
                         }
                     } label: {
                         HStack {
                             Text(g.title).font(.callout.weight(.medium))
                             Text("\(items.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                             Spacer()
-                            let roots = Set(items.map { $0.skill.root.path })
+                            let roots = Set(items.map { $0.main.skill.root.path })
                             if roots.count == 1, let root = roots.first, g != .plugins, g != .nested {
                                 Text(model.ab(root)).font(.caption.monospaced()).foregroundStyle(.tertiary)
                             }
@@ -178,7 +188,7 @@ struct AgentView: View {
         }
     }
 
-    func skillRow(name: String, path: String?, a: AgentState, note: String?) -> some View {
+    func skillRow(name: String, path: String?, a: AgentState, note: String?, alsoIn: [String] = []) -> some View {
         let c = model.cell(skill: name, agent: a.id, scope: scope)
         return HStack(spacing: 8) {
             ReachCell(state: c, tint: a.adapter.tint) { model.toggle(skill: name, agent: a.id, scope: scope) }
@@ -190,6 +200,11 @@ struct AgentView: View {
             }
             .buttonStyle(.plain)
             if let note { Text(note).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
+            if !alsoIn.isEmpty {
+                Text(L("also in \(Localization.list(alsoIn.map(model.ab)))"))
+                    .font(.caption).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                    .help(L("The agent finds the same skill in these folders too."))
+            }
             Spacer()
             let native = a.reachableSkills(in: scope).first(where: { $0.skill.name == name })?.skill.native ?? .enabled
             if case .disabled(let src, let byKitfold) = native {
@@ -264,28 +279,30 @@ struct AgentView: View {
                             Text(Localization.translate(f.file.spec.note)).font(.caption).foregroundStyle(.secondary)
                         }
                         if !f.sharedWith.isEmpty {
-                            let names = f.sharedWith.compactMap { model.snapshot?.agent($0)?.adapter.name }.joined(separator: ", ")
+                            let names = Localization.list(f.sharedWith.compactMap { model.snapshot?.agent($0)?.adapter.name })
                             Text(L("Also read by \(names)")).font(.caption).foregroundStyle(.orange)
                         }
                         if !f.blocks.isEmpty {
                             HStack(spacing: 4) {
                                 ForEach(f.blocks) { b in
                                     Pill(
-                                        text: b.profile, color: b.isModifiedOutsideKitfold ? .orange : .purple,
+                                        text: model.snapshot?.profileName(b.profile) ?? b.profile,
+                                        color: b.isModifiedOutsideKitfold ? .orange : .purple,
                                         systemImage: b.isModifiedOutsideKitfold ? "pencil.and.outline" : "person.text.rectangle")
                                 }
                             }
                         }
                         ForEach(f.driftedBlocks) { b in
                             HStack {
-                                Text(L("“\(b.profile)” was edited here outside Kitfold.")).font(.caption)
+                                Text(L("“\(model.snapshot?.profileName(b.profile) ?? b.profile)” was edited here outside Kitfold.")).font(
+                                    .caption)
                                 Button(L("Keep edit")) { model.reviewKeepEdit(file: f.file.path, profile: b.profile) }
                                 Button(L("Overwrite…")) { model.reviewOverwrite(file: f.file.path) }
                             }
                             .controlSize(.small)
                         }
                         if !f.foreignBlocks.isEmpty {
-                            let owners = f.foreignBlocks.joined(separator: ", ")
+                            let owners = Localization.list(f.foreignBlocks)
                             Text(L("Contains blocks managed by \(owners) (left untouched)."))
                                 .font(.caption).foregroundStyle(.secondary)
                         }

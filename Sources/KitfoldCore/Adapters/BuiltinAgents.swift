@@ -111,6 +111,9 @@ public enum BuiltinAgents {
             "A symlinked SKILL.md file is skipped; link whole folders.",
         ])
 
+    /// Either variable stops OpenCode reading Claude Code's skill folders (checked with OpenCode 1.19.4).
+    public static let openCodeSkipsClaude = ["OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "OPENCODE_DISABLE_CLAUDE_CODE"]
+
     /// OpenCode 1.19.4.
     public static let openCode = AgentDescriptor(
         id: .openCode, name: "OpenCode", vendor: "SST",
@@ -122,7 +125,8 @@ public enum BuiltinAgents {
                 note: "Only OpenCode reads it (also `skill/`)."),
             SkillRootSpec(
                 .home, ".claude/skills", scope: .global, role: .foreign, owner: .claudeCode,
-                note: "OpenCode also loads Claude Code's skills unless OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1."),
+                note: "OpenCode also loads Claude Code's skills unless OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1.",
+                skippedWhen: openCodeSkipsClaude),
             SkillRootSpec(
                 .home, ".agents/skills", scope: .global, role: .shared,
                 note: "Also read by Codex and Gemini CLI."),
@@ -131,7 +135,7 @@ public enum BuiltinAgents {
                 note: "Only OpenCode reads it. Walks from cwd up to the git worktree root."),
             SkillRootSpec(
                 .project, ".claude/skills", scope: .project, role: .foreign, owner: .claudeCode,
-                note: "Claude Code's project skills, read for compatibility."),
+                note: "Claude Code's project skills, read for compatibility.", skippedWhen: openCodeSkipsClaude),
             SkillRootSpec(
                 .project, ".agents/skills", scope: .project, role: .shared,
                 note: "Also read by Codex and Gemini CLI."),

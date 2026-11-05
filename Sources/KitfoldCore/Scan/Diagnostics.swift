@@ -39,12 +39,13 @@ enum Diagnostics {
                 // Name clashes the agent sees here. In a project, only report clashes involving project skills.
                 let reachable = a.reachableSkills(in: scope).filter { $0.skill.isActive }
                 var sameFolderTwice = 0
+                var twiceVia = Set<String>()  // the folders those skills are found through
                 for (name, group) in Dictionary(grouping: reachable, by: { $0.skill.name }) where group.count > 1 {
                     if !scope.isGlobal && group.allSatisfy({ $0.inherited }) { continue }
                     let folders = Set(group.compactMap { $0.skill.realPath })
                     if folders.count > 1 {
                         let first = group[0].skill
-                        let others = group.dropFirst().map { ab($0.skill.entryPath) }.joined(separator: ", ")
+                        let others = Localization.list(group.dropFirst().map { ab($0.skill.entryPath) })
                         out.append(
                             Issue(
                                 .duplicateName, .warning, L("\(a.name) sees \(folders.count) different skills named “\(name)”"),
@@ -52,10 +53,11 @@ enum Diagnostics {
                                 paths: group.map { $0.skill.entryPath }, agent: a.id, scope: scope, key: name))
                     } else {
                         sameFolderTwice += 1
+                        twiceVia.formUnion(group.map { $0.skill.root.path })
                     }
                 }
                 if sameFolderTwice > 0 {
-                    let roots = Set(reachable.map { $0.skill.root.path }).map(ab).sorted().joined(separator: ", ")
+                    let roots = Localization.list(twiceVia.map(ab).sorted())
                     out.append(
                         Issue(
                             .duplicateName, .info,
@@ -73,7 +75,7 @@ enum Diagnostics {
                     for b in f.driftedBlocks {
                         out.append(
                             Issue(
-                                .blockDrift, .warning, L("Profile “\(b.profile)” was edited outside Kitfold"),
+                                .blockDrift, .warning, L("Profile “\(s.profileName(b.profile))” was edited outside Kitfold"),
                                 detail: L("\(ab(f.file.path)): Kitfold won't overwrite it until you keep or discard the edit."),
                                 paths: [f.file.path], agent: a.id, scope: scope, key: f.file.path + b.profile))
                     }
@@ -96,12 +98,12 @@ enum Diagnostics {
             }
         }
 
-        func names(_ ids: [AgentID]) -> String { ids.compactMap { s.agent($0)?.name }.joined(separator: ", ") }
+        func names(_ ids: [AgentID]) -> String { Localization.list(ids.compactMap { s.agent($0)?.name }) }
         for (scope, folders) in broken {
             for (folder, links) in folders {
                 let agents = Array(Set(links.values.flatMap(\.agents))).sorted()
                 if links.count >= 3 {
-                    let list = links.keys.map { ($0 as NSString).lastPathComponent }.sorted().joined(separator: ", ")
+                    let list = Localization.list(links.keys.map { ($0 as NSString).lastPathComponent }.sorted())
                     out.append(
                         Issue(
                             .brokenLink, .error, L("\(links.count) broken skill links in \(ab(folder))"),
@@ -131,7 +133,7 @@ enum Diagnostics {
             }
             let nested = nestedSkillFiles(in: e.path)
             if !nested.isEmpty {
-                let shown = nested.prefix(3).map(ab).joined(separator: ", ")
+                let shown = Localization.list(nested.prefix(3).map(ab))
                 out.append(
                     Issue(
                         .nestedSkill, .warning, L("“\(e.name)” contains \(nested.count) nested SKILL.md"),

@@ -57,6 +57,16 @@ public enum Localization {
         return Language.match(preferred)
     }
 
+    /// Names listed in a sentence: “a, b, c” in English, “a、b、c” in Chinese.
+    public static func list(_ items: [String], in language: Language = Localization.language) -> String {
+        items.joined(separator: language == .simplifiedChinese ? "、" : ", ")
+    }
+
+    /// Sentences run together: a space between them in English, none in Chinese.
+    public static func sentences(_ parts: [String], in language: Language = Localization.language) -> String {
+        parts.filter { !$0.isEmpty }.joined(separator: language == .simplifiedChinese ? "" : " ")
+    }
+
     /// Text that isn't written at a call site, such as the notes in `BuiltinAgents`: looked up as is.
     public static func translate(_ english: String, in language: Language = Localization.language) -> String {
         LocalizedText(stringLiteral: english).resolved(in: language)

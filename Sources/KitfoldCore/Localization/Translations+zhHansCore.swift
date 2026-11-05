@@ -29,8 +29,6 @@ extension Translations {
         "Codex and OpenCode load each nested SKILL.md as a separate skill: %@": "Codex 和 OpenCode 会把每个嵌套的 SKILL.md 当作单独的技能加载：%@",
 
         // Planner.swift: plan summaries, notes and issues
-        "Skill “%@” isn't in the library": "技能“%@”不在库中",
-        "It's assigned to %@ but no folder with that name was found.": "它已分配给 %@，但找不到同名的目录。",
         "“%@” comes from a plugin": "“%@”来自插件",
         "Plugin skills are managed by the agent's plugin system.": "插件技能由 Agent 自己的插件系统管理。",
         "%@ can't load “%@”": "%@ 无法加载“%@”",
@@ -45,15 +43,15 @@ extension Translations {
         "Replace link %@ for %@": "替换 %2$@ 的链接 %1$@",
         "Currently points to %@": "目前指向 %@",
         "A folder named “%@” already exists for %@": "%2$@ 已有名为“%1$@”的目录",
-        "%@ isn't managed by Kitfold, so it won't be replaced. Import it into the library or rename one of them.":
-            "%@ 不由 Kitfold 管理，所以不会被替换。请把它导入库，或者给其中一个改名。",
+        "%@ is a real folder Kitfold didn't create, so it won't be replaced. If it's a copy of this skill, delete it and apply again; otherwise rename one of the two.":
+            "%@ 是一个不由 Kitfold 创建的真实目录，所以不会被替换。如果它只是这个技能的副本，删掉它再应用一次；否则请给其中一个改名。",
         "“%@” stays visible to %@ in this project": "在这个项目中，%2$@ 仍能看到“%1$@”",
         "It's enabled globally (%@).": "它在全局启用（%@）。",
         "Unlink %@ from %@": "为 %2$@ 移除 %1$@ 的链接",
         "This link wasn't created by Kitfold (another tool or by hand). Undo restores it.": "这个链接不是 Kitfold 创建的（来自其他工具或手动创建）。撤销可以恢复它。",
         "“%@” is a real folder in %@'s skills": "“%@”是 %@ 技能目录里的真实目录",
-        "%@ isn't a link, so Kitfold won't delete it. Import it into the library first, then it can be switched off.":
-            "%@ 不是链接，所以 Kitfold 不会删除它。先把它导入库，之后就能关闭它。",
+        "%@ isn't a link, so Kitfold won't delete it. Move it into the library first (Move into Library on the Skills page), then it can be switched off.":
+            "%@ 不是链接，所以 Kitfold 不会删除它。先把它移入库（技能页上的“移入库”），之后就能关闭它。",
         "“%@” stays visible to %@": "%2$@ 仍能看到“%1$@”",
         "It lives in %@, which %@ reads directly. Move it into the Kitfold library to control it per agent.":
             "它位于 %@，%@ 会直接读取这个目录。把它移入 Kitfold 库，才能按 Agent 分别控制。",
@@ -63,9 +61,15 @@ extension Translations {
         "It's a SKILL.md nested inside “%@” (%@), and %@ loads nested skills on its own. Switch off “%@”, or move the inner file out.":
             "它是嵌套在“%1$@”里的 SKILL.md（%2$@），而 %3$@ 会把嵌套的技能单独加载。请关闭“%4$@”，或者把里面的文件移出来。",
         "Unlink %@ from %@ (no longer assigned)": "为 %2$@ 移除 %1$@ 的链接（已不再分配）",
+        "It's assigned to %@ but no folder with that name was found.": "它已分配给 %@，但找不到同名的目录。",
+        "It's assigned to %@ in %@ but no folder with that name was found.": "它在 %2$@ 中分配给了 %1$@，但找不到同名的目录。",
+        "Profile %@ includes it.": "Profile%@包含它。",
+        "Skill “%@” isn't in the library": "技能“%@”不在库中",
         "%@ will load “%@” too": "%@ 也会加载“%@”",
+        "%@ will load “%@” too in %@": "在 %3$@ 中，%1$@ 也会加载“%2$@”",
         "%@ also reads %@'s folder %@. Switch “%@” off for %@ to keep it to %@.": "%1$@ 也会读取 %2$@ 的目录 %3$@。要让它只给 %6$@ 用，请为 %5$@ 关闭“%4$@”。",
         "%@ will stop loading “%@”": "%@ 将不再加载“%@”",
+        "%@ will stop loading “%@” in %@": "在 %3$@ 中，%1$@ 将不再加载“%2$@”",
         "%@ found it only in %@'s folder %@. Switch “%@” on for %@ to keep it there.":
             "%1$@ 只在 %2$@ 的目录 %3$@ 中找到它。为 %5$@ 打开“%4$@”，它就能继续加载。",
         "Profile “%@” doesn't exist": "Profile“%@”不存在",
@@ -73,9 +77,9 @@ extension Translations {
         "%@ points into Kitfold's library": "%@ 指向 Kitfold 的库",
         "Writing it would feed Kitfold's output back into its own source. Replace the link with a regular file.":
             "写入它会把 Kitfold 的输出写回它自己的来源。请把这个链接换成普通文件。",
-        "%@ was edited outside Kitfold": "%@ 在 Kitfold 之外被修改过",
-        "Profile block(s) %@ in %@ changed by hand. Keep the edit (copy it into the profile) or overwrite it.":
-            "%2$@ 中的 Profile 块 %1$@ 被手动修改了。请保留修改（复制到 Profile 中）或覆盖它。",
+        "%@ won't be written": "这次不会写入 %@",
+        "Its block for %@ was edited outside Kitfold. On the agent's page, keep the edit (copy it into the profile) or overwrite it, then apply again.":
+            "其中%@的 Profile 块在 Kitfold 之外被修改过。请在 Agent 页面保留修改（写回 Profile）或覆盖它，然后再应用一次。",
         "%@ won't read %@ while %@ exists": "%3$@ 存在时，%1$@ 不会读取 %2$@",
         "%@ replaces %@, so the profile has no effect on %@. Empty or remove the override file, or move its text into a profile.":
             "%@ 会替代 %@，所以这个 Profile 对 %@ 不起作用。请清空或移除这个覆盖文件，或者把其中的内容移到 Profile 里。",
@@ -135,6 +139,8 @@ extension Translations {
         "Edit %@": "编辑 %@",
         "block %@ in %@": "%2$@ 中的托管块 %1$@",
         "profile %@": "Profile %@",
+        "Copy the edit into profile “%@”": "把修改写回 Profile“%@”",
+        "Edit SKILL.md of “%@”": "编辑“%@”的 SKILL.md",
         "%@ is already in the library": "%@ 已在库中",
         "Plugin skills can't be moved": "插件技能无法移动",
         "%@ lives inside “%@”; move that skill instead": "%@ 位于“%@”内部，请改为移动那个技能",
@@ -168,10 +174,15 @@ extension Translations {
         "Frontmatter has no readable keys": "frontmatter 中没有可读的键",
         "Unreadable frontmatter line: %@": "无法读取的 frontmatter 行：%@",
 
+        // Config.swift: sources found on first launch
+        "Shared (~/.agents/skills)": "共享目录（~/.agents/skills）",
+        "Magpie library": "Magpie 库",
+
         // Resources.swift: a skill folder's problems
         "SKILL.md has no frontmatter (name/description)": "SKILL.md 没有 frontmatter（name/description）",
         "Missing description — agents use it to decide when to load the skill": "缺少描述：Agent 靠它判断何时加载这个技能",
-        "Name “%@” should be lowercase letters, digits and hyphens": "名称“%@”应只包含小写字母、数字和连字符",
+        "Name “%@” should be at most 64 characters: lowercase letters, digits, “-”, “_” or “:”":
+            "名称“%@”最多 64 个字符，只能包含小写字母、数字、“-”“_”或“:”",
 
         // SQLite.swift
         "Can't open database %@: %@": "无法打开数据库 %@：%@",

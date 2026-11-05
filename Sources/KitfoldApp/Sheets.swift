@@ -37,7 +37,7 @@ struct InstructionEditor: View {
             let foreign = ManagedBlock.foreignBlocks(in: original)
             if !foreign.isEmpty {
                 Label(
-                    L("Contains blocks written by \(foreign.joined(separator: ", ")). That tool may rewrite them."),
+                    L("Contains blocks written by \(Localization.list(foreign)). That tool may rewrite them."),
                     systemImage: "exclamationmark.triangle"
                 )
                 .font(.caption).foregroundStyle(.orange)
@@ -152,11 +152,15 @@ struct CommandPalette: View {
         var out: [Item] = [
             Item(id: "a:review", title: L("Review changes"), subtitle: L("Action"), symbol: "checklist") { model.showReview = true },
             Item(id: "a:rescan", title: L("Rescan"), subtitle: L("Action"), symbol: "arrow.clockwise") { model.rescan() },
-            Item(id: "a:profile", title: L("New profile"), subtitle: L("Action"), symbol: "person.text.rectangle") {
+            Item(id: "a:profile", title: L("New Profile"), subtitle: L("Action"), symbol: "person.text.rectangle") {
                 model.showNewProfile = true
             },
-            Item(id: "a:skill", title: L("New skill"), subtitle: L("Action"), symbol: "sparkles") { model.showNewSkill = true },
+            Item(id: "a:skill", title: L("New Skill"), subtitle: L("Action"), symbol: "sparkles") { model.showNewSkill = true },
             Item(id: "a:dash", title: L("Dashboard"), subtitle: L("Go to"), symbol: "square.grid.2x2") { model.selection = .dashboard },
+            Item(id: "a:skills", title: L("Skills"), subtitle: L("Go to"), symbol: "sparkles") { model.selection = .skills },
+            Item(id: "a:profiles", title: L("Profiles"), subtitle: L("Go to"), symbol: "person.text.rectangle") {
+                model.selection = .profiles
+            },
             Item(id: "a:history", title: L("History"), subtitle: L("Go to"), symbol: "clock.arrow.circlepath") {
                 model.selection = .history
             },
@@ -499,17 +503,13 @@ struct SettingsView: View {
                 L("Keep Kitfold's project files out of git (.git/info/exclude)"),
                 isOn: Binding(
                     get: { model.draft.preferences.gitExcludeProjectFiles },
-                    set: { v in
-                        var c = model.draft; c.preferences.gitExcludeProjectFiles = v; model.saveDirect(c)
-                    }))
+                    set: { v in model.saveSettings { $0.preferences.gitExcludeProjectFiles = v } }))
             let days = model.draft.preferences.backupRetentionDays
             Stepper(
                 days == 1 ? L("Keep backups for 1 day") : L("Keep backups for \(days) days"),
                 value: Binding(
                     get: { model.draft.preferences.backupRetentionDays },
-                    set: { v in
-                        var c = model.draft; c.preferences.backupRetentionDays = v; model.saveDirect(c)
-                    }), in: 1...365)
+                    set: { v in model.saveSettings { $0.preferences.backupRetentionDays = v } }), in: 1...365)
         }
         .formStyle(.grouped)
     }
@@ -522,13 +522,7 @@ struct SettingsView: View {
                         L("Managed by Kitfold"),
                         isOn: Binding(
                             get: { a.enabled },
-                            set: { on in
-                                var c = model.draft
-                                var s = c.agents[a.id.rawValue] ?? AgentSettings()
-                                s.enabled = on
-                                c.agents[a.id.rawValue] = s
-                                model.saveDirect(c)
-                            }))
+                            set: { on in model.saveSettings { $0.agents[a.id.rawValue, default: AgentSettings()].enabled = on } }))
                     ConfigDirField(agent: a)
                 } header: {
                     HStack {
@@ -546,7 +540,7 @@ struct SettingsView: View {
                 ForEach(model.draft.sources) { s in
                     HStack {
                         VStack(alignment: .leading) {
-                            Text(s.label)
+                            Text(s.displayLabel)
                             Text(s.path).font(.caption.monospaced()).foregroundStyle(.secondary)
                         }
                         if let m = s.managedBy { Pill(text: m) }
@@ -576,11 +570,7 @@ struct ConfigDirField: View {
         HStack {
             TextField(L("Config folder"), text: $text, prompt: Text(agent.adapter.descriptor.configDir))
             Button(L("Use")) {
-                var c = model.draft
-                var s = c.agents[agent.id.rawValue] ?? AgentSettings()
-                s.configDir = text.isEmpty ? nil : text
-                c.agents[agent.id.rawValue] = s
-                model.saveDirect(c)
+                model.saveSettings { $0.agents[agent.id.rawValue, default: AgentSettings()].configDir = text.isEmpty ? nil : text }
             }
         }
         .onAppear { text = model.draft.agents[agent.id.rawValue]?.configDir ?? "" }

@@ -137,7 +137,7 @@ public final class Executor: @unchecked Sendable {
             if case .moveItem(let from, _) = c.change { simulated[from] = .missing }
         }
         guard conflicts.isEmpty else {
-            let list = conflicts.joined(separator: ", ")
+            let list = Localization.list(conflicts)
             throw KitfoldError.precondition(L("These files changed after the original apply, so undo would overwrite newer edits: \(list)"))
         }
         // Moving a skill back out of the library must not strand links made to it since.
@@ -153,7 +153,7 @@ public final class Executor: @unchecked Sendable {
                 return FS.isInside(FS.absolute(t, relativeTo: (d.path as NSString).deletingLastPathComponent), from)
             }
             if !dependents.isEmpty {
-                let links = dependents.map { env.abbreviate($0.path) }.joined(separator: ", ")
+                let links = Localization.list(dependents.map { env.abbreviate($0.path) })
                 throw KitfoldError.precondition(
                     L("Links made later still point into \(env.abbreviate(from)): \(links). Switch that skill off for those agents first."))
             }

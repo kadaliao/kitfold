@@ -6,8 +6,9 @@ struct SkillsView: View {
     @Environment(AppModel.self) private var model
     @State private var search = ""
     @State private var filter: Filter = .all
-    @State private var scope: Scope = .global
     @State private var showGitSheet = false
+    /// Kept in the model: a skill dropped on an agent in the sidebar goes to this scope.
+    var scope: Scope { model.skillsScope }
 
     enum Mode: CaseIterable {
         case list, matrix
@@ -65,7 +66,7 @@ struct SkillsView: View {
                     ForEach(Mode.allCases, id: \.self) { Text($0.label) }
                 }
                 .pickerStyle(.segmented).fixedSize()
-                ScopePicker(scope: $scope)
+                ScopePicker(scope: $model.skillsScope)
                 Picker("", selection: $filter) { ForEach(Filter.allCases, id: \.self) { Text($0.label) } }
                     .fixedSize()
                 Spacer()
@@ -302,7 +303,7 @@ struct SkillDetail: View {
                 Pill(
                     text: entry.origin.label, color: entry.origin == .library ? .accentColor : .secondary, systemImage: entry.origin.symbol)
                 if case .source(let id) = entry.origin, let s = model.draft.sources.first(where: { $0.id == id }) {
-                    Pill(text: s.managedBy.map { "\(s.label) · \($0)" } ?? s.label)
+                    Pill(text: s.managedBy.map { "\(s.displayLabel) · \($0)" } ?? s.displayLabel)
                 }
                 Spacer(minLength: 0)
             }
@@ -461,12 +462,16 @@ struct AssignmentMatrix: View {
                         ForEach(Array(rows.enumerated()), id: \.element) { item in
                             let name = item.element
                             HStack(spacing: 0) {
+                                // Opens the skill in the list, where its details are.
                                 Button {
                                     model.selectedSkillPath = model.snapshot?.skill(named: name)?.path
+                                    model.skillsMatrix = false
                                 } label: {
-                                    Text(name).lineLimit(1).frame(width: 260, alignment: .leading)
+                                    Text(name).lineLimit(1).frame(width: 260, alignment: .leading).contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .help(L("Show details"))
+                                .draggable(name)  // drop onto an agent in the sidebar to assign
                                 ForEach(model.managedAgents) { a in
                                     ReachCell(state: model.cell(skill: name, agent: a.id, scope: scope), tint: a.adapter.tint) {
                                         model.toggle(skill: name, agent: a.id, scope: scope)

@@ -31,6 +31,8 @@ struct CellState: Equatable {
     var rule: RuleState?
     /// Draft differs from saved config for this cell.
     var pending: Bool
+    /// Why the cell's rule can't take effect (e.g. Codex can't hide a global skill in one project).
+    var blocked: String? = nil
 
     var isOn: Bool {
         switch reach {
@@ -60,6 +62,8 @@ final class AppModel {
     var selection: SidebarItem? = .dashboard
     var selectedSkillPath: String?
     var skillsMatrix = false
+    /// The scope the Skills page shows.
+    var skillsScope: Scope = .global
     var selectedProfileID: String?
     var showReview = false
     var showPalette = false
@@ -83,15 +87,17 @@ final class AppModel {
         var summary: String
     }
 
-    var hasPendingChanges: Bool {
+    /// The draft's rules differ from the saved ones: there's something to discard.
+    var hasDraftEdits: Bool {
         guard let ws = workspace else { return false }
-        var a = draft, b = ws.config
-        a.rules.sort { "\($0.resource)\($0.scope)\($0.agent)" < "\($1.resource)\($1.scope)\($1.agent)" }
-        b.rules.sort { "\($0.resource)\($0.scope)\($0.agent)" < "\($1.resource)\($1.scope)\($1.agent)" }
-        return a != b
+        return Set(draft.rules) != Set(ws.config.rules)
     }
 
-    var pendingCount: Int { plan?.changes.filter { !$0.change.path.hasSuffix("/kitfold.json") }.count ?? 0 }
+    /// Something to apply: edited rules, or files that no longer match the saved ones
+    /// (an assigned profile was edited, a link was deleted by hand…).
+    var hasPendingChanges: Bool { hasDraftEdits || pendingCount > 0 }
+
+    var pendingCount: Int { plan?.fileChanges.count ?? 0 }
 
     // MARK: lifecycle
 
@@ -113,6 +119,8 @@ final class AppModel {
 
     func rescan(probeVersions: Bool = true) {
         guard let ws = workspace else { return }
+        syncConfigFromDisk()
+        lastSeenTransaction = ws.history(limit: 1).first?.id
         if isScanning {
             rescanQueued = true
             return
@@ -142,6 +150,11 @@ final class AppModel {
 
     func replan() {
         guard let ws = workspace, let snap = snapshot else { return }
+        // kitfold.json changed elsewhere: the snapshot may be stale too (the CLI made links).
+        if syncConfigFromDisk() {
+            rescan(probeVersions: false)
+            return
+        }
         let draft = self.draft
         let saved = ws.config  // read here, on the main actor; the workspace isn't thread-safe
         planGeneration += 1
@@ -154,6 +167,42 @@ final class AppModel {
                 self.plan = p
                 self.isPlanning = false
             }
+        }
+    }
+
+    /// The newest transaction when the app last scanned: another one means the CLI applied or undid something.
+    private var lastSeenTransaction: String?
+
+    /// Coming back to the app: rescan if the CLI (or anything else) changed kitfold.json or applied a change.
+    func refreshIfChangedOutside() {
+        guard let ws = workspace, snapshot != nil else { return }
+        if ws.configChangedOnDisk || ws.history(limit: 1).first?.id != lastSeenTransaction { rescan(probeVersions: false) }
+    }
+
+    /// Load kitfold.json again if it changed outside the app (the CLI, an editor), keeping unapplied toggles
+    /// on top of it. Without this the next apply would write the old rules back and take back the CLI's links.
+    /// Returns true when it reloaded.
+    @discardableResult
+    func syncConfigFromDisk() -> Bool {
+        guard let ws = workspace else { return false }
+        do {
+            guard let before = try ws.reloadConfigIfChanged() else { return false }
+            let pending = Set(draft.rules) != Set(before.rules)
+            let (merged, overridden) = ws.config.replaying(rulesOf: draft, since: before)
+            draft = merged
+            if let p = skillsScope.projectPath, !draft.projects.contains(where: { $0.path == p }) { skillsScope = .global }
+            toast =
+                !pending
+                ? L("kitfold.json changed outside Kitfold. Reloaded it.")
+                : overridden == 0
+                    ? L("kitfold.json changed outside Kitfold. Reloaded it and kept your unapplied changes.")
+                    : L("kitfold.json changed outside Kitfold. Reloaded it; where you both changed a switch, your unapplied change wins.")
+            return true
+        } catch {
+            errorMessage = L(
+                "kitfold.json changed outside Kitfold and can't be read: \(error.localizedDescription). Kitfold keeps using the version it had."
+            )
+            return false
         }
     }
 
@@ -174,20 +223,17 @@ final class AppModel {
         let before = ws.config
         let pending = draft
         do {
-            if let tx = try ws.apply(plan, summary: summary) {
-                let n = tx.operations.count
+            if try ws.apply(plan, summary: summary) != nil {
+                let n = plan.fileChanges.count
                 toast =
-                    n == 1
-                    ? L("Applied 1 change. Undo anytime from History.") : L("Applied \(n) changes. Undo anytime from History.")
+                    n == 0
+                    ? L("Saved the assignments. Undo anytime from History.")
+                    : n == 1
+                        ? L("Applied 1 file change. Undo anytime from History.")
+                        : L("Applied \(n) file changes. Undo anytime from History.")
             }
-            draft = ws.config
-            if keepDraft {
-                // Re-apply the toggles that were pending on top of what was just saved.
-                for r in Set(pending.rules).symmetricDifference(Set(before.rules)) {
-                    let state = pending.rule(r.resource, agent: r.agent, scope: r.scope)?.state
-                    draft.setRule(r.resource, agent: r.agent, scope: r.scope, state: state)
-                }
-            }
+            // A one-off review keeps the toggles that were pending, on top of what was just saved.
+            draft = keepDraft ? ws.config.replaying(rulesOf: pending, since: before).config : ws.config
             showReview = false
             reviewPlan = nil
             rescan(probeVersions: false)
@@ -215,11 +261,20 @@ final class AppModel {
         let after = Set(draft.rules)
         let added = after.subtracting(before), removed = before.subtracting(after)
         let names = Set((added.union(removed)).map(\.resource.id)).sorted()
-        if names.isEmpty { return L("Update configuration") }
+        if names.isEmpty {
+            // Only files to bring in line with the saved rules, e.g. after editing an assigned profile.
+            let files = plan?.fileChanges ?? []
+            let profiles = Set(files.compactMap { $0.resource?.kind == .profile ? $0.resource?.id : nil })
+            if files.count == 1, let only = files.first { return only.summary }
+            if profiles.count == 1, let id = profiles.first {
+                return L("Update profile \(snapshot?.profileName(id) ?? id)")
+            }
+            return L("Apply kitfold.json")
+        }
         // One switch flipped: say exactly what it does, as the CLI does.
         let keys = Set(added.union(removed).map { "\($0.resource)|\($0.scope)|\($0.agent)" })
         if keys.count == 1, let r = added.first ?? removed.first {
-            let what = r.resource.kind == .profile ? L("profile \(r.resource.id)") : r.resource.id
+            let what = r.resource.kind == .profile ? L("profile \(snapshot?.profileName(r.resource.id) ?? r.resource.id)") : r.resource.id
             let state = draft.rule(r.resource, agent: r.agent, scope: r.scope)?.state
             let place = projectName(r.scope)
             guard case .agent(let id) = r.agent else {
@@ -242,7 +297,7 @@ final class AppModel {
             case (nil, false): return L("Reset \(what) for \(who) in \(place)")
             }
         }
-        let head = names.prefix(3).joined(separator: ", ")
+        let head = Localization.list(Array(names.prefix(3)))
         return names.count > 3 ? L("Update \(head) +\(names.count - 3)") : L("Update \(head)")
     }
 
@@ -272,7 +327,14 @@ final class AppModel {
         } else if !ex.isEmpty {
             reach = .disabledNatively
         }
-        return CellState(reach: reach, rule: rule, pending: rule != saved)
+        // A rule the plan can't carry out stays in kitfold.json; say so on the cell.
+        let blocked =
+            rule == nil
+            ? nil
+            : plan?.issues(about: ResourceRef(.skill, skill), agents: [agent], scope: scope).first { $0.severity >= .warning }
+        return CellState(
+            reach: reach, rule: rule, pending: rule != saved,
+            blocked: blocked.map { [$0.title, $0.detail].filter { !$0.isEmpty }.joined(separator: "\n") })
     }
 
     /// Plugin skills are owned by the agent's plugin system; assigning them would only leave a dead rule.
@@ -297,6 +359,24 @@ final class AppModel {
             draft.setRule(ref, agent: .agent(agent), scope: scope, state: target)
         }
         replan()
+    }
+
+    /// Skills dropped on an agent: switched on in `scope`; from the sidebar, the scope the Skills page shows.
+    func drop(skills names: [String], on agent: AgentState, scope: Scope? = nil) {
+        let scope = scope ?? skillsScope
+        var added: [String] = []
+        for n in names where !isPluginSkill(n) && !cell(skill: n, agent: agent.id, scope: scope).willBeOn {
+            toggle(skill: n, agent: agent.id, scope: scope)
+            added.append(n)
+        }
+        let who = agent.adapter.name
+        if added.isEmpty {
+            toast = L("\(who) already has \(Localization.list(names)).")
+        } else if scope.isGlobal {
+            toast = L("Added \(Localization.list(added)) to \(who) — review to apply.")
+        } else {
+            toast = L("Added \(Localization.list(added)) to \(who) in \(projectName(scope)) — review to apply.")
+        }
     }
 
     func setAll(skill: String, scope: Scope, on: Bool) {
@@ -379,12 +459,8 @@ final class AppModel {
             do {
                 let source = try ws.library.cloneGitSource(url: url)
                 await MainActor.run {
-                    var c = ws.config
-                    c.sources.append(source)
-                    try? ws.saveConfigDirectly(c)
-                    self.draft.sources = ws.config.sources
+                    self.saveSettings { $0.sources.append(source) }
                     self.toast = L("Added \(source.label) as a skill source.")
-                    self.rescan(probeVersions: false)
                 }
             } catch {
                 await MainActor.run { self.errorMessage = error.localizedDescription }
@@ -394,27 +470,27 @@ final class AppModel {
 
     func addSourceFolder(_ url: URL) {
         guard let ws = workspace else { return }
-        var c = ws.config
         let id = "folder-" + SkillEntry.slugify(url.lastPathComponent)
-        guard !c.sources.contains(where: { $0.id == id }) else { return }
-        c.sources.append(SkillSourceConfig(id: id, label: url.lastPathComponent, path: ws.env.abbreviate(url.path)))
-        saveDirect(c)
+        saveSettings { c in
+            guard !c.sources.contains(where: { $0.id == id }) else { return }
+            c.sources.append(SkillSourceConfig(id: id, label: url.lastPathComponent, path: ws.env.abbreviate(url.path)))
+        }
     }
 
     func removeSource(_ id: String) {
-        guard let ws = workspace else { return }
-        var c = ws.config
-        c.sources.removeAll { $0.id == id }
-        saveDirect(c)
+        saveSettings { $0.sources.removeAll { $0.id == id } }
     }
 
-    /// Settings that don't touch agent files.
-    func saveDirect(_ c: KitfoldConfig) {
+    /// Settings that don't touch agent files (sources, projects, agents, preferences), saved right away.
+    /// `edit` changes kitfold.json as it is on disk now, so an edit made by the CLI meanwhile isn't lost.
+    func saveSettings(_ edit: (inout KitfoldConfig) -> Void) {
         guard let ws = workspace else { return }
+        syncConfigFromDisk()
         do {
-            var merged = c
-            merged.rules = ws.config.rules  // never smuggle draft rules past the review
-            try ws.saveConfigDirectly(merged)
+            var c = ws.config
+            edit(&c)
+            c.rules = ws.config.rules  // never smuggle draft rules past the review
+            try ws.saveConfigDirectly(c)
             draft.sources = ws.config.sources
             draft.agents = ws.config.agents
             draft.preferences = ws.config.preferences
@@ -425,32 +501,33 @@ final class AppModel {
 
     func addProject(_ url: URL) {
         guard let ws = workspace else { return }
-        let c = ws.addingProject(url.path, to: ws.config)
-        saveDirect(c)
-        if let p = c.projects.last { selection = .project(p.path) }
+        var added: String?
+        saveSettings { c in
+            c = ws.addingProject(url.path, to: c)
+            added = c.projects.last?.path
+        }
+        if let added { selection = .project(added) }
     }
 
     func removeProject(_ path: String) {
         guard let ws = workspace else { return }
-        var c = ws.config
-        c.projects.removeAll { $0.path == path }
-        if c.rules.contains(where: { $0.scope == .project(path) }) {
+        syncConfigFromDisk()
+        if ws.config.rules.contains(where: { $0.scope == .project(path) }) {
             errorMessage = L(
                 "This project still has assignments, including switched-off ones. Clear them (Clear in the row's menu) and apply first, so Kitfold can clean up its files there."
             )
             return
         }
         selection = .dashboard
-        saveDirect(c)
+        if skillsScope == .project(path) { skillsScope = .global }
+        saveSettings { $0.projects.removeAll { $0.path == path } }
     }
 
     func saveSkillFile(_ entry: SkillEntry, text: String) {
         guard let ws = workspace else { return }
-        do {
-            try ws.saveSkillFile(entry, text: text)
-            toast = L("Saved SKILL.md (previous version kept in backups).")
-            rescan(probeVersions: false)
-        } catch { errorMessage = error.localizedDescription }
+        let edit = ws.planSkillEdit(entry, text: text)
+        guard !edit.plan.isEmpty else { return }
+        perform(edit.plan, summary: edit.summary, keepDraft: true)
     }
 
     func reviewAdopt(_ entry: SkillEntry) {
@@ -475,8 +552,8 @@ final class AppModel {
         guard let ws = workspace, let snap = snapshot else { return }
         do {
             let p = try ws.adoptDrift(file: file, profile: profile, snapshot: snap)
-            reviewPlan = ReviewRequest(title: L("Keep the edit to “\(profile)”"), plan: p, summary: L("Keep edit to \(profile)"))
-            rescan(probeVersions: false)
+            let name = snap.profileName(profile)
+            reviewPlan = ReviewRequest(title: L("Keep the edit to “\(name)”"), plan: p, summary: L("Keep edit to \(name)"))
         } catch { errorMessage = error.localizedDescription }
     }
 

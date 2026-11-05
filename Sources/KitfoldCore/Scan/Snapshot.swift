@@ -149,6 +149,8 @@ public struct Issue: Identifiable, Hashable, Sendable {
     /// Other agents the same problem affects (reported once, shown on each agent's page).
     public var alsoAffects: [AgentID]
     public var scope: Scope?
+    /// What the issue is about (a skill or profile name, a file…), as passed to `key`.
+    public var key: String?
 
     public var affectedAgents: [AgentID] { (agent.map { [$0] } ?? []) + alsoAffects }
 
@@ -157,7 +159,7 @@ public struct Issue: Identifiable, Hashable, Sendable {
         agent: AgentID? = nil, alsoAffects: [AgentID] = [], scope: Scope? = nil, key: String? = nil
     ) {
         self.kind = kind; self.severity = severity; self.title = title; self.detail = detail; self.paths = paths
-        self.agent = agent; self.alsoAffects = alsoAffects; self.scope = scope
+        self.agent = agent; self.alsoAffects = alsoAffects; self.scope = scope; self.key = key
         self.id = "\(kind.rawValue)|\(key ?? paths.joined(separator: ","))|\(agent?.rawValue ?? "")|\(scope?.description ?? "")"
     }
 }
@@ -229,6 +231,9 @@ public struct Snapshot: Sendable {
     }
 
     public func profile(_ id: String) -> ProfileEntry? { profiles.first { $0.id == id } }
+
+    /// What people see for a profile: its name, or the id when there's no such profile (any more).
+    public func profileName(_ id: String) -> String { profile(id)?.name ?? id }
 
     /// How `skillName` reaches `agent` in `scope` (including global inheritance for projects).
     public func exposures(skill skillName: String, agent: AgentID, scope: Scope) -> [Exposure] {
