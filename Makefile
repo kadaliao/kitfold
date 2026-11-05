@@ -35,8 +35,8 @@ screenshots: ## Regenerate release screenshots
 tutorial-shots: ## Regenerate the tutorials' screenshots (English and Chinese)
 	scripts/tutorials/make.sh
 
-video: ## Render the launch video and GIFs, e.g. make video MUSIC=~/music.mp3
-	scripts/video/make.sh $(MUSIC)
+video: ## Render the launch video and GIFs, e.g. make video VARIANTS="en zh zh-portrait" MUSIC=~/music.mp3
+	MUSIC="$(MUSIC)" scripts/video/make.sh $(VARIANTS)
 
 format: ## Format sources in place with swift-format
 	$(SWIFT) format --in-place --recursive Sources Tests Package.swift

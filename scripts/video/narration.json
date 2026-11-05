@@ -1,0 +1,57 @@
+{
+  "_about": "Narration for the launch video, one line per scene. `at` is the scene's span in scene.html's own timeline (seconds); voice.mjs stretches each span to fit its line. `|` marks a subtitle break and is not spoken; `say` respells words for the voice only. Styles are written in the narration's own language: a Chinese direction keeps Mandarin from sounding translated.",
+  "model": "gemini-3.8-flash-lite-tts",
+  "voice": "Charon",
+  "say": { "zh": { "Kitfold": "Kit Fold" } },
+  "style": {
+    "en": "Friendly, clear and confident tech product narrator. Natural American English, conversational, medium-brisk pace, warm, never salesy.",
+    "zh": "自然、清晰、自信的科技产品讲解，标准普通话，像在给同行介绍一个好用的工具；语速中等偏快，语气友好温暖，不要播音腔。英文产品名照英文原样读。"
+  },
+  "scenes": [
+    {
+      "id": "cover", "at": [0, 3.3],
+      "en": "Meet Kitfold: |one library for every coding agent.",
+      "zh": "这是 Kitfold，|一套技能库，管所有 Coding Agent。"
+    },
+    {
+      "id": "problem", "at": [3.3, 10.6],
+      "en": "Every coding agent loads skills its own way: |its own folders, shared folders, other agents' folders, |plugins, and settings that switch skills off.",
+      "zh": "每个 Coding Agent 加载技能都各有一套：|自己的目录、共享目录、|别的 Agent 的目录、插件，|还有设置里的开关。"
+    },
+    {
+      "id": "agents", "at": [10.6, 17.3],
+      "en": "Kitfold shows what each agent actually loads, |and traces every skill back to where it comes from.",
+      "zh": "Kitfold 让你看清|每个 Agent 实际加载了什么，|每个技能都能追到来源。"
+    },
+    {
+      "id": "grid", "at": [17.3, 24.6],
+      "en": "One grid, every agent. |Click a cell to give a skill to one agent, |a few, or all of them.",
+      "zh": "一张表管所有 Agent。|点一下格子，就能把技能|给一个、几个，或者全部 Agent。"
+    },
+    {
+      "id": "switch", "at": [24.6, 34.4],
+      "en": "You can even hide a skill from just one agent |when it lives in a shared folder. |Kitfold writes that agent's own setting, |and only that entry changes.",
+      "zh": "就算技能放在共享目录里，|也能只对一个 Agent 隐藏。|Kitfold 写的是那个 Agent 自己的设置，|只改那一条。"
+    },
+    {
+      "id": "safety", "at": [34.4, 41.4],
+      "en": "Every change is previewed first, backed up, |checked right before writing, and journaled, |so you can undo any of it.",
+      "zh": "所有改动都先预览；|写入前先备份、再核对，|每次都记日志，随时可以撤销。"
+    },
+    {
+      "id": "profiles", "at": [41.4, 46.5],
+      "en": "Profiles bring reusable instructions, and their skills, |into each agent's own file.",
+      "zh": "Profile 是可复用的指令，|会带上它的技能，|写进每个 Agent 自己的文件。"
+    },
+    {
+      "id": "cli", "at": [46.5, 50.4],
+      "en": "And the same core powers the kitfold command line.",
+      "zh": "同一套核心，|也驱动着 kitfold 命令行。"
+    },
+    {
+      "id": "end", "at": [50.4, 55],
+      "en": "Kitfold is free and open source. |Get it on GitHub.",
+      "zh": "Kitfold 免费开源，|现在就去 GitHub 看看吧。"
+    }
+  ]
+}

@@ -41,7 +41,7 @@ First prebuilt release: `Kitfold-0.2.0.dmg` on GitHub Releases, a universal app 
   - The CLI follows the system too; `--lang en|zh-Hans` or `KITFOLD_LANG` overrides it.
   - `LocalizationTests` fails when a string has no translation or a translation is no longer used. See [docs/localization.md](docs/localization.md).
 - **Tutorials** in English and Chinese, from the first launch to troubleshooting, with screenshots of the demo home ([docs/tutorials](docs/tutorials/README.md)). Help › Kitfold Tutorials opens them; `scripts/tutorials/make.sh` regenerates the screenshots.
-- **Launch video:** `scripts/video/make.sh` renders the launch video and GIFs from the demo home.
+- **Launch video:** `scripts/video/make.sh` renders the launch video and GIFs from the demo home: English and Chinese, 16:9 or 9:16, narrated with Gemini TTS and subtitled.
 
 ### Changed
 - OpenCode permission rules are applied in file order. Before, the order was guessed.

@@ -1,20 +1,22 @@
 // Render scene.html frame by frame in headless Chrome and encode it with ffmpeg.
 // No npm packages: Node's built-in WebSocket speaks the DevTools protocol directly.
 //
-//   node scripts/video/render.mjs --assets <dir> --out video.mp4 [--fps 60] [--duration 55]
+//   node scripts/video/render.mjs --assets <dir> --out video.mp4 [--fps 60] [--duration 55] [--size 1920x1080] [--query 'lang=zh&…']
 //   node scripts/video/render.mjs --assets <dir> --still 29.5 --out frame.png   (one frame, for checking)
+// --query is appended to scene.html's URL (lang, layout, timeline, subs; see scene.html).
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const opt = { fps: 60, duration: 55, chrome: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' };
+const opt = { fps: 60, duration: 55, size: '1920x1080', query: '', chrome: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i += 2) opt[argv[i].replace(/^--/, '')] = argv[i + 1];
-if (!opt.assets || !opt.out) { console.error('usage: render.mjs --assets <dir> --out <file> [--fps 60] [--duration 55] [--still <t>]'); process.exit(2); }
+if (!opt.assets || !opt.out) { console.error('usage: render.mjs --assets <dir> --out <file> [--fps 60] [--duration 55] [--size WxH] [--query q] [--still <t>]'); process.exit(2); }
 const fps = +opt.fps, frames = Math.round(+opt.duration * fps);
-const page = `file://${join(dirname(fileURLToPath(import.meta.url)), 'scene.html')}?assets=${encodeURIComponent(resolve(opt.assets))}`;
+const [width, height] = opt.size.split('x').map(Number);
+const page = `file://${join(dirname(fileURLToPath(import.meta.url)), 'scene.html')}?assets=${encodeURIComponent(resolve(opt.assets))}${opt.query ? '&' + opt.query : ''}`;
 
 const profile = mkdtempSync(join(tmpdir(), 'kitfold-video-'));
 const port = 9300 + Math.floor(Math.random() * 500);
@@ -62,7 +64,7 @@ const evaluate = async expr => {
   return r.result.value;
 };
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
 await send('Page.enable');
 await send('Page.navigate', { url: page });
 for (let i = 0; i < 100 && !(await evaluate('typeof window.ready !== "undefined"').catch(() => false)); i++) {
@@ -87,7 +89,7 @@ for (let f = 0; f < frames; f++) {
   await evaluate(`seek(${f / fps})`);
   const { data } = await send('Page.captureScreenshot', { format: 'jpeg', quality: 95 });
   if (!ffmpeg.stdin.write(Buffer.from(data, 'base64'))) await new Promise(r => ffmpeg.stdin.once('drain', r));
-  if (f % fps === 0) process.stderr.write(`\r  ${(f / fps).toFixed(0)}s / ${opt.duration}s  (${((Date.now() - started) / 1000).toFixed(0)}s elapsed)`);
+  if (f % fps === 0) process.stderr.write(`\r  ${(f / fps).toFixed(0)}s / ${(+opt.duration).toFixed(1)}s  (${((Date.now() - started) / 1000).toFixed(0)}s elapsed)`);
 }
 ffmpeg.stdin.end();
 await new Promise((res, rej) => ffmpeg.on('close', code => code === 0 ? res() : rej(new Error(`ffmpeg exited ${code}`))));

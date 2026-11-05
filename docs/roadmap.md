@@ -29,7 +29,7 @@
 | 修复 | 一轮全面排查后的修复，见 [CHANGELOG](../CHANGELOG.md) |
 | 中文 | App、CLI 和核心产生的所有提示都有简体中文；默认跟随系统语言，可在设置里单独指定（与系统设置里的"App 语言"是同一个设置），CLI 用 `--lang` 或 `KITFOLD_LANG`。漏翻和多余的翻译由测试拦下，见 [localization](localization.md) |
 | 教程 | 中英文教程 9 篇，从第一次打开到排错，配演示数据的截图，见 [tutorials](tutorials/README.md)；帮助菜单里可以直接打开 |
-| 工具 | `scripts/video/make.sh` 生成发布视频和 GIF |
+| 工具 | `scripts/video/make.sh` 生成发布视频和 GIF：中英文、横屏 16:9 / 竖屏 9:16，Gemini TTS 配音并带字幕 |
 
 已知限制：Codex 只认 `$CODEX_HOME/config.toml` 里的 `[[skills.config]]`，所以没法只在一个项目里对 Codex 隐藏技能，Kitfold 会说明这一点。
 

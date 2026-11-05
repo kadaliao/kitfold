@@ -18,7 +18,7 @@
 | `make demo DIR=/tmp/kf` | Build the fictional demo home |
 | `make screenshots` | Regenerate release screenshots |
 | `make tutorial-shots` | Regenerate the tutorials' screenshots, in English and Chinese |
-| `make video` | Render the launch video and GIFs, e.g. `make video MUSIC=~/music.mp3` |
+| `make video` | Render the launch video and GIFs, e.g. `make video VARIANTS="en zh zh-portrait" MUSIC=~/music.mp3` |
 | `make format` | Format sources with `swift format` |
 | `make clean` | Remove `.build` and `build` |
 
@@ -88,17 +88,21 @@ Snapshot mode makes draft changes only for the review sheet and never applies th
 
 ## Launch video
 
-`scripts/video/make.sh [music.mp3]` renders the launch video from the demo home. It needs Google Chrome, Node 22+ and ffmpeg.
+`scripts/video/make.sh [variant ...]` renders the launch video from the demo home. Variants are `en`, `zh`, `en-portrait` and `zh-portrait` (1080×1920); the default is `en`. It needs Google Chrome, Node 22+ and ffmpeg.
 1. The app's `video` snapshot script captures the states the story needs. It also exports the agents' logos as transparent PNGs.
-2. `scripts/video/scene.html` is the whole video as one deterministic timeline: `seek(t)` places every element.
-3. `scripts/video/render.mjs` steps through it in headless Chrome, using the DevTools protocol over Node's built-in WebSocket, and pipes the frames into ffmpeg.
+2. `scripts/video/voice.mjs` speaks each scene's line from `narration.json` with Gemini TTS (`gemini-3.8-flash-lite-tts`). Each scene then stretches to fit its line. The script also writes subtitles. Clips are cached in `build/video/voice/`, so a re-run only pays for lines that changed.
+3. `scripts/video/scene.html` is the whole video as one deterministic timeline: `seek(t)` places every element. Query parameters pick the language, the layout and the narration timeline.
+4. `scripts/video/render.mjs` steps through it in headless Chrome, using the DevTools protocol over Node's built-in WebSocket, and pipes the frames into ffmpeg.
+5. `scripts/video/mix.mjs` lays the narration at -16 LUFS over the music, which dips while the narrator speaks.
+
+Narration needs `GEMINI_API_KEY`, or `AIHUBMIX_API_KEY` for AIHubMix's Gemini-compatible endpoint (set `AIHUBMIX_IP` if your DNS resolves that host badly). `VOICE=0` renders without narration.
 
 The first frame is the title card. Output goes to `build/video/`:
-- `kitfold-launch.mp4` (1080p60) and a smaller `kitfold-launch-small.mp4`;
-- `kitfold-launch.gif` (the whole video);
-- `kitfold-demo.gif` (the short cut used in the README; copy it to `docs/assets/` when it changes).
+- `kitfold-launch-<variant>.mp4` (60 fps) and a smaller `kitfold-launch-<variant>-small.mp4`;
+- `kitfold-launch-<variant>.srt`, the narration's subtitles (portrait variants also have them burned in);
+- with `en`: `kitfold-launch.gif` (the whole video) and `kitfold-demo.gif` (the short cut used in the README; copy it to `docs/assets/` when it changes).
 
-To check one moment, render a single frame: `node scripts/video/render.mjs --assets <dir> --still 29.5 --out frame.png`. Music isn't in the repository. The published cut uses "Focus on Yourself" by Eugenio Mininni, under the Mixkit Stock Music Free License.
+To check one moment, render a single frame: `node scripts/video/render.mjs --assets <dir> --still 29.5 --out frame.png`, adding e.g. `--size 1080x1920 --query "lang=zh&layout=portrait"`. Music isn't in the repository. The published cut uses "Focus on Yourself" by Eugenio Mininni, under the Mixkit Stock Music Free License.
 
 ## Release build
 
