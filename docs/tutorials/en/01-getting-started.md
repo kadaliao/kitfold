@@ -1,14 +1,17 @@
 # 01 Getting started
 
-In this tutorial you build Kitfold from source, open it for the first time, find your way around the window, and learn to jump anywhere with ⌘K and to switch the language. The first launch only reads your setup; it doesn't change anything.
+In this tutorial you install Kitfold, open it for the first time, find your way around the window, and learn to jump anywhere with ⌘K and to switch the language. The first launch only reads your setup; it doesn't change anything.
 
 ## Requirements
 
-- To run: macOS 15 or later.
-- To build: Xcode 26 or later (Swift 6.2+).
-- There are no prebuilt releases yet, so you build it yourself.
+- To run: macOS 15 or later, on Apple silicon or Intel.
+- To build it yourself: Xcode 26 or later (Swift 6.2+).
 
-## 1. Build and open
+## 1. Install and open
+
+Download `Kitfold-<version>.dmg` from [Releases](https://github.com/kadaliao/kitfold/releases/latest), open it, and drag Kitfold into Applications. Then open it from Applications. The app is signed and notarized, so macOS opens it without warnings.
+
+Or build it from source:
 
 ```bash
 git clone https://github.com/kadaliao/kitfold.git && cd kitfold

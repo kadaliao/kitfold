@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-05
+
+First prebuilt release: `Kitfold-0.2.0.dmg` on GitHub Releases, a universal app signed with a Developer ID and notarized. `make release` (`scripts/release.sh`) builds it.
+
 ### Added
 - **Native switches.** When a link can't hide a skill from an agent, Kitfold writes the agent's own setting instead:
   - Claude Code `skillOverrides` (`settings.json`; per project, `.claude/settings.local.json`);
@@ -122,5 +126,6 @@ First version.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
 
-[Unreleased]: https://github.com/kadaliao/kitfold/compare/f1fb7c2...HEAD
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kadaliao/kitfold/compare/f1fb7c2...v0.2.0
 [0.1.0]: https://github.com/kadaliao/kitfold/commit/f1fb7c2

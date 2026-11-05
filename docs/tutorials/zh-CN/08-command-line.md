@@ -5,12 +5,12 @@ Kitfold 附带一个命令行工具 `kitfold`。它和 App 用的是同一套核
 ## 找到 kitfold
 
 - **在仓库里直接运行**：`swift run kitfold status`（会先编译），或者 `make cli ARGS="status"`。`make build` 之后，可执行文件在 `.build/debug/kitfold`。
-- **打包好的 App 里**：`make app` 会把它放进 `build/Kitfold.app/Contents/Resources/kitfold`。
+- **打包好的 App 里**：从安装包装进“应用程序”的，在 `/Applications/Kitfold.app/Contents/Resources/kitfold`；`make app` 会把它放进 `build/Kitfold.app/Contents/Resources/kitfold`。
 
 想在任何目录下直接敲 `kitfold`，把它链接到 `PATH` 里的某个目录，比如：
 
 ```bash
-ln -s "$PWD/build/Kitfold.app/Contents/Resources/kitfold" ~/.local/bin/kitfold
+ln -s /Applications/Kitfold.app/Contents/Resources/kitfold ~/.local/bin/kitfold
 ```
 
 App 挪了位置，这个链接就要重新建。

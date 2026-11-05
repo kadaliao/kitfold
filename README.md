@@ -69,7 +69,13 @@ Each agent is a declarative descriptor, so adding one doesn't touch the core log
 
 ## Getting started
 
-Requirements: macOS 15 or later to run; Xcode 26 or later (Swift 6.2+) to build. CI builds with Swift 6.2.
+**Download:** get `Kitfold-<version>.dmg` from [Releases](https://github.com/kadaliao/kitfold/releases/latest), open it, and drag Kitfold into Applications. It runs on macOS 15 or later, on Apple silicon and Intel, and is signed with a Developer ID and notarized. The command-line tool is inside the app; to type `kitfold` anywhere, link it into your `PATH`:
+
+```bash
+ln -s /Applications/Kitfold.app/Contents/Resources/kitfold ~/.local/bin/kitfold
+```
+
+**Build from source** (Xcode 26 or later, Swift 6.2+; CI builds with Swift 6.2):
 
 ```bash
 git clone https://github.com/kadaliao/kitfold.git && cd kitfold
@@ -77,7 +83,7 @@ make app          # builds build/Kitfold.app
 open build/Kitfold.app
 ```
 
-There are no prebuilt releases yet. `make run` starts the app straight from the build folder.
+`make run` starts the app straight from the build folder.
 
 **First launch is read-only.** Kitfold creates `~/.kitfold/` for its own data and registers `~/.agents/skills` (and Magpie's library, if present) as skill sources. Nothing else on disk changes until you flip a switch and confirm the preview.
 

@@ -1,14 +1,17 @@
 # 01 安装与第一次打开
 
-这一篇从源码构建 Kitfold，第一次打开它，认识窗口的各个部分，再学会用 ⌘K 快速跳转和切换界面语言。第一次打开时，Kitfold 只读取你的配置，不做任何改动。
+这一篇安装 Kitfold，第一次打开它，认识窗口的各个部分，再学会用 ⌘K 快速跳转和切换界面语言。第一次打开时，Kitfold 只读取你的配置，不做任何改动。
 
 ## 准备
 
-- 运行：macOS 15 或更高版本。
-- 构建：Xcode 26 或更高版本（Swift 6.2+）。
-- 目前还没有预编译的安装包，需要自己构建。
+- 运行：macOS 15 或更高版本，Apple 芯片和 Intel 都可以。
+- 自己构建：Xcode 26 或更高版本（Swift 6.2+）。
 
-## 1. 构建并打开
+## 1. 安装并打开
+
+从 [Releases](https://github.com/kadaliao/kitfold/releases/latest) 下载 `Kitfold-<版本>.dmg`，打开后把 Kitfold 拖进“应用程序”，再从“应用程序”里打开。App 已签名并经过公证，macOS 不会弹出警告。
+
+也可以从源码构建：
 
 ```bash
 git clone https://github.com/kadaliao/kitfold.git && cd kitfold

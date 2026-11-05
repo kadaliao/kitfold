@@ -5,12 +5,12 @@ Kitfold comes with a command-line tool, `kitfold`. It runs on the same core as t
 ## Where the binary is
 
 - **From the repository:** `swift run kitfold status` (builds first), or `make cli ARGS="status"`. After `make build`, the binary is `.build/debug/kitfold`.
-- **Inside the app:** `make app` puts it at `build/Kitfold.app/Contents/Resources/kitfold`.
+- **Inside the app:** `/Applications/Kitfold.app/Contents/Resources/kitfold` when you installed the app from the disk image; `make app` puts it at `build/Kitfold.app/Contents/Resources/kitfold`.
 
 To type `kitfold` from anywhere, link it into a folder on your `PATH`, for example:
 
 ```bash
-ln -s "$PWD/build/Kitfold.app/Contents/Resources/kitfold" ~/.local/bin/kitfold
+ln -s /Applications/Kitfold.app/Contents/Resources/kitfold ~/.local/bin/kitfold
 ```
 
 If you move the app, make the link again.

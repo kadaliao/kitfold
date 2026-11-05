@@ -69,7 +69,13 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 
 ## 开始使用
 
-环境要求：运行需要 macOS 15 及以上；构建需要 Xcode 26 及以上（Swift 6.2+）。CI 使用 Swift 6.2 构建。
+**下载：** 从 [Releases](https://github.com/kadaliao/kitfold/releases/latest) 下载 `Kitfold-<版本>.dmg`，打开后把 Kitfold 拖进“应用程序”。支持 macOS 15 及以上，Apple 芯片和 Intel 都能用，已用 Developer ID 签名并经过 Apple 公证。命令行工具就在 App 里，想在任何目录下直接敲 `kitfold`，把它链接进 `PATH`：
+
+```bash
+ln -s /Applications/Kitfold.app/Contents/Resources/kitfold ~/.local/bin/kitfold
+```
+
+**从源码构建**（Xcode 26 及以上，Swift 6.2+；CI 使用 Swift 6.2 构建）：
 
 ```bash
 git clone https://github.com/kadaliao/kitfold.git && cd kitfold
@@ -77,7 +83,7 @@ make app          # 生成 build/Kitfold.app
 open build/Kitfold.app
 ```
 
-目前还没有预编译的发布包。`make run` 可以直接从构建目录启动 App。
+`make run` 可以直接从构建目录启动 App。
 
 **首次启动是只读的。** Kitfold 会创建 `~/.kitfold/` 来存放自己的数据，并把 `~/.agents/skills`（以及 Magpie 的库，如果存在）登记为技能来源。在你拨动开关并确认预览之前，磁盘上的其他东西都不会改变。
 

@@ -106,7 +106,35 @@ To check one moment, render a single frame: `node scripts/video/render.mjs --ass
 make app            # build/Kitfold.app, ad-hoc signed
 ```
 
-`scripts/bundle.sh` builds release binaries, draws the icon (`scripts/make-icon.swift`), writes `Info.plist` and copies the CLI into `Contents/Resources/kitfold`. Signing with a Developer ID, notarization and updates are on the [roadmap](roadmap.md).
+`scripts/bundle.sh` builds release binaries, draws the icon (`scripts/make-icon.swift`), writes `Info.plist` and copies the CLI into `Contents/Resources/kitfold`. `ARCHS="arm64 x86_64"` makes it universal.
+
+## Releasing
+
+A release is a universal `Kitfold-<version>.dmg` on GitHub Releases, signed with a Developer ID and notarized.
+
+One-time setup: a **Developer ID Application** certificate in the login keychain (the script uses `Developer ID Application: Xingyi Liao (HMDAVG9B8J)`; set `SIGN_IDENTITY` for another), and a notarytool keychain profile:
+
+```bash
+xcrun notarytool store-credentials notary --apple-id <apple-id> --team-id <team-id>
+```
+
+It asks for an app-specific password and keeps everything in the keychain. Never commit credentials.
+
+1. **Version.** Set `VERSION` in `scripts/bundle.sh` and add 1 to `BUILD`. Tags are `v<version>`.
+2. **Changelog.** Move the Unreleased entries under `## [<version>] - <date>` and update the links at the bottom.
+3. **Test:** `make test` and `make lint`.
+4. **Build:** `NOTARY_PROFILE=notary make release`. It builds the universal app, signs the app and its CLI with the hardened runtime and a secure timestamp, notarizes and staples it, checks it with `spctl`, then builds, signs, notarizes and staples the disk image. Output: `build/release/Kitfold-<version>.dmg` and `SHA256SUMS`. Without `NOTARY_PROFILE` everything is signed but not notarized; don't publish that. If Apple rejects it, `xcrun notarytool log <id> --keychain-profile notary` says why.
+5. **Smoke test:** open the disk image, drag Kitfold to Applications, open it (no Gatekeeper warning), check the version in About.
+6. **Commit, tag, publish:**
+
+   ```bash
+   git commit -am "Release <version>" && git tag -a v<version> -m "Kitfold <version>"
+   git push origin main --tags
+   gh release create v<version> build/release/Kitfold-<version>.dmg build/release/SHA256SUMS \
+     --title "Kitfold <version>" --notes-file <notes.md>
+   ```
+
+   Notes: the install line first, in English and Chinese, then the changes.
 
 ## Where things are
 

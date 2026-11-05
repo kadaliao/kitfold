@@ -50,5 +50,5 @@
 
 - 更多 Agent：Antigravity CLI、Cursor、Amp……每个只需新增一个描述，见 [adding-an-agent](adding-an-agent.md)。
 - 在设置里用 JSON 自定义 Agent。
-- 签名、公证、自动更新，以及预编译的发布包。
+- 自动更新（0.2.0 起有签名、公证的 DMG 安装包）。
 - Windows / Linux：核心库与界面无关，可以复用；界面需要另做（详见 [architecture §1](architecture.md)）。

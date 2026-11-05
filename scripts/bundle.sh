@@ -1,11 +1,18 @@
 #!/bin/bash
-# Build Kitfold.app (release) into ./build/Kitfold.app.
+# Build Kitfold.app (release) into ./build/Kitfold.app, ad-hoc signed.
+#   ARCHS="arm64 x86_64" scripts/bundle.sh    # universal (what scripts/release.sh does)
+# The version is set below; scripts/release.sh reads it from the built Info.plist.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release --product KitfoldApp
-swift build -c release --product kitfold
-BIN="$(swift build -c release --show-bin-path)"
+VERSION="0.2.0"
+BUILD="2"  # add 1 for every release
+
+FLAGS=(-c release)
+for arch in ${ARCHS:-}; do FLAGS+=(--arch "$arch"); done
+swift build "${FLAGS[@]}" --product KitfoldApp
+swift build "${FLAGS[@]}" --product kitfold
+BIN="$(swift build "${FLAGS[@]}" --show-bin-path)"
 
 APP=build/Kitfold.app
 rm -rf "$APP"
@@ -23,7 +30,6 @@ for s in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Kitfold.icns"
 
-VERSION="0.1.0"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -40,7 +46,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
        offer them under System Settings › Language & Region › Applications and localize its own menus. -->
   <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleVersion</key><string>${BUILD}</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
   <key>NSHighResolutionCapable</key><true/>
