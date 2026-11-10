@@ -481,7 +481,9 @@ case "update":
     do {
         try Updates.install(release, replacing: app) { print(dim("  " + $0)) }
         print(
-            green(L("Installed Kitfold \(release.version) in \(ab(app.path)).")) + " " + L("If the app is open, quit it and open it again.")
+            Localization.sentences([
+                green(L("Installed Kitfold \(release.version) in \(ab(app.path)).")), L("If the app is open, quit it and open it again."),
+            ])
         )
     } catch { fail(error.localizedDescription) }
 

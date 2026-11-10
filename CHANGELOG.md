@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-10
+
+### Fixed
+- `kitfold update --yes` in Chinese no longer puts a space between its two closing sentences.
+
 ## [0.5.0] - 2026-11-10
 
 ### Added
@@ -177,7 +182,8 @@ First version.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
 
-[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/kadaliao/kitfold/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kadaliao/kitfold/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kadaliao/kitfold/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/kadaliao/kitfold/compare/v0.3.0...v0.3.1
