@@ -43,6 +43,10 @@ struct KitfoldCommands: Commands {
     let model: AppModel
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            let _ = model.language
+            Button(L("Check for Updates…")) { model.checkForUpdates(userInitiated: true) }
+        }
         CommandGroup(replacing: .newItem) {
             let _ = model.language
             Button(L("New Profile…")) { model.showNewProfile = true }.keyboardShortcut("n")
@@ -97,6 +101,16 @@ struct RootView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if let release = model.availableUpdate {
+                    Button {
+                        model.showAvailableUpdate()
+                    } label: {
+                        Label(L("Kitfold \(release.version.text) is available"), systemImage: "arrow.down.circle.fill")
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .buttonStyle(.borderedProminent)
+                    .help(L("See what's new and install it"))
+                }
                 if model.isScanning { ProgressView().controlSize(.small) }
                 Button {
                     model.rescan()
@@ -117,6 +131,7 @@ struct RootView: View {
         .sheet(item: $model.editingInstruction) { target in InstructionEditor(target: target) }
         .sheet(isPresented: $model.showNewProfile) { NewItemSheet(kind: .profile) }
         .sheet(isPresented: $model.showNewSkill) { NewItemSheet(kind: .skill) }
+        .sheet(isPresented: Binding(get: { model.showUpdate }, set: { if !$0 { model.closeUpdate() } })) { UpdateSheet() }
         .overlay { if model.showPalette { CommandPalette() } }
         .overlay(alignment: .top) { ToastView() }
         // Back from the terminal: pick up what the CLI changed.

@@ -12,6 +12,8 @@ import KitfoldCore
 //   kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 //   kitfold delete <skill> [--yes]     take a skill from every agent and move its folder to Kitfold's trash
 //   kitfold clean [--yes]              remove broken skill links from the agents' folders
+//   kitfold version                    the installed version
+//   kitfold update [--yes]             check GitHub for a newer release and install it
 //   kitfold apply [--yes]              apply the pending plan
 //   kitfold history [--project <path>] applied transactions
 //   kitfold undo <tx-id> [--yes]
@@ -208,6 +210,10 @@ func roleLabel(_ role: SkillRootSpec.Role) -> String {
     case .bundled: return L("bundled")
     }
 }
+
+/// The Kitfold.app this command is part of, and its version (nil for a development build).
+let installedApp = Updates.appBundle(containing: Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
+let installedVersion = installedApp.flatMap(Updates.version(ofApp:))
 
 /// Every agent: the known ones, the user's own and the ones found on this Mac.
 let allAdapters = Scanner(env: env, adapters: ws.adapters).adapters(for: ws.config, env: env)
@@ -442,6 +448,43 @@ case "clean":
     if plan.changes.isEmpty { print(green(L("No broken skill links."))); exit(0) }
     confirmAndApply(plan, summary: L("Remove broken skill links"))
 
+case "version":
+    expectArgs(0...0, usage: "version")
+    print(installedVersion.map { "Kitfold \($0)" } ?? L("Kitfold (development build)"))
+
+case "update":
+    expectArgs(0...0, usage: "update [--yes]")
+    let release: ReleaseInfo
+    do { release = try Updates.latest() } catch { fail(error.localizedDescription) }
+    guard let app = installedApp, let current = installedVersion else {
+        print(
+            L(
+                "This kitfold isn't inside an installed Kitfold.app (a development build). The latest release is \(release.version): \(release.pageURL.absoluteString)"
+            ))
+        exit(0)
+    }
+    guard Updates.isNewer(release, than: current) else {
+        print(green(L("Kitfold \(current) is the latest version.")))
+        exit(0)
+    }
+    print(bold(L("Kitfold \(release.version) is available")) + dim(L(" (you have \(current))")))
+    print(dim("  " + release.pageURL.absoluteString))
+    if let why = Updates.whyNotInstallable(app: app) {
+        print(yellow(why))
+        print(L("Download it from \(release.pageURL.absoluteString)."))
+        exit(0)
+    }
+    if !yes {
+        print("\n" + L("Re-run with --yes to install it in place of \(ab(app.path))."))
+        exit(0)
+    }
+    do {
+        try Updates.install(release, replacing: app) { print(dim("  " + $0)) }
+        print(
+            green(L("Installed Kitfold \(release.version) in \(ab(app.path)).")) + " " + L("If the app is open, quit it and open it again.")
+        )
+    } catch { fail(error.localizedDescription) }
+
 case "history":
     expectArgs(0...0, usage: "history [--project <path>]")
     // A project's history: the applies that touched a file inside it.
@@ -472,6 +515,7 @@ case "help", "-h", "--help":
         kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
         kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
         kitfold delete <skill> [--yes] | clean [--yes]
+        kitfold version | update [--yes]
         kitfold history [--project <path>] | undo [<tx-id>] [--yes]
         """)
     print(L("flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans"))

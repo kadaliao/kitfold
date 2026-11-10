@@ -518,6 +518,20 @@ struct SettingsView: View {
                 value: Binding(
                     get: { model.draft.preferences.backupRetentionDays },
                     set: { v in model.saveSettings { $0.preferences.backupRetentionDays = v } }), in: 1...365)
+            Section {
+                Toggle(
+                    L("Check for updates automatically"),
+                    isOn: Binding(get: { model.autoCheckUpdates }, set: { model.autoCheckUpdates = $0 }))
+                LabeledContent(L("Version")) {
+                    HStack {
+                        Text(model.appVersion?.text ?? L("development build")).foregroundStyle(.secondary)
+                        Button(L("Check Now")) { model.checkForUpdates(userInitiated: true) }
+                    }
+                }
+            } footer: {
+                Text(L("Once a day Kitfold asks GitHub whether a newer release is out. Nothing about you or your setup is sent."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

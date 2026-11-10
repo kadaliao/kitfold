@@ -15,10 +15,13 @@ WORK="$(mktemp -d)"
 APP="$WORK/Kitfold Snapshots.app"
 mkdir -p "$APP/Contents/MacOS" "$OUT"
 cp "$(swift build --show-bin-path)/KitfoldApp" "$APP/Contents/MacOS/Kitfold"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+# The version scripts/bundle.sh gives releases, so screens that show it (Settings) show a real one.
+VERSION="$(sed -n 's/^VERSION="\(.*\)"/\1/p' scripts/bundle.sh)"
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
+  <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleIdentifier</key><string>app.kitfold.Kitfold.snapshots</string>
   <key>CFBundleName</key><string>Kitfold</string>
   <key>CFBundleExecutable</key><string>Kitfold</string>

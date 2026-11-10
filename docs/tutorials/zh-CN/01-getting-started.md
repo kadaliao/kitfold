@@ -11,6 +11,8 @@
 
 从 [Releases](https://github.com/kadaliao/kitfold/releases/latest) 下载 `Kitfold-<版本>.dmg`，打开后把 Kitfold 拖进“应用程序”，再从“应用程序”里打开。App 已签名并经过公证，macOS 不会弹出警告。
 
+之后它会自己更新。Kitfold 每天问一次 GitHub 有没有新版本，有的话工具栏上会出现“Kitfold X 可以更新了”。点开看看新内容，再点“安装并重新打开”：Kitfold 会下载新版本，核对它是签名并公证过的正式版本，替换掉旧的再重新打开。“Kitfold › 检查更新…”可以马上检查；“设置 › 通用 › 自动检查更新”可以关掉每天的检查。
+
 也可以从源码构建：
 
 ```bash

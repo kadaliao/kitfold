@@ -48,7 +48,8 @@ Kitfold answers them, and lets you change the answer with a click, safely.
   - Overwritten files are backed up, and every apply is journaled.
   - Any apply can be undone, along with the assignment that caused it.
   - Unknown folders and other tools' managed blocks are never touched.
-- **Local-first.** No account, no cloud, no background service. Your intent lives in a readable `~/.kitfold/kitfold.json`.
+- **Local-first.** No account, no cloud, no background service. Your intent lives in a readable `~/.kitfold/kitfold.json`. The only thing it asks the internet is GitHub, once a day, whether a newer release is out (turn that off in Settings).
+- **Updates itself.** When a new release is out, **Install and Reopen** downloads it, checks its SHA-256, Developer ID and notarization, swaps it in and reopens. From the CLI: `kitfold update`.
 - **Keyboard-first.** ⌘K jumps to anything; ⌘↩ reviews and applies.
 - **English and Simplified Chinese.** Follows your system's language; pick another in Settings › General. The CLI takes `--lang`.
 

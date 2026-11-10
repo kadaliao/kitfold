@@ -71,6 +71,14 @@ final class AppModel {
     var showNewSkill = false
     var editingInstruction: InstructionTarget?
     var reviewPlan: ReviewRequest?
+    // Updates (UpdateView.swift)
+    var updateStatus: UpdateStatus = .idle
+    /// A newer release that a check found (and that wasn't skipped): the toolbar offers it.
+    var availableUpdate: ReleaseInfo?
+    var showUpdate = false
+    var autoCheckUpdates = UserDefaults.standard.object(forKey: AppModel.autoCheckKey) as? Bool ?? true {
+        didSet { UserDefaults.standard.set(autoCheckUpdates, forKey: AppModel.autoCheckKey) }
+    }
 
     struct InstructionTarget: Identifiable, Hashable {
         var id: String { path }
@@ -108,6 +116,7 @@ final class AppModel {
             draft = ws.config
             if ws.isFirstRun { toast = L("Welcome. Kitfold only read your setup — nothing has been changed.") }
             rescan()
+            checkForUpdatesIfDue()
         } catch {
             errorMessage = L("Couldn't open Kitfold's data folder: \(error.localizedDescription)")
         }
@@ -179,6 +188,7 @@ final class AppModel {
 
     /// Coming back to the app: rescan if the CLI (or anything else) changed kitfold.json or applied a change.
     func refreshIfChangedOutside() {
+        checkForUpdatesIfDue()
         guard let ws = workspace, snapshot != nil else { return }
         if ws.configChangedOnDisk || ws.history(limit: 1).first?.id != lastSeenTransaction { rescan(probeVersions: false) }
     }

@@ -11,6 +11,8 @@ In this tutorial you install Kitfold, open it for the first time, find your way 
 
 Download `Kitfold-<version>.dmg` from [Releases](https://github.com/kadaliao/kitfold/releases/latest), open it, and drag Kitfold into Applications. Then open it from Applications. The app is signed and notarized, so macOS opens it without warnings.
 
+After that it updates itself. Once a day Kitfold asks GitHub whether a newer release is out; when there is one, **Kitfold X is available** appears in the toolbar. Click it to read what's new, then **Install and Reopen**: Kitfold downloads the new version, checks that it's the signed and notarized release, puts it in place of the old one and reopens. **Kitfold › Check for Updates…** checks right away, and Settings › General › **Check for updates automatically** turns the daily check off.
+
 Or build it from source:
 
 ```bash

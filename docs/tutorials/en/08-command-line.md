@@ -491,6 +491,34 @@ Applied. Undo with: kitfold undo 20261105-114630-285e4e
 
 In the history, this apply is called "Apply kitfold.json".
 
+## Updating: version, update
+
+```
+kitfold version
+kitfold update [--yes]
+```
+
+`version` prints the version of the Kitfold.app the command belongs to. `update` asks GitHub for the latest release and, with `--yes`, installs it in place of that app, with the same checks as the app's **Install and Reopen**: the SHA-256 from the release, the same Developer ID team, Apple's notarization. If the app is open, quit it and open it again afterwards.
+
+```console
+$ kitfold version
+Kitfold 0.5.0
+$ kitfold update
+Kitfold 0.5.1 is available (you have 0.5.0)
+  https://github.com/kadaliao/kitfold/releases/tag/v0.5.1
+
+Re-run with --yes to install it in place of /Applications/Kitfold.app.
+$ kitfold update --yes
+Kitfold 0.5.1 is available (you have 0.5.0)
+  https://github.com/kadaliao/kitfold/releases/tag/v0.5.1
+  Downloading Kitfold 0.5.1…
+  Checking the new version…
+  Installing…
+Installed Kitfold 0.5.1 in /Applications/Kitfold.app. If the app is open, quit it and open it again.
+```
+
+A `kitfold` built from source isn't part of an installed app; `update` then only tells you the latest version and where to get it.
+
 ## Using it in scripts
 
 - **Preview, then `--yes`.** A command without `--yes` never writes, so a script can run it first to see what would happen.
@@ -525,6 +553,7 @@ kitfold skills [--all] [--project <path>] | agents [--all] [--project <path>]
 kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold delete <skill> [--yes] | clean [--yes]
+kitfold version | update [--yes]
 kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans
 ```

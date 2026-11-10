@@ -50,6 +50,12 @@
 | 失效链接 | 一键移除（问题里的按钮、概览页、`kitfold clean`），可撤销；同一技能在多个目录里的失效链接合并为一条 |
 | 界面 | 技能详情的“谁会用到”改为每个 Agent 一行；矩阵和 Profile 网格可以横向滚动 |
 
+## 0.5.0（已完成）
+
+| 模块 | 内容 |
+|---|---|
+| 自动更新 | 每天检查一次 GitHub 上的最新版本（可关闭），工具栏提示；“安装并重新打开”下载 DMG，核对 SHA-256、同一 Developer ID 团队的签名、Apple 公证和版本号，全部通过才替换当前 App 并重新打开。菜单“检查更新…”、“跳过这个版本”。CLI：`kitfold version`、`kitfold update [--yes]` |
+
 ## 已知问题
 
 写教程时发现的问题都已修好，见 [CHANGELOG](../CHANGELOG.md)。新发现、还没修的问题记在 [known-issues](known-issues.md)。
@@ -66,5 +72,4 @@
 ## 以后
 
 - 为常用的目录型 Agent 补上原生“隐藏技能”设置和 Profile 目标文件（目前只有内置的 4 个有），见 [adding-an-agent](adding-an-agent.md)。
-- 自动更新（0.2.0 起有签名、公证的 DMG 安装包）。
 - Windows / Linux：核心库与界面无关，可以复用；界面需要另做（详见 [architecture §1](architecture.md)）。

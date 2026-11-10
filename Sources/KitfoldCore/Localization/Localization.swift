@@ -207,7 +207,7 @@ enum Translations {
 
     static let zhHansParts: [(name: String, pairs: KeyValuePairs<String, String>)] = [
         ("core", zhHansCore), ("agents", zhHansAgents), ("cli", zhHansCLI),
-        ("app", zhHansApp), ("app-skills", zhHansAppSkills), ("app-profiles", zhHansAppProfiles),
+        ("app", zhHansApp), ("app-skills", zhHansAppSkills), ("app-profiles", zhHansAppProfiles), ("updates", zhHansUpdates),
     ]
 
     static let zhHans: [String: String] = {

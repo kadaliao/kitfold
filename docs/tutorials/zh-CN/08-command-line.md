@@ -501,6 +501,34 @@ $ kitfold apply --yes
 
 这次应用在历史记录里叫“应用 kitfold.json”。
 
+## 更新：version、update
+
+```
+kitfold version
+kitfold update [--yes]
+```
+
+`version` 显示这个命令所在的 Kitfold.app 的版本。`update` 向 GitHub 查询最新版本，加上 `--yes` 就安装它、替换那个 App，检查和 App 里的“安装并重新打开”一样：核对发布页上的 SHA-256、同一个 Developer ID 团队的签名、Apple 公证。如果 App 开着，更新后请退出再重新打开。
+
+```console
+$ kitfold version
+Kitfold 0.5.0
+$ kitfold update
+Kitfold 0.5.1 可以更新了（你现在用的是 0.5.0）
+  https://github.com/kadaliao/kitfold/releases/tag/v0.5.1
+
+加上 --yes 重新运行，就会安装它并替换 /Applications/Kitfold.app。
+$ kitfold update --yes
+Kitfold 0.5.1 可以更新了（你现在用的是 0.5.0）
+  https://github.com/kadaliao/kitfold/releases/tag/v0.5.1
+  正在下载 Kitfold 0.5.1…
+  正在检查新版本…
+  正在安装…
+已把 Kitfold 0.5.1 安装到 /Applications/Kitfold.app。如果 App 开着，请退出后重新打开。
+```
+
+从源码构建的 `kitfold` 不属于已安装的 App，这时 `update` 只告诉你最新版本和下载地址。
+
 ## 在脚本里使用
 
 - **先预览，后 `--yes`。** 不加 `--yes` 的命令从不写入，可以放心在脚本里先跑一遍看结果。
@@ -535,6 +563,7 @@ kitfold skills [--all] [--project <path>] | agents [--all] [--project <path>]
 kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold delete <skill> [--yes] | clean [--yes]
+kitfold version | update [--yes]
 kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 选项：--home <dir>（沙盒 $HOME）、--no-color、--lang en|zh-Hans
 ```

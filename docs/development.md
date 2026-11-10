@@ -140,6 +140,8 @@ It asks for an app-specific password and keeps everything in the keychain. Never
 
    Notes: the install line first, in English and Chinese, then the changes.
 
+   The app and `kitfold update` update from the latest GitHub release: they look for the tag `v<version>` and the assets `Kitfold-<version>.dmg` and `SHA256SUMS` under exactly those names, and install the disk image only if it's signed by the same Developer ID team and notarized. So keep the names, and don't publish an unnotarized image as the latest release (it would be refused, and every user would see the update fail). The release notes are what the update sheet shows.
+
 ## Where things are
 
 | You want to… | Look at |
