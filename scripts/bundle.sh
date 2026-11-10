@@ -5,8 +5,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="0.3.1"
-BUILD="4"  # add 1 for every release
+VERSION="0.4.0"
+BUILD="5"  # add 1 for every release
 
 FLAGS=(-c release)
 for arch in ${ARCHS:-}; do FLAGS+=(--arch "$arch"); done

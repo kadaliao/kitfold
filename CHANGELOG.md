@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-10
+
 ### Added
 - **Every agent, found automatically.** Kitfold now knows 76 agents instead of four, and lists the ones on this Mac: Cursor, GitHub Copilot, Devin (Devin Desktop, formerly Windsurf), Antigravity, Kiro, Trae, Amp, Droid, Goose, Crush, Grok Build, Qwen Code, Kimi Code, CodeBuddy, Lingma, Qoder, Continue, OpenClaw, Pi, Warp, Zed and many more.
   - Each is a line in `AgentCatalog` (`Sources/KitfoldCore/Adapters/AgentCatalog+Specs.swift`): its own skills folders globally and per project, the other folders it reads (`~/.agents/skills`, Claude Code's, Codex's, Cursor's…), the file it reads that Kitfold can write profiles to, and how to tell it's installed. 36 were checked against their docs or source; the rest follow the skills CLI's agent table, and the app marks them unverified.
@@ -165,7 +167,8 @@ First version.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
 
-[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kadaliao/kitfold/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/kadaliao/kitfold/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kadaliao/kitfold/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kadaliao/kitfold/compare/f1fb7c2...v0.2.0

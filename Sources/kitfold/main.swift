@@ -264,9 +264,10 @@ case "status":
         let notes = [
             a.enabled ? nil : dim(L("not managed")), a.adapter.descriptor.source == .discovered ? c(L("found on this Mac"), "36") : nil,
         ]
+        let labels = notes.compactMap { $0 }
         print(
             "\(bold(pad(a.adapter.name, nameWidth))) \(state) \(dim(inst.version ?? ""))"
-                + notes.compactMap { $0 }.map { " " + $0 }.joined())
+                + (labels.isEmpty ? "" : " " + labels.joined(separator: dim(" · "))))
         let config = ab(inst.configDir)
         print(
             dim(
