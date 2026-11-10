@@ -28,7 +28,7 @@ Select a skill in the list to see its details on the right. Here is code-review:
 ![The Skills page with code-review selected: the "Who gets it" grid and "Where agents load it from"](../images/en/skill.jpg)
 
 - **Library** next to the title means it's in Kitfold's library. Below are the description and the path; **Open** opens `SKILL.md` in your default editor.
-- **Who gets it**: one row per scope (**Global** and each project), one column per agent. Click a cell to switch it. On code-review's Global row, Claude Code, Codex and Gemini CLI show ✓ (links made by Kitfold), and OpenCode shows ↪ (through Claude Code's folder). Both project rows show ↓: installed globally, so present in the projects too. The full key to the cells is in the [previous tutorial](02-what-agents-load.md#reading-the-cells).
+- **Who gets it**: one row per agent, one column per scope (**Global** and each project). Click a cell to switch it. In code-review's Global column, Claude Code, Codex and Gemini CLI show ✓ (links made by Kitfold), and OpenCode shows ↪ (through Claude Code's folder). Both project columns show ↓: installed globally, so present in the projects too. Click a column's name for **All agents on**, **All agents off** or **Clear (leave as found)** in that scope. The full key to the cells is in the [previous tutorial](02-what-agents-load.md#reading-the-cells).
 - The ⋯ menu at the end of each row:
   - **All agents on** / **All agents off**: stored as one rule for "all agents";
   - **Clear (leave as found)**: removes every rule for this skill in this row. See "Rules record only what you said" below.

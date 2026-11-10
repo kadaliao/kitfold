@@ -66,13 +66,14 @@ OpenCode     installed 1.19.4
   12 skills active  ·  ~267 tokens always loaded  ·  config ~/.config/opencode
 Gemini CLI   installed 0.66.0
   11 skills active  ·  ~232 tokens always loaded  ·  config ~/.gemini
+72 more agents Kitfold knows aren't on this Mac (--all lists them).
 
 Issues (1 warning or error, 1 note)
   ✗ Broken skill link “old-linter”
     ~/.claude/skills/old-linter → ~/.agents/skills/old-linter, which no longer exists. Skipped silently by Claude Code, OpenCode.
 ```
 
-Running `kitfold` with no command does the same. Each agent gets a status (installed, config only, not found) and its version, then the number of skills it actually loads globally, the context it uses in every session (skill names and descriptions plus the loaded instruction files, estimated at 4 bytes per token), and its config folder.
+Running `kitfold` with no command does the same. It lists the agents on this Mac; `--all` lists every agent Kitfold knows. Each agent gets a status (installed; config only, when its folder is here but not its command; folder only, when only a folder left behind is here, which Kitfold doesn't manage until you switch it on) and its version, then the number of skills it actually loads globally, the context it uses in every session (skill names and descriptions plus the loaded instruction files, estimated at 4 bytes per token), and its config folder.
 
 The issues come last: `✗` is an error, `!` a warning. Notes are only counted; to read them, turn on **Show notes** on the app's **Dashboard**. [09 Troubleshooting](09-troubleshooting.md) explains each issue.
 
@@ -80,6 +81,7 @@ The issues come last: `✗` is an error, `!` a warning. Notes are only counted; 
 
 ```console
 $ kitfold skills
+CC Claude Code, CX Codex, OC OpenCode, GM Gemini CLI
                   CC  CX  OC  GM  
 api-docs          ·   ◆   ◆   ◆   
 code-review       ●   ●   ◇   ●   
@@ -388,11 +390,27 @@ Needs attention
 Apply 2 file changes? Re-run with --yes to apply.
 ```
 
-When several folders have the name, the library's copy is the one deleted, and the preview says the other stays. Plugin skills, nested skills and folders reached only through a link can't be deleted:
+When several folders have the name, the library's copy is the one deleted, and the preview says the other stays. A skill that's only linked in from a folder outside the library and your sources loses its links, and its folder stays where it is. A skill the skills CLI installed is also taken off `~/.agents/.skill-lock.json`, so `npx skills update` doesn't bring it back. Plugin skills and nested skills can't be deleted:
 
 ```console
 $ kitfold delete github-pr
 error: Invalid: Plugin skills can't be deleted; switch the plugin off in the agent instead
+```
+
+## Broken links: clean
+
+```
+kitfold clean [--yes]
+```
+
+`clean` removes the broken skill links in the folders of the agents on this Mac, managed or not: what's left when a skill's folder was deleted outside Kitfold. Working links stay. Like everything else it previews first, and `kitfold undo` puts the links back.
+
+```console
+$ kitfold clean
+  - link ~/.claude/skills/old-linter (caution)
+    Remove the broken link at ~/.claude/skills/old-linter — It points to ~/.agents/skills/old-linter, which no longer exists.
+
+Apply 1 file change? Re-run with --yes to apply.
 ```
 
 ## History and undo
@@ -502,11 +520,11 @@ If you forget the syntax, run `kitfold help` (or `kitfold --help`, `kitfold -h`)
 
 ```console
 $ kitfold help
-kitfold status | plan | apply [--yes] | profiles
-kitfold skills [--all] [--project <path>] | agents [--project <path>]
+kitfold status [--all] | plan | apply [--yes] | profiles
+kitfold skills [--all] [--project <path>] | agents [--all] [--project <path>]
 kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
-kitfold delete <skill> [--yes]
+kitfold delete <skill> [--yes] | clean [--yes]
 kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans
 ```

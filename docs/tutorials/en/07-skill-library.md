@@ -114,7 +114,7 @@ Deleting a skill takes it away from every agent and moves its folder to Kitfold'
 In the demo data, `release-notes` is a library skill that Claude Code and Codex get through Kitfold's links.
 
 1. Select `release-notes` on the **Skills** page.
-2. Click **Delete…** below the skill's name. In the skill list, the same item is in the right-click menu.
+2. Click **Delete…** below the skill's name. The same item is in the right-click menu of the skill list, of the matrix, and of a skill on an agent's page.
 3. The review lists what will happen:
    - Unlink release-notes from Claude Code (no longer assigned), and the same for Codex;
    - Move release-notes to Kitfold's trash (the folder is kept in `~/.kitfold/backups/trash`, and undo puts it back where it was);
@@ -127,15 +127,17 @@ The deletion is recorded in **History** as "Delete release-notes". Undoing it pu
 
 What else goes with the skill, when there is any:
 
-- **Every other link to its folder**, so none is left broken: one in a shared folder, one left behind by **Move into Library**, one another tool made. A link Kitfold didn't make is marked caution, and undo restores it.
+- **Every other link to its folder**, so none is left broken: in the folder of every agent Kitfold knows (Kiro's and Cursor's as much as Claude Code's), in a shared folder, one left behind by **Move into Library**, one another tool made. A link Kitfold didn't make is marked caution, and undo restores it.
+- **Its entry in the skills CLI's list.** A skill the skills CLI installed is taken off `~/.agents/.skill-lock.json`, as `npx skills remove` would, so `npx skills update` doesn't install it again. Only that entry changes.
 - **Entries Kitfold wrote in an agent's own settings** to switch the skill off, such as OpenCode's `permission.skill`.
 - **Its place in profiles.** A profile that bundles the skill drops it from its skill list.
 
 A few notes:
 
-- Skills in the library, in a source and local folders can be deleted. Plugin skills belong to the agent's plugin system, a nested skill to the skill around it, and a linked folder can be anywhere (a repository checkout, say), so these have no **Delete…** button. Switch them off instead.
+- Plugin skills belong to the agent's plugin system and a nested skill to the skill around it, so their **Delete…** is greyed out; hover over it for the reason. Switch them off instead.
+- A skill that's only linked into agents' folders from somewhere else (a linked folder, such as a repository checkout) can be deleted too, but only its links go: the folder itself isn't Kitfold's, so it stays where it is, and the review says so.
 - Deleting a skill from a folder several agents read, such as `~/.agents/skills`, takes it from all of them. The review names them under **Needs attention**, such as "Codex, OpenCode, Gemini CLI read this folder".
-- If another tool manages the folder (the skills CLI, Magpie), or it's a cloned Git repository, the review warns that the tool's next update, or the next `git pull`, may bring the skill back.
+- If another tool manages the folder and Kitfold can't take the skill off its list (Magpie, or a skills CLI folder that doesn't list it), or it's a cloned Git repository, the review warns that the tool's next update, or the next `git pull`, may bring the skill back.
 - If another folder has the same name, the review says so. That folder stays, and agents may keep loading a skill by that name.
 - The trash isn't cleaned up with old backups. Empty `~/.kitfold/backups/trash/` yourself once you're sure.
 

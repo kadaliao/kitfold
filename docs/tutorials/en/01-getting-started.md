@@ -64,7 +64,7 @@ The sidebar, from top to bottom:
 
 - **Dashboard**: the home page, covered in the next section.
 - **Library**: **Skills** and **Profiles**. The numbers are how many skills were found on this Mac (one per name) and how many profiles you have.
-- **Agents**: one row each for Claude Code, Codex, OpenCode and Gemini CLI. The number is how many skills the agent actually loads globally; a ⚠ before it means there's a warning. An agent that wasn't detected, or that you stopped managing with Kitfold, is grayed out.
+- **Agents**: one row for each agent on this Mac; in the demo, Claude Code, Codex, OpenCode and Gemini CLI. Kitfold knows 76 agents (Cursor, Copilot, Kiro, Devin, Amp, Grok…) and lists the ones whose command, app or folder it finds, plus the `~/.<name>/skills` folder of any agent it doesn't know. The number is how many skills the agent actually loads globally; a ⚠ before it means there's a warning. An agent Kitfold doesn't manage is grayed out: one you switched off, or one whose folder was only left behind (its app or command is gone). **Settings › Agents** lists the others and lets you add your own.
 - **Projects**: the projects you've added. Click **Add Project…** and choose a project folder; Kitfold uses its git root. See [Per-project setups](06-projects.md).
 - **History**: every apply and undo.
 

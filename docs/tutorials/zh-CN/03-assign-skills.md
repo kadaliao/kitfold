@@ -28,7 +28,7 @@
 ![技能页，选中了 code-review。右边是“谁会用到”网格和“各 Agent 从哪加载它”](../images/zh-CN/skill.jpg)
 
 - 标题旁的**库**表示它在 Kitfold 的库里；下面是描述和所在路径，**打开**用默认的编辑器打开 `SKILL.md`。
-- **谁会用到**：行是作用域（**全局**和每个项目），列是 Agent，点格子即可切换。code-review 的全局这一行，Claude Code、Codex、Gemini CLI 都是 ✓（Kitfold 建的链接），OpenCode 是 ↪（经由 Claude Code 的目录）。两个项目行都是 ↓：全局装了，在项目里自然也有。格子的完整说明见[上一篇](02-what-agents-load.md#格子的含义)。
+- **谁会用到**：行是 Agent，列是作用域（**全局**和每个项目），点格子即可切换。code-review 的全局这一列，Claude Code、Codex、Gemini CLI 都是 ✓（Kitfold 建的链接），OpenCode 是 ↪（经由 Claude Code 的目录）。两个项目列都是 ↓：全局装了，在项目里自然也有。点列名可以在这个作用域里**所有 Agent 都打开**、**所有 Agent 都关闭**或**清除（保持原样）**。格子的完整说明见[上一篇](02-what-agents-load.md#格子的含义)。
 - 每行末尾的 ⋯ 菜单：
   - **所有 Agent 都打开** / **所有 Agent 都关闭**：记成一条针对“所有 Agent”的规则；
   - **清除（保持原样）**：删掉这个技能在这一行的全部规则，见下文“规则只记录你说过的话”。

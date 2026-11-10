@@ -21,11 +21,15 @@ These come from scanning, and describe the disk as it is now.
 
 > ~/.claude/skills/old-linter → ~/.agents/skills/old-linter, which no longer exists. Skipped silently by Claude Code, OpenCode.
 
-When one folder holds three or more broken links, they're reported together, as in "3 broken skill links in ~/.claude/skills".
+When one folder holds three or more broken links, they're reported together, as in "3 broken skill links in ~/.claude/skills". Broken links to the same skill in several agents' folders are one problem too, as in "3 broken links to “old-linter”".
 
 **What it means:** a link in a skills folder points to a folder that's gone. The agent doesn't complain; it just skips it.
 
-**What to do:** if Kitfold made the link (its target is in `~/.kitfold/library/skills`), the library skill was deleted or renamed. Bring the skill back, or clear the assignment and Kitfold takes the link back. A skill that's gone no longer appears on the app's **Skills** page, so clear it from the command line, for example `kitfold assign k8s-debug codex --clear --yes`. If another tool or a person made the link, like the one the skills CLI left in the demo data, Kitfold won't delete it: remove it with that tool, or delete the link yourself (`rm ~/.claude/skills/old-linter` removes only the link).
+**What to do:** this usually happens when a skill's folder was deleted outside Kitfold: the links the skills CLI (or you) made in each agent's folder stay behind. Click **Remove the link…** (or **Remove these links…**) under the problem, check the review and apply. Kitfold removes only the broken links, whoever made them, and undo puts them back. **Remove all N broken links…** at the top of **Health** on the Dashboard does every one at once; on the command line it's `kitfold clean`.
+
+If Kitfold made the link (its target is in `~/.kitfold/library/skills`), the library skill was deleted or renamed. Bring the skill back, or clear the assignment so it isn't made again. A skill that's gone no longer appears on the app's **Skills** page, so clear it from the command line, for example `kitfold assign k8s-debug codex --clear --yes`.
+
+To delete a skill without leaving links behind, delete it in Kitfold (see [07 The skill library](07-skill-library.md#delete-a-skill)).
 
 ### “notes” has no SKILL.md
 

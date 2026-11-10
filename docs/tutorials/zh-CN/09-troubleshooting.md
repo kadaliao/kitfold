@@ -21,11 +21,15 @@ Kitfold 发现的每个问题，都带一个标题和一段说明。这篇按标
 
 > ~/.claude/skills/old-linter → ~/.agents/skills/old-linter，目标已不存在。Claude Code、OpenCode 会静默跳过它。
 
-同一个目录里有 3 个以上失效的链接时，会合成一条，比如“~/.claude/skills 中有 3 个失效的技能链接”。
+同一个目录里有 3 个以上失效的链接时，会合成一条，比如“~/.claude/skills 中有 3 个失效的技能链接”。几个 Agent 目录里指向同一个技能的失效链接也会合成一条，比如“3 个失效的链接指向“old-linter””。
 
 **意思：** 技能目录里的链接指向的目录已经不在了。Agent 不会报错，只是悄悄跳过它。
 
-**怎么办：** 如果链接是 Kitfold 建的（目标在 `~/.kitfold/library/skills` 里），说明库里的技能被删了或改了名：找回技能，或者清除这条分配，Kitfold 会把链接收回。技能已经不在了，App 的“技能”页面里也就找不到它，这时用命令行清除，比如 `kitfold assign k8s-debug codex --clear --yes`。如果是别的工具或手动建的，比如演示数据里 skills CLI 留下的这个，Kitfold 不会删它：用建它的工具删，或者自己删掉这个链接（`rm ~/.claude/skills/old-linter` 只删链接本身）。
+**怎么办：** 通常是有人在 Kitfold 之外删了技能的目录，skills CLI（或你自己）在各 Agent 目录里建的链接就留了下来。点问题下面的“移除这条链接…”（或“移除这些链接…”），看过预览后应用。Kitfold 只移除失效的链接，不管是谁建的，撤销可以恢复。“概览”页“健康检查”顶部的“移除全部 N 个失效的链接…”会一次处理所有的；命令行里是 `kitfold clean`。
+
+如果链接是 Kitfold 建的（目标在 `~/.kitfold/library/skills` 里），说明库里的技能被删了或改了名：找回技能，或者清除这条分配，免得 Kitfold 再建一次。技能已经不在了，App 的“技能”页面里也就找不到它，这时用命令行清除，比如 `kitfold assign k8s-debug codex --clear --yes`。
+
+想删技能又不留下链接，就在 Kitfold 里删（见 [07 技能库](07-skill-library.md#删除技能)）。
 
 ### “notes”没有 SKILL.md
 

@@ -66,13 +66,14 @@ OpenCode     已安装 1.19.4
   12 个技能生效  ·  始终加载约 267 token  ·  配置 ~/.config/opencode
 Gemini CLI   已安装 0.66.0
   11 个技能生效  ·  始终加载约 232 token  ·  配置 ~/.gemini
+另有 72 个 Kitfold 认识的 Agent 不在这台 Mac 上（--all 会列出）。
 
 问题（1 个警告或错误，1 条提示）
   ✗ 技能链接“old-linter”已失效
     ~/.claude/skills/old-linter → ~/.agents/skills/old-linter，目标已不存在。Claude Code、OpenCode 会静默跳过它。
 ```
 
-不带命令直接运行 `kitfold`，效果也一样。每个 Agent 一行状态（已安装、只有配置、未找到）和版本，下面是它在全局实际生效的技能数、每次会话都会占用的上下文（技能名称和描述，加上已加载的指令文件，按每个 token 4 字节估算），以及配置目录。
+不带命令直接运行 `kitfold`，效果也一样。它列出这台 Mac 上的 Agent，加 `--all` 会列出 Kitfold 认识的所有 Agent。每个 Agent 一行状态（已安装；只有配置：目录在、命令不在；只有目录：只剩卸载后留下的目录，在你打开开关之前 Kitfold 不管理它）和版本，下面是它在全局实际生效的技能数、每次会话都会占用的上下文（技能名称和描述，加上已加载的指令文件，按每个 token 4 字节估算），以及配置目录。
 
 最后是问题清单：`✗` 是错误，`!` 是警告。提示只计数、不列出，想看就到 App 的“概览”页打开“显示提示”。每种问题的含义见 [09 常见问题与排错](09-troubleshooting.md)。
 
@@ -80,6 +81,7 @@ Gemini CLI   已安装 0.66.0
 
 ```console
 $ kitfold skills
+CC Claude Code、CX Codex、OC OpenCode、GM Gemini CLI
                   CC  CX  OC  GM  
 api-docs          ·   ◆   ◆   ◆   
 code-review       ●   ●   ◇   ●   
@@ -397,11 +399,28 @@ $ kitfold delete pdf-tools
 要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
-有多个同名目录时，删除的是库里那份，预览会说明另一个会保留。插件技能、嵌套技能和只通过链接到达的目录不能删除：
+有多个同名目录时，删除的是库里那份，预览会说明另一个会保留。只是从库和来源之外的目录链接进来的技能，只会收回链接，目录留在原处。skills CLI 装的技能还会从 `~/.agents/.skill-lock.json` 里去掉，免得 `npx skills update` 又把它装回来。插件技能和嵌套技能不能删除：
 
 ```console
 $ kitfold delete github-pr
 错误：无法完成：插件技能无法删除，请在 Agent 里关闭这个插件
+```
+
+
+## 失效链接：clean
+
+```
+kitfold clean [--yes]
+```
+
+`clean` 移除这台 Mac 上各 Agent 目录里失效的技能链接，不管 Kitfold 是否管理那个 Agent：这些是在 Kitfold 之外删除技能目录后留下的。正常的链接不动。和其他命令一样先预览，`kitfold undo` 可以把链接恢复。
+
+```console
+$ kitfold clean
+  - 链接 ~/.claude/skills/old-linter（注意）
+    移除 ~/.claude/skills/old-linter 处失效的链接 — 它指向的 ~/.agents/skills/old-linter 已经不存在。
+
+要应用 1 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
 ## 历史记录和撤销
@@ -511,11 +530,11 @@ kitfold profile backend-engineer codex --project ~/work/payments-api --yes
 
 ```console
 $ kitfold help
-kitfold status | plan | apply [--yes] | profiles
-kitfold skills [--all] [--project <path>] | agents [--project <path>]
+kitfold status [--all] | plan | apply [--yes] | profiles
+kitfold skills [--all] [--project <path>] | agents [--all] [--project <path>]
 kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
-kitfold delete <skill> [--yes]
+kitfold delete <skill> [--yes] | clean [--yes]
 kitfold history [--project <path>] | undo [<tx-id>] [--yes]
 选项：--home <dir>（沙盒 $HOME）、--no-color、--lang en|zh-Hans
 ```

@@ -143,6 +143,81 @@ Codex 的 3 条针对 `~/.agents/skills` 下技能的禁用、1 条针对内置�
 - **Profile 可以分配给单个 Agent 和单个项目**：Magpie #4646 正在要这个能力。
 
 **共存**
-- 不写 `.skill-lock.json`，只读，用来标注技能来源。
+- `.skill-lock.json` 平时只读，用来标注技能来源。唯一的例外是在 Kitfold 里删除 skills CLI 装的技能：从清单里去掉它那一条，和 `npx skills remove` 一样。不去掉的话，`npx skills update` 会把清单里有、磁盘上没有的技能重新装回来（`src/update.ts`："a locked skill missing here is reinstalled"）。
 - 认出 `<!-- magpie:begin -->` 等其他工具的托管块，不去碰。
 - 链接到其他工具库里的技能，标注归属后保持不动。
+
+---
+
+## 8. 目录型 Agent（AgentCatalog，2026-11-10）
+
+0.4.0 起，除了上面 4 个深入建模的 Agent，Kitfold 还认识约 70 个"用目录放技能"的 Agent，每个在 `Sources/KitfoldCore/Adapters/AgentCatalog+Specs.swift` 里占一行。起点是 skills CLI 的 Agent 清单（`vercel-labs/skills` 的 `src/agents.ts`），它只记录每个 Agent 的一个全局目录和一个项目目录，而且把读 `.agents/skills` 的都当成"通用 Agent"，漏掉了它们自己的目录和它们还会读的别人的目录。下面这些逐个对照了源码或官方文档 **[已验证]**；没核对的在界面里标为未验证。
+
+### 会读别人目录的 Agent
+
+| 目录（所属） | 还有谁读 |
+|---|---|
+| `~/.claude/skills` 和 `.claude/skills`（Claude Code） | Amp、Goose、Crush、Warp、Augment、fx、Kilo CLI；项目目录还有 Cline |
+| `~/.codex/skills` 和 `.codex/skills`（Codex） | Warp、fx |
+| `~/.config/opencode/skills`（OpenCode） | fx |
+| `.opencode/skills`（OpenCode 项目） | Warp、fx |
+| `~/.gemini/skills` 和 `.gemini/skills`（Gemini CLI） | Warp |
+| `~/.factory/skills`（Droid） | Warp |
+| `~/.config/agents/skills`（共享） | Amp、Goose、Crush |
+| `~/.agents/skills`（共享） | 下表全部 15 个 |
+
+所以给 Claude Code 链接一个技能时，装了 Amp、Goose 等的机器上它们也会加载，预览会提醒。能关掉的开关：Amp 的 `amp.skills.disableClaudeCodeSkills` / `disableGlobalAgentsSkills`；Kilo 的 `KILO_DISABLE_CLAUDE_CODE(_SKILLS)`、`KILO_DISABLE_EXTERNAL_SKILLS`（已建模为 `skippedWhen`）。
+
+### 各 Agent 自己的目录（Kitfold 链接到第一个）
+
+| Agent | 全局 | 项目 | 指令文件（Profile 写入） | 备注 |
+|---|---|---|---|---|
+| Amp | `~/.config/amp/skills` | 无（读 `.agents`、`.claude`） | `~/.config/amp/AGENTS.md` | 全局目录写死在 `~/.config`，不看 XDG；嵌套 5 层；name、description 必填 |
+| Droid | `~/.factory/skills`、`~/.agent/skills` | `.factory/skills`、`.agent/skills` | `~/.factory/AGENTS.md` | `~/.agent` 只有 Droid 读；不读 `.claude`；`disabledSkills` 可隐藏单个技能（未实现写入） |
+| Goose | `~/.config/goose/skills` | `.goose/skills` | `~/.config/goose/.goosehints` | 嵌套不限层数；`.agents` 排在自己目录前面 |
+| Cline | `~/.cline/skills` | `.cline/skills`、`.clinerules/skills` | 无（全局规则在 `~/Documents`，避开） | `.agents` 优先；项目还读 `.claude` |
+| Roo Code | `~/.roo/skills` | `.roo/skills` | 无 | 2026-05-15 停止开发 |
+| Kilo Code | `~/.kilo/skills`、`~/.kilocode/skills`、`~/.config/kilo/skills` | `.kilo/skills`、`.kilocode/skills` | `~/.kilo/rules/kitfold.md` | 基于 OpenCode；VS Code 扩展默认不读 `.claude`，CLI 读 |
+| Pi | `~/.pi/agent/skills` | `.pi/skills` | `~/.pi/agent/AGENTS.md` | 仓库已迁到 earendil-works/pi；description 必填 |
+| Warp | `~/.warp/skills` | `.warp/skills` | 无 | 另读 10 个别家目录；`~/.warp` 卸载后还在，所以只认 Warp.app 或 `~/.warp_cli` |
+| Zed | 无（只读 `.agents`） | 无 | `~/.config/zed/AGENTS.md` | 没法只给 Zed 一个技能 |
+| Crush | `~/.config/crush/skills` | `.crush/skills` | `~/.config/crush/CRUSH.md` | 项目还读 `.cursor/skills`；同名时路径排序靠后的胜出 |
+| Junie | `~/.junie/skills` | `.junie/skills` | `~/.junie/AGENTS.md` | |
+| Augment | `~/.augment/skills` | `.augment/skills` | `~/.augment/rules/kitfold.md` | 1.x 预发布版基于 Pi，行为不同 |
+| OpenHands | `~/.openhands/skills`、`microagents` | `.openhands/skills`、`.openhands/microagents` | 无 | 技能目录里多余的 `.md` 会被当成常驻提示 |
+| Mistral Vibe | `~/.vibe/skills` | `.vibe/skills` | `~/.vibe/AGENTS.md` | |
+| fx | `~/.fx/skills`（**不跟随链接**） | `.fx/skills`、`skills/` | `~/.fx/AGENTS.md` | 另读 OpenCode、Codex、Claude Code 的目录和 `~/.claw/skills`；PATH 上的 `fx` 常是 JSON 查看器，靠 `~/.fx` 判断 |
+
+来源：各项目源码（Amp 发布包、`factory` droid 1.7.0、`block/goose@3cf3328`、`cline/cline@92b9f72`、`RooCodeInc/Roo-Code@b867ec9`、`Kilo-Org/kilocode@b69e4d6`、`earendil-works/pi@e8ec202`、`warpdotdev/warp@6511090`、`zed-industries/zed@0929d56`、`charmbracelet/crush@fedf5b8`、Junie CLI 3959.6、Augment 0.37.1、`OpenHands/software-agent-sdk@450a8af`、`mistralai/mistral-vibe@97e3135`、`vercel-labs/fx@59ba74a`）和各自的官方文档。
+
+### IDE 类和国内的 Agent
+
+| Agent | 自己的全局目录 | 自己的项目目录 | 还读 | Profile 写入 | 备注 |
+|---|---|---|---|---|---|
+| Cursor | `~/.cursor/skills` | `.cursor/skills` | `~/.agents`、`~/.claude`、`~/.codex` 及对应项目目录 | 项目 `.cursor/rules/kitfold.mdc`（`alwaysApply: true`） | 全局规则存在 App 里，没有文件；`~/.cursor/skills-cursor` 是内置技能；IDE 的 Third-Party Imports 开关可关掉别家目录，CLI 关不掉 |
+| Devin（Devin Desktop + Devin for Terminal） | `~/.config/devin/skills`、`~/.codeium/windsurf/skills` | `.devin/skills`、`.windsurf/skills`、`.cognition/skills` | `~/.agents`、`~/.claude`、`~/.cursor`、`~/.copilot`，项目 `.cursor`、`.github` | `~/.devin/rules/kitfold.md`（`trigger: always_on`） | Windsurf 2026-06-02 改名 Devin Desktop，2026-09-08 去掉了 Cascade，和 Devin CLI 是同一个引擎；`read_config_from` 可关掉别家目录 |
+| GitHub Copilot（CLI、VS Code） | `~/.copilot/skills`（`COPILOT_HOME`） | `.github/skills` | `~/.agents`，项目 `.agents`、`.claude` | `~/.copilot/copilot-instructions.md` | 1.0.36 起不再读 `~/.claude/skills`；`disabledSkills` 可隐藏单个技能（未实现写入） |
+| Antigravity（App / IDE） | `~/.gemini/config/skills`，IDE 还读旧的 `~/.gemini/antigravity/skills` | 无（读 `.agents`、`.agent`） | — | `~/.gemini/config/rules/kitfold.md`（`trigger: always_on`） | 也读 `~/.gemini/GEMINI.md`，所以给 Gemini CLI 的 Profile 会到它这里 |
+| Antigravity CLI（`agy`） | `~/.gemini/antigravity-cli/skills` | 同上 | Gemini CLI 的 `~/.gemini/skills`（优先级最高），`~/.gemini/config/skills` | 同上 | 不读 `~/.agents/skills` |
+| Kiro（IDE、CLI） | `~/.kiro/skills`（`KIRO_HOME`） | `.kiro/skills` | 无 | `~/.kiro/steering/kitfold.md`、`.kiro/steering/kitfold.md`（`inclusion: always`） | |
+| Trae / Trae CN | `~/.trae/skills` / `~/.trae-cn/skills` | 都是 `.trae/skills` | `~/.agents`，以及对方版本的全局目录 | `~/.trae/user_rules/kitfold.md` / `~/.trae-cn/user_rules/kitfold.md` | `skill-config.json` 的 `disabledSkills`（未实现写入） |
+| CodeBuddy | `~/.codebuddy/skills` | `.codebuddy/skills`（WorkBuddy 也读） | IDE 还读 `~/.claude`、`~/.agents`、`~/.openclaw` | `~/.codebuddy/rules/kitfold.md`（`alwaysApply: true`） | CLI 嵌套 5 层；`skillOverrides`（未实现写入） |
+| WorkBuddy | `~/.workbuddy/skills` | 未确认，不部署 | 无 | 无 | |
+| 通义灵码 Lingma | `~/.lingma/skills` | `.lingma/skills` | `~/.agents`、`.agents` | 项目 `.lingma/rules/kitfold.md`（`trigger: always_on`） | 2026-05 改名 Qoder CN IDE；VS Code 插件不支持技能 |
+| Qoder / Qoder CN | `~/.qoder/skills` / `~/.qoder-cn/skills` | 都是 `.qoder/skills` | `~/.agents`；Qoder CN 还读 `~/.qoder/skills`、`.lingma/skills` | `~/.qoder/AGENTS.md` / `~/.qoder-cn/AGENTS.md` | |
+| Continue | `~/.continue/skills` | `.continue/skills` | 项目 `.claude/skills` | `~/.continue/rules/kitfold.md`（`alwaysApply: true`） | **跳过链接进来的技能目录**，Kitfold 没法用链接分配 |
+| Grok Build | `~/.grok/skills`（`GROK_HOME`） | `.grok/skills`（向上到 git 根） | `~/.agents`、`~/.claude`、`~/.cursor` 及项目目录 | `~/.grok/rules/kitfold.md` | 还读 `~/.claude/CLAUDE.md` 和 `~/.claude/rules`；`bundled/skills` 由服务器同步；嵌套 5 层 |
+| OpenClaw / AutoClaw / QClaw | `<state>/skills`、`<state>/workspace/skills` | 仅登记的项目 | `~/.agents`（默认 state 目录时） | 无 | AutoClaw、QClaw 是 OpenClaw 的发行版，state 目录分别是 `~/.openclaw-autoclaw`、`~/.qclaw` |
+| Kimi Code CLI | `~/.kimi-code/skills`（`KIMI_CODE_HOME`） | `.kimi-code/skills` | `~/.agents` | `~/.kimi-code/AGENTS.md` | 旧的 Python 版 kimi-cli 已归档 |
+| Qwen Code | `~/.qwen/skills`（`QWEN_HOME`） | `.qwen/skills`（只看启动目录） | `~/.agents` | `~/.qwen/rules/kitfold.md` | `skills.disabled`（未实现写入） |
+| Hermes Agent | `~/.hermes/skills`（`HERMES_HOME`） | `.hermes/skills` | 项目 `.agents` | `~/.hermes/SOUL.md` 的托管块 | 项目技能要先加入信任列表 |
+
+### 装没装
+
+在调研的这台 Mac 上，Kiro、Trae、Devin/Windsurf、CodeBuddy、Lingma、Continue、WorkBuddy、OpenClaw、AutoClaw、QClaw 都只剩配置目录（App 和命令都不在），有的目录还是 skills CLI 链接技能时顺手建的。所以这些 Agent 设了 `configDirMeansInstalled: false`：看命令或 App（`markers`）判断是否装了；只有目录时照样列出、照样清理失效链接，但默认不管理。
+
+### 发现与自定义
+
+- **自动发现** `AgentDiscovery`：`~/.<名字>/skills`、`~/.config/<名字>/skills` 里至少有一个技能，又不属于任何已知 Agent、来源或 Kitfold 自己，就当作一个 Agent 列出来（"在这台 Mac 上找到"）。这个目录也可能只是一个技能合集或仓库，所以在用户打开开关之前不管理它，也不推测它的项目目录。
+- **自定义** `customAgents`（kitfold.json）或设置 › Agent › 添加 Agent…。
+

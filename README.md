@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>One library. Every agent. Your rules.</b><br>
-  A native macOS app for managing Skills and instruction files across Claude Code, Codex, OpenCode and Gemini CLI.
+  A native macOS app for managing Skills and instruction files across your coding agents: Claude Code, Codex, OpenCode, Gemini CLI, Cursor, Copilot, Kiro and 70-odd more, found automatically.
 </p>
 
 <p align="center">
@@ -36,10 +36,12 @@ Kitfold answers them, and lets you change the answer with a click, safely.
 
 ## Features
 
+- **Every agent on your Mac.** Kitfold knows 76 agents and lists the ones it finds. A `skills` folder of an agent it doesn't know (`~/.<name>/skills`) shows up too, and you can add your own in Settings.
 - **Effective view.** For every agent and project, Kitfold resolves what the agent really loads: its own folders, shared folders, other agents' folders, plugins, nested `SKILL.md` files, and skills switched off in the agent's own settings. Duplicates, broken links and oversized instructions are flagged.
 - **Precise sharing and isolation.** Assign a skill to one agent, several, or all, globally or per project. Kitfold links it into that agent's own folder and tells you when another agent reads that folder too (OpenCode reads Claude Code's).
 - **Each agent's own switch.** When a link can't hide a skill (it lives in a shared folder, in another agent's folder, or is enabled globally and you want it off in one project), Kitfold writes the agent's own setting: `skillOverrides`, `[[skills.config]]`, `permission.skill` or `skills.disabled`. Only that entry changes, and Kitfold takes it back when the rule goes away. Where even that isn't possible (Codex can't hide a skill in a single project), it tells you why.
 - **Profiles.** Reusable instruction sets such as *Code Reviewer* or *Backend Engineer*, each bundled with its skills. Kitfold writes them into each agent's own file as one marked block per profile and never touches the rest of the file.
+- **Delete a skill everywhere.** Deleting takes the skill out of every agent's folder and off the skills CLI's list, and moves it to Kitfold's trash. Links left behind by skills deleted elsewhere are found and removed in one go.
 - **Safe by design.**
   - Every change is previewed as a diff first. For agent settings files, the preview lists only the entries that change, never the file (it may hold API keys).
   - Each file is re-checked right before it's written.
@@ -65,7 +67,16 @@ Kitfold answers them, and lets you change the answer with a click, safely.
 | OpenCode | 1.19.4 | `~/.config/opencode/skills`, `.opencode/skills` | `~/.config/opencode/AGENTS.md`, `AGENTS.md` | `permission.skill` in `opencode.json` (global or project) |
 | Gemini CLI | 0.66.0 | `~/.gemini/skills`, `.gemini/skills` | `~/.gemini/GEMINI.md`, `GEMINI.md` | `skills.disabled` in `settings.json` (global or project) |
 
-Each agent is a declarative descriptor, so adding one doesn't touch the core logic. See [Adding an agent](docs/adding-an-agent.md). The research behind these paths, with sources, is in [docs/research.md](docs/research.md) (Chinese).
+These four are described in depth, including their native "hide skill" settings. Kitfold also knows 72 more agents that keep skills in folders of their own. It shows what each one loads, links skills into its own folder, writes profiles where the agent has a file of its own, and takes a deleted skill out of all of them:
+
+- **Checked against their docs or source:** Cursor, GitHub Copilot, Devin (Devin Desktop, formerly Windsurf, and Devin for Terminal), Antigravity and Antigravity CLI, Kiro, Trae and Trae CN, Amp, Droid, Goose, Crush, Cline, Kilo Code, Roo Code, Pi, Warp, Zed, Junie, Augment, OpenHands, Mistral Vibe, fx, CodeBuddy, WorkBuddy, Lingma, Qoder and Qoder CN, Continue, Grok Build, OpenClaw, AutoClaw, QClaw, Kimi Code CLI, Qwen Code and Hermes Agent.
+- **From the skills CLI's agent list** (marked unverified in the app): iFlow CLI, Tabnine CLI, Rovo Dev, Cortex Code, Deep Agents, ForgeCode, IBM Bob, CodeArts Agent and 28 more.
+
+Many of them also read other agents' folders. Cursor, Amp, Goose, Grok and others load Claude Code's `~/.claude/skills`, and Warp reads ten agents' folders, so Kitfold warns when a link made for one agent reaches another. An agent counts as installed when its command or app is here. One whose folder was only left behind is listed but not managed until you switch it on.
+
+**Agents Kitfold doesn't know:** a `skills` folder in `~/.<name>/` or `~/.config/<name>/` that holds skills shows up as an agent of its own; switch it on to manage it. For anything else, add it in Settings › Agents › **Add Agent…** or in `kitfold.json` (`customAgents`).
+
+Each agent is a declarative descriptor (the four above) or a one-line entry in the catalog, so adding one doesn't touch the core logic. See [Adding an agent](docs/adding-an-agent.md). The research behind these paths, with sources, is in [docs/research.md](docs/research.md) (Chinese).
 
 ## Getting started
 

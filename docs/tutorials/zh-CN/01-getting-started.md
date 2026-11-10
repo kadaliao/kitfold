@@ -64,7 +64,7 @@ KITFOLD_FAKE_HOME=/tmp/kitfold-demo PATH=/tmp/kitfold-demo/.local/bin:/usr/bin:/
 
 - **概览**：首页，下一节细说。
 - **库**：**技能**和 **Profile**。后面的数字是这台 Mac 上找到的技能总数（同名的算一个）和 Profile 数。
-- **Agent**：Claude Code、Codex、OpenCode、Gemini CLI 各占一行。数字是它在全局实际加载的技能数；有警告时，数字前会出现 ⚠。没检测到的 Agent，或者你关掉了“由 Kitfold 管理”的，显示为灰色。
+- **Agent**：这台 Mac 上的每个 Agent 各占一行，演示数据里是 Claude Code、Codex、OpenCode、Gemini CLI。Kitfold 认识 76 个 Agent（Cursor、Copilot、Kiro、Devin、Amp、Grok……），找到命令、App 或目录的都会列出来；它不认识的 Agent 的 `~/.<名字>/skills` 目录也会列出来。数字是它在全局实际加载的技能数；有警告时，数字前会出现 ⚠。Kitfold 不管理的 Agent 显示为灰色：你关掉了“由 Kitfold 管理”的，或者只剩下目录（App 或命令已经不在）的。其余的在“设置 › Agent”里，那里也能添加你自己的 Agent。
 - **项目**：你添加的项目。点**添加项目…**选择一个项目目录，Kitfold 会使用它的 git 根目录。详见[按项目配置](06-projects.md)。
 - **历史记录**：每次应用和撤销的记录。
 

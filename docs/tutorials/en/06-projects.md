@@ -27,7 +27,7 @@ Click a project in the sidebar to open its page. From top to bottom:
 
 You can look at a project without opening its page:
 
-- **Skills page**: the picker in the toolbar that says **Global** by default. Switch it to acme-web and the agent dots in the list, and the matrix, show that project. A skill's **Who gets it** grid already has a row for Global and one for each project.
+- **Skills page**: the picker in the toolbar that says **Global** by default. Switch it to acme-web and the agent dots in the list, and the matrix, show that project. A skill's **Who gets it** grid already has a column for Global and one for each project.
 - **An agent's page**: the picker next to **Showing** at the top right. In a project:
   - skills are grouped by how they reach the agent as usual, plus a **Project skills** group for what loads only in this project;
   - **Instruction files** lists the loaded global files first, then the project's, in the order the agent puts them together;
@@ -86,7 +86,7 @@ A global skill lives in a global folder. Removing its link would take it away ev
 
 To switch code-review off for every agent in acme-web:
 
-1. On the Skills page, select code-review. In **Who gets it**, open the ⋯ menu at the end of the acme-web row and choose **All agents off**. You can also click the ↓ cells in the project's matrix one by one.
+1. On the Skills page, select code-review. In **Who gets it**, click the name of the acme-web column and choose **All agents off**. You can also click the ↓ cells in the project's matrix one by one.
 2. Press ⌘↩ to review. Claude Code, OpenCode and Gemini CLI each get a row "Hide code-review from …"; expanded, each shows just the entry from the table above. `.git/info/exclude` is updated too.
 3. Under **Needs attention** there's:
 
@@ -145,7 +145,7 @@ Right-click the project in the sidebar and choose **Remove from Kitfold**, or us
 
 If the project still has assignments, Kitfold refuses with "This project still has assignments, including switched-off ones. Clear them (Clear in the row's menu) and apply first, so Kitfold can clean up its files there." Here "assignments" means any rule for the project, including "off" rules such as a global skill switched off in it (section 6). So what you need is to clear those rules, not just switch them off:
 
-1. Skills: in the skill's **Who gets it**, open the ⋯ menu on the project's row and choose **Clear (leave as found)**. Do this for each skill you assigned in the project.
+1. Skills: in the skill's **Who gets it**, click the name of the project's column and choose **Clear (leave as found)**. Do this for each skill you assigned in the project.
 2. Profiles: click the switched-on cells in **Profiles for this project** to turn them off.
 3. Review and apply. Kitfold takes back its links, settings entries and profile blocks in the project, deletes files it created, and cleans up its section of `.git/info/exclude`.
 4. Then remove the project.

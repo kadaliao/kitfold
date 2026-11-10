@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>One library. Every agent. Your rules.</b><br>
-  一款原生 macOS 应用，统一管理 Claude Code、Codex、OpenCode、Gemini CLI 的 Skills 和指令文件。
+  一款原生 macOS 应用，统一管理各种 Coding Agent 的 Skills 和指令文件：Claude Code、Codex、OpenCode、Gemini CLI、Cursor、Copilot、Kiro 等 70 多个，自动发现。
 </p>
 
 <p align="center">
@@ -36,10 +36,12 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 
 ## 功能
 
+- **Mac 上的每个 Agent**：Kitfold 认识 76 个 Agent，会列出这台 Mac 上找到的。它不认识的 Agent 的技能目录（`~/.<名字>/skills`）也会出现，还可以在设置里添加你自己的。
 - **实际生效视图**：对每个 Agent、每个项目，算出它真正会加载的内容：自己的目录、共享目录、别的 Agent 的目录、插件、嵌套的 `SKILL.md`，以及被它自己的设置关闭的技能。重复、断链、指令超长都会被标出来。
 - **精确共享与隔离**：可以把技能分配给一个、几个或全部 Agent，全局或按项目都行。Kitfold 把技能链接进那个 Agent 自己的目录；如果别的 Agent 也读这个目录（OpenCode 会读 Claude Code 的），会提醒你。
 - **用 Agent 自己的开关**：链接藏不住的技能（放在共享目录、别的 Agent 的目录里，或者全局开着、只想在某个项目里关掉），Kitfold 会写 Agent 自己的设置：`skillOverrides`、`[[skills.config]]`、`permission.skill`、`skills.disabled`。只改那一条，规则撤掉时也会收回。连这样也做不到时（Codex 没法只在一个项目里隐藏技能），会说明原因。
 - **Profiles**：可复用的指令集，比如 *Code Reviewer*、*Backend Engineer*，可以附带一组技能。每个 Profile 以一个带标记的块写进各 Agent 自己的文件，文件里的其他内容一律不碰。
+- **删除技能，处处干净**：删除会把技能从每个 Agent 的目录和 skills CLI 的清单里去掉，再移到 Kitfold 的废纸篓。在别处删技能留下的失效链接，也能一次找出、一次移除。
 - **安全优先**：
   - 所有改动先给出 diff 预览；Agent 的设置文件只显示变化的那几条，不显示文件原文（里面可能有 API key）；
   - 写入前重新核对文件；
@@ -65,7 +67,16 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 | OpenCode | 1.19.4 | `~/.config/opencode/skills`、`.opencode/skills` | `~/.config/opencode/AGENTS.md`、`AGENTS.md` | `opencode.json` 的 `permission.skill`（全局或项目） |
 | Gemini CLI | 0.66.0 | `~/.gemini/skills`、`.gemini/skills` | `~/.gemini/GEMINI.md`、`GEMINI.md` | `settings.json` 的 `skills.disabled`（全局或项目） |
 
-每个 Agent 都只是一份声明式描述，新增 Agent 不需要改核心逻辑，见[接入新 Agent](docs/adding-an-agent.md)。这些路径背后的调研和来源见 [docs/research.md](docs/research.md)。
+上面 4 个是深入建模的，包括它们自己的“隐藏技能”设置。此外 Kitfold 还认识 72 个用自己目录放技能的 Agent：显示每个 Agent 实际加载了什么，把技能链接进它自己的目录，在它有专属指令文件时写入 Profile，删除技能时从所有 Agent 那里一并收回：
+
+- **对照过官方文档或源码的**：Cursor、GitHub Copilot、Devin（Devin Desktop，原 Windsurf；以及 Devin for Terminal）、Antigravity 和 Antigravity CLI、Kiro、Trae 和 Trae CN、Amp、Droid、Goose、Crush、Cline、Kilo Code、Roo Code、Pi、Warp、Zed、Junie、Augment、OpenHands、Mistral Vibe、fx、CodeBuddy、WorkBuddy、通义灵码（Lingma）、Qoder 和 Qoder CN、Continue、Grok Build、OpenClaw、AutoClaw、QClaw、Kimi Code CLI、Qwen Code、Hermes Agent。
+- **取自 skills CLI 的 Agent 清单**（App 里标为未验证）：iFlow CLI、Tabnine CLI、Rovo Dev、Cortex Code、Deep Agents、ForgeCode、IBM Bob、CodeArts Agent 等 36 个。
+
+不少 Agent 还会读别人的目录：Cursor、Amp、Goose、Grok 等会加载 Claude Code 的 `~/.claude/skills`，Warp 会读 10 个 Agent 的目录。所以为一个 Agent 建的链接会到达另一个 Agent 时，Kitfold 会提醒。Agent 的命令或 App 在这台 Mac 上才算装了；只剩下目录的会列出来，但在你打开开关之前不会去管理它。
+
+**Kitfold 不认识的 Agent**：`~/.<名字>/` 或 `~/.config/<名字>/` 下有技能的 `skills` 目录，会自己作为一个 Agent 出现，打开开关就能管理它。其他的可以在“设置 › Agent › 添加 Agent…”或 `kitfold.json`（`customAgents`）里添加。
+
+每个 Agent 都只是一份声明式描述（上面 4 个），或者目录里的一行，新增 Agent 不需要改核心逻辑，见[接入新 Agent](docs/adding-an-agent.md)。这些路径背后的调研和来源见 [docs/research.md](docs/research.md)。
 
 ## 开始使用
 

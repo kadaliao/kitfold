@@ -144,7 +144,8 @@ It asks for an app-specific password and keeps everything in the keychain. Never
 
 | You want to… | Look at |
 |---|---|
-| change how an agent is detected or where it looks | `Sources/KitfoldCore/Adapters/BuiltinAgents.swift` |
+| change how an agent is detected or where it looks | `Sources/KitfoldCore/Adapters/BuiltinAgents.swift` (the four in depth), `AgentCatalog+Specs.swift` (the rest) |
+| change how unknown agents are found | `Adapters/AgentDiscovery.swift` |
 | read an agent's own disable settings | `Adapters/NativePolicy.swift` |
 | write them (target files, entries, Codex's managed section) | `Adapters/NativeSettings.swift`, `Sync/NativePlanner.swift`, `Support/JSONEdit.swift` |
 | change an agent's logo | `Sources/KitfoldApp/AgentLogos.swift` |

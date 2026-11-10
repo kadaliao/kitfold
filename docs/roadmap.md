@@ -39,6 +39,17 @@
 |---|---|
 | 删除技能 | 技能页和技能列表右键菜单里的“删除…”，CLI `kitfold delete <技能>`。收回指向它的链接、为它写的原生开关和分配，从 Profile 里去掉，目录移到 `~/.kitfold/backups/trash/`；先预览，可撤销。插件技能、嵌套技能和只经链接到达的目录不能删 |
 
+## 0.4.0（已完成）
+
+| 模块 | 内容 |
+|---|---|
+| 更多 Agent | `AgentCatalog`：约 70 个 Agent 各用一行描述（自己的全局/项目技能目录、是否读 `~/.agents/skills` 和 Claude Code 的目录、安装标志）。核对过官方文档的标为已验证，其余取自 skills CLI 的 Agent 清单，界面标为未验证。只列出这台 Mac 上有的 |
+| 自动发现 | `AgentDiscovery`：`~/.<名字>/skills`、`~/.config/<名字>/skills` 里有技能、又不属于任何已知 Agent 或来源的目录，当作一个 Agent 列出 |
+| 自定义 Agent | 设置 › Agent › 添加 Agent…，或 `kitfold.json` 的 `customAgents` |
+| 删除技能 | 清理所有已知 Agent 目录里指向它的链接；skills CLI 装的技能同时从 `.skill-lock.json` 去掉；只是链接进来的技能也能删（只收回链接，目录留在原处）；不再夹带其他待应用的改动 |
+| 失效链接 | 一键移除（问题里的按钮、概览页、`kitfold clean`），可撤销；同一技能在多个目录里的失效链接合并为一条 |
+| 界面 | 技能详情的“谁会用到”改为每个 Agent 一行；矩阵和 Profile 网格可以横向滚动 |
+
 ## 已知问题
 
 写教程时发现的问题都已修好，见 [CHANGELOG](../CHANGELOG.md)。新发现、还没修的问题记在 [known-issues](known-issues.md)。
@@ -54,7 +65,6 @@
 
 ## 以后
 
-- 更多 Agent：Antigravity CLI、Cursor、Amp……每个只需新增一个描述，见 [adding-an-agent](adding-an-agent.md)。
-- 在设置里用 JSON 自定义 Agent。
+- 为常用的目录型 Agent 补上原生“隐藏技能”设置和 Profile 目标文件（目前只有内置的 4 个有），见 [adding-an-agent](adding-an-agent.md)。
 - 自动更新（0.2.0 起有签名、公证的 DMG 安装包）。
 - Windows / Linux：核心库与界面无关，可以复用；界面需要另做（详见 [architecture §1](architecture.md)）。
