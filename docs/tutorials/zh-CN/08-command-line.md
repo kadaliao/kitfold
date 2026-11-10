@@ -382,7 +382,7 @@ $ kitfold delete release-notes
 
 技能的分配会被清除，所以 Kitfold 会收回为它做过的事，相当于对每个 Agent 都用了 `--clear`：它的链接，以及它在 Agent 自己设置里的条目。指向这个目录的其他链接也会移除，免得留下失效的链接；不是 Kitfold 创建的会标上“（注意）”。附带它的 Profile 会把它去掉。加上 `--yes` 才会应用，`kitfold undo` 可以把这些全部恢复。
 
-如果目录还有别的 Agent 在读，或者由别的工具管理，预览会说明：
+如果目录还有别的 Agent 在读，预览会说明：
 
 ```console
 $ kitfold delete pdf-tools
@@ -394,13 +394,11 @@ $ kitfold delete pdf-tools
 需要注意
   ! Codex、OpenCode、Gemini CLI 会读取这个目录
     目录被删除后，它们就会失去“pdf-tools”。
-  ! skills CLI 管理着 ~/.agents/skills
-    在这里删除目录不会通知 skills CLI，它下次更新时可能会把这个技能带回来。
 
 要应用 2 处文件变更吗？加上 --yes 重新运行即可应用。
 ```
 
-有多个同名目录时，删除的是库里那份，预览会说明另一个会保留。只是从库和来源之外的目录链接进来的技能，只会收回链接，目录留在原处。skills CLI 装的技能还会从 `~/.agents/.skill-lock.json` 里去掉，免得 `npx skills update` 又把它装回来。插件技能和嵌套技能不能删除：
+有多个同名目录时，删除的是库里那份，预览会说明另一个会保留。只是从库和来源之外的目录链接进来的技能，只会收回链接，目录留在原处。skills CLI 装的技能还会从 `~/.agents/.skill-lock.json` 里去掉，免得 `npx skills update` 又把它装回来；不在它清单上的（比如这里的 `pdf-tools`）skills CLI 不会装回来，也就不提醒。目录归 Magpie 或是 Git 克隆时，预览会提醒它下次更新可能把技能带回来。插件技能和嵌套技能不能删除：
 
 ```console
 $ kitfold delete github-pr

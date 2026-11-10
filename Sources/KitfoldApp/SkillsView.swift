@@ -428,7 +428,7 @@ struct SkillDetail: View {
                 }
             }
             if editing {
-                if case .source(let id) = entry.origin, let owner = model.draft.sources.first(where: { $0.id == id })?.managedBy {
+                if let owner = model.workspace?.managingTool(for: entry) {
                     Label(
                         L("\(owner) manages this folder; its next update may replace your edits."), systemImage: "exclamationmark.triangle"
                     )

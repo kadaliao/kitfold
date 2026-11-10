@@ -9,6 +9,9 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - **Homebrew.** `brew install --cask kadaliao/tap/kitfold` installs Kitfold and links the `kitfold` command into your `PATH`.
 
+### Fixed
+- Deleting, moving or editing a skill in `~/.agents/skills` that isn't on the skills CLI's list (`~/.agents/.skill-lock.json`) no longer warns that the skills CLI may bring it back or overwrite it: the skills CLI only touches the skills it installed.
+
 ## [0.5.1] - 2026-11-10
 
 ### Fixed

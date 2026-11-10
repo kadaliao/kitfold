@@ -310,6 +310,22 @@ import Testing
         #expect(h.read(".agents/.skill-lock.json") == lock)
     }
 
+    @Test func aSkillOffTheSkillsCLIListIsntItsToBringBack() throws {
+        let h = FakeHome()
+        h.installAgents()
+        h.skill(".agents/skills/pdf")
+        h.skill(".agents/skills/mine")  // put there by hand
+        h.write(".agents/.skill-lock.json", #"{"version": 3, "skills": {"pdf": {"source": "anthropics/skills"}}}"#)
+        let ws = try h.workspace()
+        let snap = ws.snap()
+        let mine = try #require(snap.skill(named: "mine"))
+        #expect(ws.managingTool(for: mine) == nil)
+        #expect(ws.managingTool(for: try #require(snap.skill(named: "pdf"))) == "skills CLI")
+        let plan = try ws.planSkillDelete(mine, snapshot: snap)
+        #expect(!plan.issues.contains { $0.kind == .conflict })
+        #expect(!plan.changes.contains { $0.change.path == h.path(".agents/.skill-lock.json") })
+    }
+
     @Test func deletingALinkedFolderLeavesTheFolder() throws {
         let h = FakeHome()
         h.installAgents()

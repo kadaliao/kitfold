@@ -58,7 +58,7 @@ Saving works differently from an assignment:
 - **It's applied straight away, without a review.** The file changes at once, and a message says "Applied 1 file change. Undo anytime from History."
 - **It can be undone from History.** Each save is a History entry like any other apply, such as "Edit SKILL.md of “api-changelog”", and the old text is backed up with it in `~/.kitfold/backups/<id>/`.
 - **Every agent that uses the skill gets the new text.** Agents' folders hold links to this folder, so the next time an agent loads its skills it reads the new version. Nothing more needs applying.
-- **Folders managed by another tool.** If the skill's source belongs to the skills CLI or Magpie, the editor warns that the tool's next update may replace your edits. To change such a skill for good, move it into the library first (see below).
+- **Folders managed by another tool.** If the skill's source belongs to the skills CLI or Magpie, the editor warns that the tool's next update may replace your edits (for the skills CLI, only for skills on its list). To change such a skill for good, move it into the library first (see below).
 - **Plugin skills are read-only.** They have no **Edit** button.
 
 ## The frontmatter each agent requires
@@ -104,7 +104,7 @@ The move is recorded in **History** as "Adopt notebook-tools" and can be undone.
 A few notes:
 
 - Skills already in the library, plugin skills and nested skills don't have this button.
-- If the skill comes from a source another tool manages (such as `~/.agents/skills`, managed by the skills CLI), the review warns that after the move the tool may treat the skill as replaced by a link, and its updates will no longer reach it.
+- If the skill comes from a source another tool manages (such as a skill the skills CLI installed in `~/.agents/skills`), the review warns that after the move the tool may treat the skill as replaced by a link, and its updates will no longer reach it.
 - If the library already has a folder with that name, Kitfold refuses the move.
 
 ## Delete a skill
@@ -137,7 +137,7 @@ A few notes:
 - Plugin skills belong to the agent's plugin system and a nested skill to the skill around it, so their **Delete…** is greyed out; hover over it for the reason. Switch them off instead.
 - A skill that's only linked into agents' folders from somewhere else (a linked folder, such as a repository checkout) can be deleted too, but only its links go: the folder itself isn't Kitfold's, so it stays where it is, and the review says so.
 - Deleting a skill from a folder several agents read, such as `~/.agents/skills`, takes it from all of them. The review names them under **Needs attention**, such as "Codex, OpenCode, Gemini CLI read this folder".
-- If another tool manages the folder and Kitfold can't take the skill off its list (Magpie, or a skills CLI folder that doesn't list it), or it's a cloned Git repository, the review warns that the tool's next update, or the next `git pull`, may bring the skill back.
+- If another tool manages the folder and Kitfold can't take the skill off its list (Magpie, or a skills CLI folder whose list can't be read), or it's a cloned Git repository, the review warns that the tool's next update, or the next `git pull`, may bring the skill back. A skill in `~/.agents/skills` that isn't on the skills CLI's list was put there by hand or by another tool; the skills CLI never touches it, so there's no warning.
 - If another folder has the same name, the review says so. That folder stays, and agents may keep loading a skill by that name.
 - The trash isn't cleaned up with old backups. Empty `~/.kitfold/backups/trash/` yourself once you're sure.
 

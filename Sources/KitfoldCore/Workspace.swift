@@ -262,7 +262,9 @@ public final class Workspace: @unchecked Sendable {
         if draft != config, let change = configChange(to: draft) { changes.append(change) }
 
         var issues: [Issue] = []
-        if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }), let owner = s.managedBy {
+        if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }),
+            let owner = managingTool(for: entry)
+        {
             issues.append(
                 Issue(
                     .conflict, .warning, L("\(owner) manages \(env.abbreviate(s.path))"),
@@ -399,7 +401,7 @@ public final class Workspace: @unchecked Sendable {
                     paths: [entry.path], agent: readers[0].id, alsoAffects: readers.dropFirst().map(\.id), key: entry.name))
         }
         if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }), lock == nil {
-            if let owner = s.managedBy {
+            if let owner = managingTool(for: entry) {
                 issues.append(
                     Issue(
                         .conflict, .warning, L("\(owner) manages \(ab(s.path))"),
@@ -426,6 +428,31 @@ public final class Workspace: @unchecked Sendable {
         }
         plan.issues += issues
         return plan
+    }
+
+    /// The tool that manages this skill's folder, if any. The skills CLI only manages the skills on
+    /// its list: other folders in `~/.agents/skills` (put there by hand or by another tool) aren't
+    /// touched by `npx skills update`, so no warning about it applies to them.
+    public func managingTool(for entry: SkillEntry) -> String? {
+        guard case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }),
+            let owner = s.managedBy
+        else { return nil }
+        if owner == "skills CLI" && !skillsCLIListed(entry) { return nil }
+        return owner
+    }
+
+    func skillsCLILockedNames() -> Set<String>? {
+        guard let text = FS.read(env.expand("~/.agents/.skill-lock.json")), let root = try? JSONEdit.parse(text),
+            let skills = JSONEdit.object(at: ["skills"], in: root)
+        else { return nil }
+        return Set(skills.members.map(\.key))
+    }
+
+    func skillsCLIListed(_ entry: SkillEntry) -> Bool {
+        guard (entry.path as NSString).deletingLastPathComponent == env.expand("~/.agents/skills") else { return false }
+        // No readable list: can't tell, so keep warning.
+        guard let names = skillsCLILockedNames() else { return true }
+        return names.contains(entry.folderName)
     }
 
     /// The skills CLI (`npx skills`) installs into `~/.agents/skills` and lists what it installed in

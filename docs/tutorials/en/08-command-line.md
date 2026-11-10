@@ -373,7 +373,7 @@ Apply 3 file changes? Re-run with --yes to apply.
 
 The skill's assignments are cleared, so Kitfold takes back what it made for it, as `--clear` would for every agent: its links and its entries in the agents' own settings. Other links to the folder go too, so none is left broken; one Kitfold didn't make is marked `(caution)`. Profiles that bundle the skill drop it. With `--yes` it's applied, and `kitfold undo` puts it all back.
 
-Deleting from a folder that other agents read, or that another tool manages, says so:
+Deleting from a folder that other agents read says so:
 
 ```console
 $ kitfold delete pdf-tools
@@ -385,13 +385,11 @@ $ kitfold delete pdf-tools
 Needs attention
   ! Codex, OpenCode, Gemini CLI read this folder
     They lose “pdf-tools” when the folder goes.
-  ! skills CLI manages ~/.agents/skills
-    Deleting the folder doesn't tell skills CLI. Its next update may bring the skill back.
 
 Apply 2 file changes? Re-run with --yes to apply.
 ```
 
-When several folders have the name, the library's copy is the one deleted, and the preview says the other stays. A skill that's only linked in from a folder outside the library and your sources loses its links, and its folder stays where it is. A skill the skills CLI installed is also taken off `~/.agents/.skill-lock.json`, so `npx skills update` doesn't bring it back. Plugin skills and nested skills can't be deleted:
+When several folders have the name, the library's copy is the one deleted, and the preview says the other stays. A skill that's only linked in from a folder outside the library and your sources loses its links, and its folder stays where it is. A skill the skills CLI installed is also taken off `~/.agents/.skill-lock.json`, so `npx skills update` doesn't bring it back; one that isn't on its list (like `pdf-tools` here) isn't the skills CLI's to bring back, so there's no warning about it. When the folder belongs to Magpie or a Git clone, the preview warns that its next update may bring the skill back. Plugin skills and nested skills can't be deleted:
 
 ```console
 $ kitfold delete github-pr
