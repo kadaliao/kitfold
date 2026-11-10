@@ -144,6 +144,8 @@ Codex 的 3 条针对 `~/.agents/skills` 下技能的禁用、1 条针对内置�
 
 **共存**
 - `.skill-lock.json` 平时只读，用来标注技能来源。唯一的例外是在 Kitfold 里删除 skills CLI 装的技能：从清单里去掉它那一条，和 `npx skills remove` 一样。不去掉的话，`npx skills update` 会把清单里有、磁盘上没有的技能重新装回来（`src/update.ts`："a locked skill missing here is reinstalled"）。
+  - 不直接调用 `npx skills remove -g`：它对全局技能做的就是删各 Agent 目录里的链接、删 `~/.agents/skills/<名称>`、去掉清单那一条（`src/remove.ts` `removeInstalledSkills`），前两件 Kitfold 自己就做，而且能撤销；`rm -rf` 删掉的目录撤销不回来。另外它要 Node 和网络（`npx` 会下载）、会发遥测、在 Agent 里运行会自动跳过确认，GUI 里调用也拿不到可预览的改动。
+  - 和它保持一致的两处：清单路径跟随 `$XDG_STATE_HOME`（设了就是 `$XDG_STATE_HOME/skills/.skill-lock.json`，`src/skill-lock.ts` `getSkillLockPath`）；清单的键是安装时的原名，目录名是 `sanitizeName` 之后的（`ce:review` → `ce-review`），按处理后的名字匹配（`resolveSkillsToRemove`）。
 - 认出 `<!-- magpie:begin -->` 等其他工具的托管块，不去碰。
 - 链接到其他工具库里的技能，标注归属后保持不动。
 

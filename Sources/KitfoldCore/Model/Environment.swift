@@ -38,8 +38,8 @@ public struct KitfoldEnvironment: Sendable, Hashable {
         return KitfoldEnvironment(home: home, kitfoldHome: env["KITFOLD_HOME"].map { FS.expandTilde($0, home: home) }, variables: env)
     }
 
-    /// Variables that move an agent's config folder.
-    static let agentDirVariables = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "OPENCODE_CONFIG_DIR", "GEMINI_CLI_HOME"]
+    /// Variables that move an agent's config folder (or, for XDG_STATE_HOME, the skills CLI's lock file).
+    static let agentDirVariables = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "OPENCODE_CONFIG_DIR", "GEMINI_CLI_HOME", "XDG_STATE_HOME"]
 
     public func expand(_ p: String) -> String { FS.standardize(FS.expandTilde(p, home: home)) }
     public func abbreviate(_ p: String) -> String { FS.abbreviate(p, home: home) }
@@ -51,6 +51,15 @@ public struct KitfoldEnvironment: Sendable, Hashable {
     public var configFile: String { kitfoldHome + "/kitfold.json" }
     public var stateDatabase: String { kitfoldHome + "/state.sqlite" }
     public var backupsDir: String { kitfoldHome + "/backups" }
+
+    /// The skills CLI's global lock file: `$XDG_STATE_HOME/skills/.skill-lock.json` when that's set,
+    /// else `~/.agents/.skill-lock.json` (src/skill-lock.ts `getSkillLockPath`).
+    public var skillsCLILockFile: String {
+        if let state = variables["XDG_STATE_HOME"], !state.isEmpty {
+            return FS.standardize((expand(state) as NSString).appendingPathComponent("skills/.skill-lock.json"))
+        }
+        return expand("~/.agents/.skill-lock.json")
+    }
 
     public var binarySearchDirs: [String] {
         var dirs = (variables["PATH"] ?? "").split(separator: ":").map(String.init)

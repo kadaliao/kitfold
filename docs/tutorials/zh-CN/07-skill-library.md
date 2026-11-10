@@ -128,7 +128,7 @@ Kitfold 会把整个目录**拷贝**到 `~/.kitfold/library/skills/<名称>`，�
 如果有下面这些，也会随技能一起处理：
 
 - **指向这个目录的其他链接**，免得留下失效的链接：Kitfold 认识的每个 Agent 目录里的（Kiro、Cursor 的和 Claude Code 的一样）、共享目录里的、“移入库”时留在原处的、别的工具创建的。不是 Kitfold 创建的链接会标为“注意”，撤销可以恢复。
-- **skills CLI 清单里的那一条**。skills CLI 装的技能会从 `~/.agents/.skill-lock.json` 里去掉，和 `npx skills remove` 一样，这样 `npx skills update` 不会再把它装回来。只改这一条。
+- **skills CLI 清单里的那一条**。skills CLI 装的技能会从 `~/.agents/.skill-lock.json` 里去掉，和 `npx skills remove` 一样，这样 `npx skills update` 不会再把它装回来。只改这一条。（设了 `XDG_STATE_HOME` 的话，skills CLI 的清单在 `$XDG_STATE_HOME/skills/.skill-lock.json`，Kitfold 也去那里找。）加上目录和链接，`npx skills remove` 会做的事就都做了，skills CLI 那边也不再记得这个技能；和 `npx skills remove` 不同的是，撤销能全部恢复。
 - **Kitfold 在 Agent 自己的设置里写的条目**，也就是为关闭这个技能写的，比如 OpenCode 的 `permission.skill`。
 - **它在 Profile 里的位置**。附带它的 Profile 会把它从技能列表里去掉。
 

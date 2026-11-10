@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 - Deleting, moving or editing a skill in `~/.agents/skills` that isn't on the skills CLI's list (`~/.agents/.skill-lock.json`) no longer warns that the skills CLI may bring it back or overwrite it: the skills CLI only touches the skills it installed.
+- Deleting a skill the skills CLI installed finds its list entry the way `npx skills remove` does: in `$XDG_STATE_HOME/skills/.skill-lock.json` when `XDG_STATE_HOME` is set, and under the name it was installed as when that differs from the folder name (`ce:review` in the folder `ce-review`). Before, such a skill stayed on the list and `npx skills update` brought it back.
 
 ## [0.5.1] - 2026-11-10
 

@@ -128,7 +128,7 @@ The deletion is recorded in **History** as "Delete release-notes". Undoing it pu
 What else goes with the skill, when there is any:
 
 - **Every other link to its folder**, so none is left broken: in the folder of every agent Kitfold knows (Kiro's and Cursor's as much as Claude Code's), in a shared folder, one left behind by **Move into Library**, one another tool made. A link Kitfold didn't make is marked caution, and undo restores it.
-- **Its entry in the skills CLI's list.** A skill the skills CLI installed is taken off `~/.agents/.skill-lock.json`, as `npx skills remove` would, so `npx skills update` doesn't install it again. Only that entry changes.
+- **Its entry in the skills CLI's list.** A skill the skills CLI installed is taken off `~/.agents/.skill-lock.json`, as `npx skills remove` would, so `npx skills update` doesn't install it again. Only that entry changes. (If `XDG_STATE_HOME` is set, the skills CLI keeps its list in `$XDG_STATE_HOME/skills/.skill-lock.json`, and Kitfold looks there.) That and the folder and its links are all `npx skills remove` would have done, so the skills CLI no longer knows the skill, and unlike `npx skills remove`, undo brings everything back.
 - **Entries Kitfold wrote in an agent's own settings** to switch the skill off, such as OpenCode's `permission.skill`.
 - **Its place in profiles.** A profile that bundles the skill drops it from its skill list.
 

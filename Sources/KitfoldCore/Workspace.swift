@@ -41,7 +41,7 @@ public final class Workspace: @unchecked Sendable {
         var c = KitfoldConfig()
         let shared = env.expand("~/.agents/skills")
         if FS.isDirectoryFollowing(shared) {
-            let lock = FS.exists(env.expand("~/.agents/.skill-lock.json"))
+            let lock = FS.exists(env.skillsCLILockFile)
             c.sources.append(
                 SkillSourceConfig(
                     id: "agents", label: SkillSourceConfig.firstRunLabels["agents"]!, path: "~/.agents/skills",
@@ -442,7 +442,7 @@ public final class Workspace: @unchecked Sendable {
     }
 
     func skillsCLILockedNames() -> Set<String>? {
-        guard let text = FS.read(env.expand("~/.agents/.skill-lock.json")), let root = try? JSONEdit.parse(text),
+        guard let text = FS.read(env.skillsCLILockFile), let root = try? JSONEdit.parse(text),
             let skills = JSONEdit.object(at: ["skills"], in: root)
         else { return nil }
         return Set(skills.members.map(\.key))
@@ -452,23 +452,51 @@ public final class Workspace: @unchecked Sendable {
         guard (entry.path as NSString).deletingLastPathComponent == env.expand("~/.agents/skills") else { return false }
         // No readable list: can't tell, so keep warning.
         guard let names = skillsCLILockedNames() else { return true }
-        return names.contains(entry.folderName)
+        return Workspace.skillsCLILockKey(for: entry.folderName, in: names) != nil
+    }
+
+    /// The lock entry for a skill folder. Lock keys keep the name the skill was installed under; the
+    /// folder is that name sanitized (`ce:review` → `ce-review`), as the skills CLI's `remove` matches
+    /// them (src/remove.ts `resolveSkillsToRemove`).
+    static func skillsCLILockKey(for folderName: String, in keys: some Collection<String>) -> String? {
+        if keys.contains(folderName) { return folderName }
+        let folder = skillsCLISanitize(folderName)
+        return keys.first { skillsCLISanitize($0) == folder }
+    }
+
+    /// The skills CLI's `sanitizeName` (src/installer.ts).
+    static func skillsCLISanitize(_ name: String) -> String {
+        var out = ""
+        var pendingHyphen = false
+        for ch in name.lowercased() {
+            if ch.isASCII && (ch.isLetter || ch.isNumber || ch == "." || ch == "_") {
+                if pendingHyphen { out.append("-"); pendingHyphen = false }
+                out.append(ch)
+            } else {
+                pendingHyphen = true
+            }
+        }
+        if pendingHyphen { out.append("-") }
+        let trimmed = String(out.drop { $0 == "." || $0 == "-" }.reversed().drop { $0 == "." || $0 == "-" }.reversed())
+        return trimmed.isEmpty ? "unnamed-skill" : String(trimmed.prefix(255))
     }
 
     /// The skills CLI (`npx skills`) installs into `~/.agents/skills` and lists what it installed in
-    /// `~/.agents/.skill-lock.json`; its `update` reinstalls whatever is listed. Deleting one of its
-    /// skills takes the entry out too, the way `npx skills remove` does. Only that key changes.
+    /// its lock file; its `update` reinstalls whatever is listed. Deleting one of its skills takes
+    /// the entry out too, which is all `npx skills remove -g` does beyond deleting the folder and
+    /// its links. Only that key changes, and undo puts it back.
     func skillsCLILockChange(for entry: SkillEntry) -> PlannedChange? {
         let dir = env.expand("~/.agents/skills")
         guard (entry.path as NSString).deletingLastPathComponent == dir else { return nil }
-        let file = env.expand("~/.agents/.skill-lock.json")
+        let file = env.skillsCLILockFile
         guard let text = FS.read(file), let root = try? JSONEdit.parse(text),
-            JSONEdit.object(at: ["skills"], in: root)?.member(entry.folderName) != nil,
-            let after = try? JSONEdit.remove(text, path: ["skills", entry.folderName], prune: false), after != text
+            let skills = JSONEdit.object(at: ["skills"], in: root),
+            let key = Workspace.skillsCLILockKey(for: entry.folderName, in: skills.members.map(\.key)),
+            let after = try? JSONEdit.remove(text, path: ["skills", key], prune: false), after != text
         else { return nil }
         return PlannedChange(
             .writeFile(path: file, before: text, after: after),
-            summary: L("Take \(entry.folderName) off the skills CLI's list"), agents: [], scope: .global,
+            summary: L("Take \(key) off the skills CLI's list"), agents: [], scope: .global,
             resource: ResourceRef(.skill, entry.name),
             note: L("So `npx skills update` doesn't install it again. Undo puts the entry back."))
     }

@@ -310,6 +310,41 @@ import Testing
         #expect(h.read(".agents/.skill-lock.json") == lock)
     }
 
+    @Test func aSkillsCLILockKeyMatchesItsSanitizedFolder() throws {
+        let h = FakeHome()
+        h.installAgents()
+        h.skill(".agents/skills/ce-review")
+        let lock = #"{"version": 3, "skills": {"ce:review": {"source": "acme/plugins"}, "pdf": {"source": "a/b"}}}"#
+        h.write(".agents/.skill-lock.json", lock)
+        let ws = try h.workspace()
+        let snap = ws.snap()
+        let plan = try ws.planSkillDelete(try #require(snap.skill(named: "ce-review")), snapshot: snap)
+        #expect(!plan.issues.contains { $0.kind == .conflict })
+        try ws.apply(plan, summary: "delete")
+        let after = try #require(h.read(".agents/.skill-lock.json"))
+        #expect(!after.contains("ce:review"))
+        #expect(after.contains("\"pdf\""))
+
+        #expect(Workspace.skillsCLISanitize("Ce:Review") == "ce-review")
+        #expect(Workspace.skillsCLISanitize("../a  b.") == "a-b")
+        #expect(Workspace.skillsCLISanitize("::") == "unnamed-skill")
+    }
+
+    @Test func theSkillsCLILockFollowsXDGStateHome() throws {
+        let h = FakeHome()
+        h.installAgents()
+        h.skill(".agents/skills/pdf")
+        let lock = #"{"version": 3, "skills": {"pdf": {"source": "a/b"}}}"#
+        h.write("state/skills/.skill-lock.json", lock)
+        let env = KitfoldEnvironment(home: h.root, variables: ["PATH": "/nonexistent", "XDG_STATE_HOME": h.path("state")])
+        #expect(env.skillsCLILockFile == h.path("state/skills/.skill-lock.json"))
+        let ws = try Workspace(env: env)
+        #expect(ws.config.sources.first { $0.id == "agents" }?.managedBy == "skills CLI")
+        let snap = ws.snap()
+        let plan = try ws.planSkillDelete(try #require(snap.skill(named: "pdf")), snapshot: snap)
+        #expect(plan.changes.contains { $0.change.path == h.path("state/skills/.skill-lock.json") })
+    }
+
     @Test func aSkillOffTheSkillsCLIListIsntItsToBringBack() throws {
         let h = FakeHome()
         h.installAgents()
