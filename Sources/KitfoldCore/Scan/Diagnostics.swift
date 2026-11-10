@@ -10,10 +10,12 @@ enum Diagnostics {
         struct Broken { var target: String; var agents: [AgentID] }
         var broken: [Scope: [String: [String: Broken]]] = [:]  // scope → folder → link path → info
 
-        for a in s.agents where a.enabled {
+        // Broken links are reported for every agent whose folder is here, managed or not: they're
+        // left behind by skills deleted elsewhere, and cleaning them up is the same either way.
+        for a in s.agents where a.enabled || a.installation.isDetected {
             for scope in s.scopes {
                 let st = a.state(scope)
-                for o in st.skills {
+                for o in st.skills where o.isBroken || a.enabled {
                     if o.isBroken {
                         let folder = (o.entryPath as NSString).deletingLastPathComponent
                         var b =
@@ -28,14 +30,18 @@ enum Diagnostics {
                                 detail: L("\(ab(o.entryPath)) is in a skills folder but isn't a skill."),
                                 paths: [o.entryPath], agent: a.id, scope: scope))
                     } else if let why = o.skipReason {
+                        let fix =
+                            o.isSymlink && !o.root.spec.followsLinks
+                            ? L("\(why). Put a copy of the folder there instead of a link.")
+                            : L("\(why). Add it to \(ab(o.skillFile ?? o.entryPath)).")
                         out.append(
                             Issue(
-                                .invalidSkill, .warning, L("\(a.name) ignores “\(o.name)”"),
-                                detail: L("\(why). Add it to \(ab(o.skillFile ?? o.entryPath))."), paths: [o.entryPath], agent: a.id,
-                                scope: scope))
+                                .invalidSkill, .warning, L("\(a.name) ignores “\(o.name)”"), detail: fix, paths: [o.entryPath],
+                                agent: a.id, scope: scope))
                     }
                 }
 
+                guard a.enabled else { continue }
                 // Name clashes the agent sees here. In a project, only report clashes involving project skills.
                 let reachable = a.reachableSkills(in: scope).filter { $0.skill.isActive }
                 var sameFolderTwice = 0
@@ -100,6 +106,9 @@ enum Diagnostics {
 
         func names(_ ids: [AgentID]) -> String { Localization.list(ids.compactMap { s.agent($0)?.name }) }
         for (scope, folders) in broken {
+            // A folder with many: one issue for the folder. The rest: one issue per skill name, so a
+            // skill deleted from under several agents shows up once, not once per agent.
+            var byName: [String: [(path: String, info: Broken)]] = [:]
             for (folder, links) in folders {
                 let agents = Array(Set(links.values.flatMap(\.agents))).sorted()
                 if links.count >= 3 {
@@ -111,13 +120,26 @@ enum Diagnostics {
                             paths: links.keys.sorted(), agent: agents.first, alsoAffects: Array(agents.dropFirst()), scope: scope,
                             key: folder))
                 } else {
-                    for (path, b) in links {
-                        out.append(
-                            Issue(
-                                .brokenLink, .error, L("Broken skill link “\((path as NSString).lastPathComponent)”"),
-                                detail: L("\(ab(path)) → \(ab(b.target)), which no longer exists. Skipped silently by \(names(b.agents))."),
-                                paths: [path], agent: b.agents.first, alsoAffects: Array(b.agents.dropFirst()), scope: scope, key: path))
-                    }
+                    for (path, b) in links { byName[(path as NSString).lastPathComponent, default: []].append((path, b)) }
+                }
+            }
+            for (name, links) in byName {
+                let agents = Array(Set(links.flatMap(\.info.agents))).sorted()
+                let paths = links.map(\.path).sorted()
+                if links.count == 1, let (path, b) = links.first {
+                    out.append(
+                        Issue(
+                            .brokenLink, .error, L("Broken skill link “\(name)”"),
+                            detail: L("\(ab(path)) → \(ab(b.target)), which no longer exists. Skipped silently by \(names(b.agents))."),
+                            paths: [path], agent: agents.first, alsoAffects: Array(agents.dropFirst()), scope: scope, key: path))
+                } else {
+                    out.append(
+                        Issue(
+                            .brokenLink, .error, L("\(links.count) broken links to “\(name)”"),
+                            detail: L(
+                                "\(Localization.list(paths.map(ab))) point to a folder that no longer exists. Skipped silently by \(names(agents))."
+                            ),
+                            paths: paths, agent: agents.first, alsoAffects: Array(agents.dropFirst()), scope: scope, key: "broken|" + name))
                 }
             }
         }

@@ -117,6 +117,16 @@ public struct Planner {
                     continue
                 }
                 guard let dir = a.primarySkillDir(scope, env) else {
+                    if let own = a.skillRoots(scope, env).first(where: { $0.spec.role == .primary && !$0.spec.followsLinks }) {
+                        plan.issues.append(
+                            Issue(
+                                .unsupported, .warning, L("\(a.name) doesn't load linked skill folders"),
+                                detail: L(
+                                    "Kitfold gives a skill to an agent by linking it into \(ab(own.path)), and \(a.name) skips links there. Copy the skill's folder there yourself to give it “\(name)”."
+                                ),
+                                agent: a.id, scope: scope, key: name))
+                        continue
+                    }
                     plan.issues.append(
                         Issue(
                             .unsupported, .warning,
@@ -371,7 +381,22 @@ public struct Planner {
         }
         var targets: [String: Target] = [:]
         for agent in snapshot.managedAgents {
-            guard let file = agent.adapter.primaryInstructionFile(scope, env) else { continue }
+            guard let file = agent.adapter.primaryInstructionFile(scope, env) else {
+                // Only a rule naming this agent: a profile for all agents simply leaves it out.
+                let named = config.rules.filter {
+                    $0.resource.kind == .profile && $0.scope == scope && $0.state == .on && $0.agent == .agent(agent.id)
+                }
+                for r in named {
+                    plan.issues.append(
+                        Issue(
+                            .unsupported, .warning, L("\(agent.adapter.name) can't get profiles"),
+                            detail: L(
+                                "Kitfold doesn't know an instruction file that only \(agent.adapter.name) reads, so “\(snapshot.profileName(r.resource.id))” doesn't reach it."
+                            ),
+                            agent: agent.id, scope: scope, key: r.resource.id))
+                }
+                continue
+            }
             var t = targets[file] ?? Target()
             t.agents.append(agent.id)
             var mine = Set<String>()
@@ -427,7 +452,39 @@ public struct Planner {
                 continue
             }
 
-            let newText = ManagedBlock.apply(profiles.map { ($0.id, $0.body) }, to: current ?? "")
+            // A file that needs frontmatter keeps it first: Kitfold writes it when it creates the file,
+            // and puts blocks after it.
+            let header = snapshot.managedAgents.lazy.compactMap { a in
+                a.adapter.instructionFiles(scope, self.env).first { $0.path == file && $0.spec.role == .primary }?.spec.header
+            }.first
+            let blocks = profiles.map { ($0.id, $0.body) }
+            var newText: String
+            let blank = (current ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if let header, let current, current.hasPrefix(header) {
+                newText = header + ManagedBlock.apply(blocks, to: String(current.dropFirst(header.count)))
+            } else {
+                newText = ManagedBlock.apply(blocks, to: blank ? "" : current ?? "")
+                if let header, blank, !newText.isEmpty { newText = header + newText }
+                if let header, !blank, !profiles.isEmpty {
+                    // Someone's own file: Kitfold won't rewrite its top, but the agent may skip it.
+                    let wanted = header.split(separator: "\n").filter { $0 != "---" && !$0.isEmpty }.joined(separator: ", ")
+                    let who = Localization.list(target.agents.compactMap { snapshot.agent($0)?.adapter.name })
+                    plan.issues.append(
+                        Issue(
+                            .fallbackChange, .warning, L("\(who) may not apply \((file as NSString).lastPathComponent)"),
+                            detail: L(
+                                "\(ab(file)) already exists and doesn't start with the frontmatter that makes it apply in every session (\(wanted)). Kitfold adds its block anyway; add the frontmatter, or remove the file and apply again so Kitfold creates it."
+                            ),
+                            paths: [file], agent: target.agents.first, alsoAffects: Array(target.agents.dropFirst()), scope: scope,
+                            key: file + "|header"))
+                }
+            }
+            // A file Kitfold made, with nothing but its header left, goes like a file left empty.
+            if let header, snapshot.ownedPaths.contains(file),
+                newText.trimmingCharacters(in: .whitespacesAndNewlines) == header.trimmingCharacters(in: .whitespacesAndNewlines)
+            {
+                newText = ""
+            }
             var after: String? = newText
             if newText.isEmpty {
                 // Only delete files Kitfold created; never empty a user's file silently.

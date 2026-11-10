@@ -91,9 +91,10 @@ import Testing
     // MARK: source scanning
 
     static var agentNotes: [String] {
-        BuiltinAgents.all.flatMap { d in
+        let described = AgentCatalog.all.flatMap { d in
             d.skillRoots.map(\.note) + d.instructionFiles.map(\.note) + d.notes
-        }.filter { !$0.isEmpty }
+        }
+        return Array(Set(described + AgentSpec.Notes.all)).filter { !$0.isEmpty }.sorted()
     }
 
     struct Scan {

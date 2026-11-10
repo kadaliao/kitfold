@@ -81,6 +81,9 @@ extension Translations {
             "Kitfold 会把它浅克隆到 ~/.kitfold/sources，并读取其中每个带 SKILL.md 的目录。在你做出选择之前，不会分配给任何 Agent。",
         "Clone": "克隆",
 
+        "Switch it for every agent at once": "一次为所有 Agent 打开或关闭",
+        "Take this skill from every agent. Its folder isn't Kitfold's, so it stays where it is. Reviewed first, and undoable.":
+            "从所有 Agent 收回这个技能。它的目录不归 Kitfold 管，会留在原处。先预览，可撤销。",
         // AgentView.swift
         "Issues": "问题",
         "CLI not found on PATH (config folder exists)": "在 PATH 中找不到 CLI（配置目录存在）",
@@ -132,5 +135,12 @@ extension Translations {
         "How %@ finds skills": "%@ 怎么找技能",
         "Folders scanned, highest precedence first": "扫描的目录，优先级高的在前",
         "Search skills": "搜索技能",
+        "Only its folder is here: the app or command wasn't found, so Kitfold doesn't manage it unless you switch it on.":
+            "这里只有它的目录：没找到它的 App 或命令，所以除非你打开开关，Kitfold 不会管理它。",
+        "found on this Mac": "在这台 Mac 上找到",
+        "added by you": "你添加的",
+        "Kitfold doesn't know an instruction file that only %@ reads, so profiles can't be given to it.":
+            "Kitfold 不知道有哪个指令文件只有 %@ 读取，所以无法给它分配 Profile。",
+        "Found on this Mac": "在这台 Mac 上找到",
     ]
 }

@@ -40,14 +40,18 @@ public struct SkillRootSpec: Sendable, Hashable, Codable {
     public var verified: Bool
     /// Environment variables that, set to a true value, make the agent skip this folder.
     public var skippedWhen: [String]
+    /// The agent loads linked skill folders from here. When it doesn't (fx's `~/.fx/skills`), links in
+    /// the folder are shown as skipped and Kitfold doesn't deploy there.
+    public var followsLinks: Bool
 
     public init(
         _ base: PathBase, _ path: String, scope: ScopeKind, role: Role, owner: AgentID? = nil,
-        nestedDepth: Int = 0, ignore: [String] = [], note: String = "", verified: Bool = true, skippedWhen: [String] = []
+        nestedDepth: Int = 0, ignore: [String] = [], note: String = "", verified: Bool = true, skippedWhen: [String] = [],
+        followsLinks: Bool = true
     ) {
         self.base = base; self.path = path; self.scope = scope; self.role = role; self.owner = owner
         self.nestedDepth = nestedDepth; self.ignore = ignore; self.note = note; self.verified = verified
-        self.skippedWhen = skippedWhen
+        self.skippedWhen = skippedWhen; self.followsLinks = followsLinks
     }
 
     /// The values OpenCode reads as true (`1`, `true`, `yes`, `on`, `y`).
@@ -77,13 +81,17 @@ public struct InstructionFileSpec: Sendable, Hashable, Codable {
     public var relatedBase: PathBase?
     public var note: String
     public var verified: Bool
+    /// Text a file Kitfold creates starts with, ahead of its blocks: frontmatter the agent needs to
+    /// apply the file every time (Kiro's `inclusion: always`, Cursor's `alwaysApply: true`).
+    public var header: String?
 
     public init(
         _ base: PathBase, _ path: String, scope: ScopeKind, role: Role, related: [String] = [],
-        relatedBase: PathBase? = nil, note: String = "", verified: Bool = true
+        relatedBase: PathBase? = nil, note: String = "", verified: Bool = true, header: String? = nil
     ) {
         self.base = base; self.path = path; self.scope = scope; self.role = role
         self.related = related; self.relatedBase = relatedBase; self.note = note; self.verified = verified
+        self.header = header
     }
 }
 
@@ -94,6 +102,18 @@ public enum SkillDisableMechanism: String, Sendable, Hashable, Codable {
     case codexConfig  // [[skills.config]] enabled = false in $CODEX_HOME/config.toml
     case openCodePermission  // permission.skill { name: deny } in opencode.json
     case geminiSettings  // skills.disabled in settings.json
+}
+
+/// Where Kitfold learned about an agent.
+public enum AgentSource: String, Sendable, Hashable, Codable {
+    /// Hand-written and checked in depth (`BuiltinAgents`).
+    case builtin
+    /// One line in `AgentCatalog`: an agent that keeps skills the common way.
+    case catalog
+    /// A skills folder Kitfold found on this Mac that no known agent claims (`AgentDiscovery`).
+    case discovered
+    /// Described by the user in kitfold.json (`customAgents`).
+    case custom
 }
 
 /// Declarative description of an agent. Adding an agent = adding one of these;
@@ -136,11 +156,18 @@ public struct AgentDescriptor: Sendable, Hashable, Codable, Identifiable {
     }
     /// Max bytes of instructions the agent reads (nil = unknown/unbounded).
     public var instructionByteLimit: Int?
+    /// Empty when there's nothing to link to (a discovered or custom agent).
     public var docsURL: String
     public var monogram: String
     /// Accent color, hex.
     public var tint: String
     public var notes: [String]
+    public var source: AgentSource = .builtin
+    /// Other paths whose presence means the agent is installed (an app, a legacy folder). Tilde allowed.
+    public var markers: [String] = []
+    /// The config folder existing means the agent is installed. Off for a folder that outlives the agent
+    /// (Warp's `~/.warp`); `markers` and the command decide then.
+    public var configDirMeansInstalled = true
 }
 
 public struct ResolvedSkillRoot: Sendable, Hashable, Identifiable {
@@ -196,7 +223,7 @@ public struct AgentAdapter: Sendable, Hashable, Identifiable {
 
     /// Where Kitfold deploys skills for this agent in `scope`.
     public func primarySkillDir(_ scope: Scope, _ env: KitfoldEnvironment) -> String? {
-        skillRoots(scope, env).first { $0.spec.role == .primary }?.path
+        skillRoots(scope, env).first { $0.spec.role == .primary && $0.spec.followsLinks }?.path
     }
 
     public func instructionFiles(_ scope: Scope, _ env: KitfoldEnvironment) -> [ResolvedInstructionFile] {
@@ -283,7 +310,15 @@ public struct AgentInstallation: Sendable, Hashable {
     public var version: String?
     public var configDir: String
     public var configDirExists: Bool
-    public var isDetected: Bool { binaryPath != nil || configDirExists }
+    /// One of the descriptor's `markers` that exists.
+    public var marker: String? = nil
+    /// The config folder alone counts as installed (`AgentDescriptor.configDirMeansInstalled`).
+    public var configDirCounts = true
+    /// Something of the agent's is on this Mac: its command, its app, or its folder.
+    public var isDetected: Bool { binaryPath != nil || configDirExists || marker != nil }
+    /// The agent itself is: its command or app, or its folder where that's a reliable sign.
+    /// A folder alone, left behind by an uninstall or made by another tool, is detected but not installed.
+    public var isInstalled: Bool { binaryPath != nil || marker != nil || (configDirExists && configDirCounts) }
 }
 
 public enum AgentProbe {
@@ -316,6 +351,16 @@ public enum AgentProbe {
             binaryPath: bin,
             version: runVersion ? bin.flatMap { version(binary: $0) } : nil,
             configDir: dir,
-            configDirExists: FS.isDirectoryFollowing(dir))
+            configDirExists: FS.isDirectoryFollowing(dir),
+            marker: adapter.descriptor.markers.map(env.expand).first(where: markerExists),
+            configDirCounts: adapter.descriptor.configDirMeansInstalled)
+    }
+
+    /// A marker path may end in `prefix*` (a versioned extension folder, say).
+    static func markerExists(_ path: String) -> Bool {
+        guard path.hasSuffix("*") else { return FS.exists(path) }
+        let dir = (path as NSString).deletingLastPathComponent
+        let prefix = String((path as NSString).lastPathComponent.dropLast())
+        return FS.children(dir).contains { $0.hasPrefix(prefix) }
     }
 }

@@ -111,5 +111,13 @@ extension Translations {
         "shared": "共享",
         "foreign": "别的 Agent",
         "bundled": "内置",
+        "folder only": "只有目录",
+        // many agents, broken links
+        "1 more agent Kitfold knows isn't on this Mac (--all lists it).": "另有 1 个 Kitfold 认识的 Agent 不在这台 Mac 上（--all 会列出）。",
+        "%@ more agents Kitfold knows aren't on this Mac (--all lists them).": "另有 %@ 个 Kitfold 认识的 Agent 不在这台 Mac 上（--all 会列出）。",
+        "found on this Mac": "在这台 Mac 上找到",
+        "not found on this Mac": "这台 Mac 上没有",
+        "No broken skill links.": "没有失效的技能链接。",
+        "Remove broken skill links": "移除失效的技能链接",
     ]
 }

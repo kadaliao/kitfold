@@ -497,6 +497,7 @@ final class AppModel {
             try ws.saveConfigDirectly(c)
             draft.sources = ws.config.sources
             draft.agents = ws.config.agents
+            draft.customAgents = ws.config.customAgents
             draft.preferences = ws.config.preferences
             draft.projects = ws.config.projects
             rescan()
@@ -553,6 +554,41 @@ final class AppModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Take away broken skill links (all of them, or the ones in `paths`), reviewed and undoable.
+    func reviewRemoveBrokenLinks(_ paths: [String]? = nil) {
+        guard let ws = workspace, let snap = snapshot else { return }
+        let p = ws.planRemoveBrokenLinks(snapshot: snap, paths: paths.map(Set.init))
+        guard !p.isEmpty else { toast = L("No broken skill links."); return }
+        let n = p.changes.count
+        reviewPlan = ReviewRequest(
+            title: n == 1 ? L("Remove 1 broken link") : L("Remove \(n) broken links"), plan: p, summary: L("Remove broken skill links"))
+    }
+
+    /// Add an agent Kitfold doesn't know (or replace one with the same id), by its skills folder.
+    func addCustomAgent(name: String, skills: String, projectSkills: String?) {
+        guard let ws = workspace else { return }
+        let base = SkillEntry.slugify(name)
+        var id = base.isEmpty ? "agent" : base
+        let taken = Set(agents.map(\.id.rawValue)).union(draft.customAgents.map(\.id))
+        var n = 2
+        while taken.contains(id) { id = (base.isEmpty ? "agent" : base) + "-\(n)"; n += 1 }
+        let agent = CustomAgent(
+            id: id, name: name, skills: ws.env.abbreviate(skills), projectSkills: projectSkills.flatMap { $0.isEmpty ? nil : $0 })
+        saveSettings { $0.customAgents.append(agent) }
+    }
+
+    func removeCustomAgent(_ id: String) {
+        guard let ws = workspace else { return }
+        syncConfigFromDisk()
+        if ws.config.rules.contains(where: { $0.agent == .agent(AgentID(id)) }) {
+            errorMessage = L(
+                "This agent still has assignments. Clear them on its page and apply first, so Kitfold can take back its links.")
+            return
+        }
+        if selection == .agent(AgentID(id)) { selection = .dashboard }
+        saveSettings { $0.customAgents.removeAll { $0.id == id } }
+    }
+
     func reviewInstructionEdit(_ target: InstructionTarget, newText: String) {
         guard let ws = workspace else { return }
         let p = ws.planEdit(path: target.path, newText: newText, agents: target.agents, scope: target.scope)
@@ -592,7 +628,10 @@ final class AppModel {
 
     var env: KitfoldEnvironment? { workspace?.env }
     func ab(_ p: String) -> String { workspace?.env.abbreviate(p) ?? p }
-    var agents: [AgentState] { snapshot?.agents ?? [] }
+    /// The agents worth showing: the ones Kitfold manages and the ones installed on this Mac.
+    var agents: [AgentState] { (snapshot?.agents ?? []).filter { $0.enabled || $0.installation.isDetected } }
+    /// Every agent Kitfold knows, installed or not (Settings).
+    var allAgents: [AgentState] { snapshot?.agents ?? [] }
     var managedAgents: [AgentState] { snapshot?.managedAgents ?? [] }
     var scopes: [Scope] { snapshot?.scopes ?? [.global] }
 

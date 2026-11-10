@@ -17,7 +17,7 @@ public final class Workspace: @unchecked Sendable {
     /// kitfold.json as this workspace last read or wrote it, to notice edits made elsewhere (the CLI, an editor).
     private var configText: String?
 
-    public init(env: KitfoldEnvironment = .current(), adapters: [AgentAdapter] = BuiltinAgents.adapters) throws {
+    public init(env: KitfoldEnvironment = .current(), adapters: [AgentAdapter] = AgentCatalog.adapters) throws {
         self.env = env
         self.adapters = adapters
         library = LibraryStore(env: env)
@@ -283,16 +283,11 @@ public final class Workspace: @unchecked Sendable {
     /// trash — brings it all back.
     public func planSkillDelete(_ entry: SkillEntry, snapshot: Snapshot) throws -> Plan {
         switch entry.origin {
-        case .library, .source, .agentLocal: break
+        case .library, .source, .agentLocal, .external: break
         case .bundled:
             throw KitfoldError.invalid(L("Plugin skills can't be deleted; switch the plugin off in the agent instead"))
         case .nested(let parent):
             throw KitfoldError.invalid(L("\(entry.name) lives inside “\(parent)”; delete that skill instead"))
-        case .external:
-            throw KitfoldError.invalid(
-                L(
-                    "\(entry.name) is only linked into an agent's folder from \(env.abbreviate(entry.path)). Switch it off to remove the link; the folder itself is yours to delete."
-                ))
         }
         let ref = ResourceRef(.skill, entry.name)
         /// The link's text as stored on disk (may be relative), so undo recreates it exactly.
@@ -312,6 +307,26 @@ public final class Workspace: @unchecked Sendable {
             return p
         }
         var plan = Planner(snapshot: snap, config: draft).plan()
+        // The planner reconciles everything, so changes already waiting for an apply of their own (an
+        // "all agents" rule reaching an agent found since, an edited profile) would ride along. Keep
+        // only what deleting this skill changes.
+        let pending = Planner(snapshot: snapshot, config: config).plan()
+        let pendingChanges = Set(pending.changes.map(\.change)), pendingIssues = Set(pending.issues.map(\.id))
+        plan.changes.removeAll { pendingChanges.contains($0.change) }
+        plan.issues.removeAll { pendingIssues.contains($0.id) }
+        // A file both write (an agent's settings with another switch waiting) can't be split: it's
+        // written whole, and the review says the waiting change comes along.
+        let pendingWrites = Set(
+            pending.changes.compactMap { c -> String? in
+                if case .writeFile(let p, _, _) = c.change { return p }
+                return nil
+            })
+        for i in plan.changes.indices {
+            guard case .writeFile(let p, _, _) = plan.changes[i].change, pendingWrites.contains(p) else { continue }
+            plan.changes[i].note = Localization.sentences([
+                plan.changes[i].note ?? "", L("It also brings in changes to this file that were waiting to be applied."),
+            ])
+        }
         // The planner warns that taking a link back costs an agent that reads the same folder the
         // skill, and says to switch it on there. Every agent loses a deleted skill, so drop that.
         plan.issues.removeAll { $0.kind == .sharedSkillFolder && $0.key == entry.name }
@@ -348,15 +363,27 @@ public final class Workspace: @unchecked Sendable {
                     summary: L("Take \(entry.name) out of profile “\(p.name)”"), agents: [], scope: .global,
                     resource: ResourceRef(.profile, p.id)))
         }
-        plan.changes.append(
-            PlannedChange(
-                .moveItem(from: entry.path, path: trashDir + "/" + entry.folderName + "-" + Executor.newID()),
-                summary: L("Move \(entry.name) to Kitfold's trash"), agents: [], scope: .global, resource: ref,
-                risk: entry.origin == .library ? .safe : .caution,
-                note: L("The folder is kept in \(ab(trashDir)), and undo puts it back where it was.")))
+        var issues: [Issue] = []
+        if entry.origin.deleteKeepsFolder {
+            issues.append(
+                Issue(
+                    .unsupported, .info, L("The folder stays where it is"),
+                    detail: L(
+                        "\(ab(entry.path)) isn't in Kitfold's library or one of your sources, so Kitfold only takes back the links to it. Delete the folder yourself if you no longer need it."
+                    ),
+                    paths: [entry.path], key: entry.path))
+        } else {
+            plan.changes.append(
+                PlannedChange(
+                    .moveItem(from: entry.path, path: trashDir + "/" + entry.folderName + "-" + Executor.newID()),
+                    summary: L("Move \(entry.name) to Kitfold's trash"), agents: [], scope: .global, resource: ref,
+                    risk: entry.origin == .library ? .safe : .caution,
+                    note: L("The folder is kept in \(ab(trashDir)), and undo puts it back where it was.")))
+        }
+        let lock = skillsCLILockChange(for: entry)
+        if let lock { plan.changes.append(lock) }
         if draft != config, let change = configChange(to: draft) { plan.changes.append(change) }
 
-        var issues: [Issue] = []
         // A folder several agents read directly: they lose the skill with it, link or no link.
         let readers = snapshot.managedAgents.filter { a in
             snapshot.scopes.contains { scope in
@@ -371,7 +398,7 @@ public final class Workspace: @unchecked Sendable {
                     detail: L("They lose “\(entry.name)” when the folder goes."),
                     paths: [entry.path], agent: readers[0].id, alsoAffects: readers.dropFirst().map(\.id), key: entry.name))
         }
-        if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }) {
+        if case .source(let id) = entry.origin, let s = config.sources.first(where: { $0.id == id }), lock == nil {
             if let owner = s.managedBy {
                 issues.append(
                     Issue(
@@ -399,6 +426,58 @@ public final class Workspace: @unchecked Sendable {
         }
         plan.issues += issues
         return plan
+    }
+
+    /// The skills CLI (`npx skills`) installs into `~/.agents/skills` and lists what it installed in
+    /// `~/.agents/.skill-lock.json`; its `update` reinstalls whatever is listed. Deleting one of its
+    /// skills takes the entry out too, the way `npx skills remove` does. Only that key changes.
+    func skillsCLILockChange(for entry: SkillEntry) -> PlannedChange? {
+        let dir = env.expand("~/.agents/skills")
+        guard (entry.path as NSString).deletingLastPathComponent == dir else { return nil }
+        let file = env.expand("~/.agents/.skill-lock.json")
+        guard let text = FS.read(file), let root = try? JSONEdit.parse(text),
+            JSONEdit.object(at: ["skills"], in: root)?.member(entry.folderName) != nil,
+            let after = try? JSONEdit.remove(text, path: ["skills", entry.folderName], prune: false), after != text
+        else { return nil }
+        return PlannedChange(
+            .writeFile(path: file, before: text, after: after),
+            summary: L("Take \(entry.folderName) off the skills CLI's list"), agents: [], scope: .global,
+            resource: ResourceRef(.skill, entry.name),
+            note: L("So `npx skills update` doesn't install it again. Undo puts the entry back."))
+    }
+
+    /// Plan to remove broken skill links (what's left when a skill's folder is deleted outside
+    /// Kitfold) from the folders of the agents on this Mac. `paths` limits it to those links.
+    public func planRemoveBrokenLinks(snapshot: Snapshot, paths: Set<String>? = nil) -> Plan {
+        var plan = Plan()
+        var seen = Set<String>()
+        for a in snapshot.agents where a.enabled || a.installation.isDetected {
+            for scope in snapshot.scopes {
+                for o in a.state(scope).skills where o.isSymlink && o.isBroken && (paths?.contains(o.entryPath) ?? true) {
+                    guard seen.insert(o.entryPath).inserted, case .symlink(let raw) = FS.kind(o.entryPath) else { continue }
+                    // A link into a disk that isn't mounted right now isn't broken for good.
+                    if let target = o.linkTarget, Workspace.isOnMissingVolume(target) { continue }
+                    let owned = snapshot.ownedPaths.contains(o.entryPath)
+                    let readers = snapshot.agents.filter { b in
+                        b.state(scope).skills.contains { $0.entryPath == o.entryPath }
+                    }.map(\.id)
+                    plan.changes.append(
+                        PlannedChange(
+                            .removeSymlink(path: o.entryPath, target: raw),
+                            summary: L("Remove the broken link at \(ab(o.entryPath))"), agents: readers, scope: scope,
+                            risk: owned ? .safe : .caution, note: L("It points to \(ab(o.linkTarget ?? raw)), which no longer exists.")))
+                }
+            }
+        }
+        plan.changes.sort { $0.change.path < $1.change.path }
+        return plan
+    }
+
+    /// `/Volumes/<name>/…` while that volume isn't mounted.
+    static func isOnMissingVolume(_ path: String) -> Bool {
+        let parts = FS.standardize(path).split(separator: "/", omittingEmptySubsequences: true)
+        guard parts.count >= 2, parts[0] == "Volumes" else { return false }
+        return !FS.exists("/Volumes/" + parts[1])
     }
 
     // MARK: projects

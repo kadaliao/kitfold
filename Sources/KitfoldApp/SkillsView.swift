@@ -98,10 +98,8 @@ struct SkillsView: View {
                                 .draggable(e.name)  // drop onto an agent in the sidebar to assign
                                 .contextMenu {
                                     Button(L("Reveal in Finder")) { model.reveal(e.path) }
-                                    if e.origin.isDeletable {
-                                        Divider()
-                                        Button(L("Delete…"), role: .destructive) { model.reviewDeleteSkill(e) }
-                                    }
+                                    Divider()
+                                    DeleteSkillButton(entry: e)
                                 }
                         }
                     }
@@ -205,48 +203,54 @@ struct SkillRow: View {
     }
 }
 
-/// Scopes × agents grid for one skill.
+/// Agents × scopes grid for one skill: one row per agent, one column per scope (global, then each
+/// project), so it stays readable however many agents there are.
 struct AvailabilityGrid: View {
     @Environment(AppModel.self) private var model
     let skill: String
     var editable = true
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
-            GridRow {
-                Text("").gridColumnAlignment(.leading)
-                ForEach(model.managedAgents) { a in
-                    AgentBadge(adapter: a.adapter, size: 22)
-                        .gridColumnAlignment(.center)
-                }
-                Text("")
-            }
-            ForEach(model.scopes, id: \.self) { scope in
+        ScrollView(.horizontal) {
+            Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 6) {
                 GridRow {
-                    Label(model.projectName(scope), systemImage: scope.isGlobal ? "globe" : "folder")
-                        .lineLimit(1)
-                        .frame(minWidth: 120, alignment: .leading)
-                    ForEach(model.managedAgents) { a in
-                        ReachCell(state: model.cell(skill: skill, agent: a.id, scope: scope), tint: a.adapter.tint) {
-                            model.toggle(skill: skill, agent: a.id, scope: scope)
+                    Text("").gridColumnAlignment(.leading)
+                    ForEach(model.scopes, id: \.self) { scope in
+                        Menu {
+                            Button(L("All agents on")) { model.setAll(skill: skill, scope: scope, on: true) }
+                            Button(L("All agents off")) { model.setAll(skill: skill, scope: scope, on: false) }
+                            Button(L("Clear (leave as found)")) {
+                                model.draft.setAll(ResourceRef(.skill, skill), scope: scope, state: nil)
+                                model.replan()
+                            }
+                        } label: {
+                            Label(model.projectName(scope), systemImage: scope.isGlobal ? "globe" : "folder").lineLimit(1)
                         }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .frame(maxWidth: 160)
                         .disabled(!editable)
+                        .help(L("Switch it for every agent at once"))
+                        .gridColumnAlignment(.center)
                     }
-                    Menu {
-                        Button(L("All agents on")) { model.setAll(skill: skill, scope: scope, on: true) }
-                        Button(L("All agents off")) { model.setAll(skill: skill, scope: scope, on: false) }
-                        Button(L("Clear (leave as found)")) {
-                            model.draft.setAll(ResourceRef(.skill, skill), scope: scope, state: nil)
-                            model.replan()
+                }
+                ForEach(model.managedAgents) { a in
+                    GridRow {
+                        HStack(spacing: 6) {
+                            AgentBadge(adapter: a.adapter, size: 18)
+                            Text(a.adapter.name).lineLimit(1)
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
+                        .frame(minWidth: 150, alignment: .leading)
+                        ForEach(model.scopes, id: \.self) { scope in
+                            ReachCell(state: model.cell(skill: skill, agent: a.id, scope: scope), tint: a.adapter.tint) {
+                                model.toggle(skill: skill, agent: a.id, scope: scope)
+                            }
+                            .disabled(!editable)
+                        }
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .disabled(!editable)
                 }
             }
+            .padding(.bottom, 4)
         }
     }
 }
@@ -340,14 +344,7 @@ struct SkillDetail: View {
             } label: {
                 Label(L("Open"), systemImage: "square.and.pencil")
             }
-            if entry.origin.isDeletable {
-                Button(role: .destructive) {
-                    model.reviewDeleteSkill(entry)
-                } label: {
-                    Label(L("Delete…"), systemImage: "trash")
-                }
-                .help(L("Take back every link to this skill and move its folder to Kitfold's trash. Reviewed first, and undoable."))
-            }
+            DeleteSkillButton(entry: entry, withIcon: true)
         }
         .controlSize(.small)
         .fixedSize()
@@ -456,6 +453,8 @@ struct AssignmentMatrix: View {
     let scope: Scope
     let names: [String]
     @State private var onlyActive = false
+    static let nameWidth: CGFloat = 240
+    static let columnWidth: CGFloat = 92
 
     var rows: [String] {
         guard onlyActive else { return names }
@@ -471,8 +470,8 @@ struct AssignmentMatrix: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
-            ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+            ScrollView([.horizontal, .vertical]) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section {
                         ForEach(Array(rows.enumerated()), id: \.element) { item in
                             let name = item.element
@@ -482,16 +481,23 @@ struct AssignmentMatrix: View {
                                     model.selectedSkillPath = model.snapshot?.skill(named: name)?.path
                                     model.skillsMatrix = false
                                 } label: {
-                                    Text(name).lineLimit(1).frame(width: 260, alignment: .leading).contentShape(Rectangle())
+                                    Text(name).lineLimit(1).frame(width: Self.nameWidth, alignment: .leading).contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .help(L("Show details"))
                                 .draggable(name)  // drop onto an agent in the sidebar to assign
+                                .contextMenu {
+                                    if let e = model.snapshot?.skill(named: name) {
+                                        Button(L("Reveal in Finder")) { model.reveal(e.path) }
+                                        Divider()
+                                        DeleteSkillButton(entry: e)
+                                    }
+                                }
                                 ForEach(model.managedAgents) { a in
                                     ReachCell(state: model.cell(skill: name, agent: a.id, scope: scope), tint: a.adapter.tint) {
                                         model.toggle(skill: name, agent: a.id, scope: scope)
                                     }
-                                    .frame(width: 104)
+                                    .frame(width: Self.columnWidth)
                                 }
                                 Spacer()
                             }
@@ -505,15 +511,16 @@ struct AssignmentMatrix: View {
                                 rows.count == 1
                                     ? L("1 skill · \(model.projectName(scope))") : L("\(rows.count) skills · \(model.projectName(scope))")
                             ).font(.caption).foregroundStyle(.secondary)
-                                .frame(width: 260, alignment: .leading)
+                                .frame(width: Self.nameWidth, alignment: .leading)
                             ForEach(model.managedAgents) { a in
                                 VStack(spacing: 2) {
                                     AgentBadge(adapter: a.adapter, size: 20)
-                                    Text(a.adapter.name).font(.caption.weight(.medium)).lineLimit(1)
+                                    Text(a.adapter.name).font(.caption.weight(.medium)).lineLimit(1).truncationMode(.tail)
                                     Text(L("\(a.visibleSkills(in: scope).count) loaded")).font(.caption2.monospacedDigit()).foregroundStyle(
                                         .secondary)
                                 }
-                                .frame(width: 104)
+                                .frame(width: Self.columnWidth)
+                                .help(a.adapter.name)
                             }
                             Spacer()
                         }
@@ -523,6 +530,35 @@ struct AssignmentMatrix: View {
                     }
                 }
             }
+        }
+    }
+}
+
+/// “Delete…” for a skill, wherever it's listed. Skills Kitfold can't delete get the button disabled,
+/// with the reason as its help.
+struct DeleteSkillButton: View {
+    @Environment(AppModel.self) private var model
+    let entry: SkillEntry
+    var withIcon = false
+
+    var body: some View {
+        Button(role: .destructive) {
+            model.reviewDeleteSkill(entry)
+        } label: {
+            if withIcon { Label(L("Delete…"), systemImage: "trash") } else { Text(L("Delete…")) }
+        }
+        .disabled(!entry.origin.isDeletable)
+        .help(help)
+    }
+
+    var help: String {
+        switch entry.origin {
+        case .bundled: return L("Plugin skills can't be deleted; switch the plugin off in the agent instead")
+        case .nested(let parent): return L("\(entry.name) lives inside “\(parent)”; delete that skill instead")
+        case .external:
+            return L("Take this skill from every agent. Its folder isn't Kitfold's, so it stays where it is. Reviewed first, and undoable.")
+        default:
+            return L("Take back every link to this skill and move its folder to Kitfold's trash. Reviewed first, and undoable.")
         }
     }
 }

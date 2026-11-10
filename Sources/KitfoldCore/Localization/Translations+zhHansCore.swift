@@ -8,6 +8,7 @@ extension Translations {
         "%@ is in a skills folder but isn't a skill.": "%@ 在技能目录里，但不是技能。",
         "%@ ignores “%@”": "%1$@ 会忽略“%2$@”",
         "%@. Add it to %@.": "%@。请在 %@ 中补上。",
+        "%@. Put a copy of the folder there instead of a link.": "%@。请在那里放一份目录的副本，而不是链接。",
         "%@ sees %@ different skills named “%@”": "%@ 看到 %@ 个名为“%@”的不同技能",
         "%@ takes precedence. Also found: %@": "%@ 优先。另外还找到：%@",
         "%@ reaches 1 skill through two folders": "%@ 通过两个目录重复找到 1 个技能",
@@ -24,10 +25,14 @@ extension Translations {
         "%@ point to folders that no longer exist. Skipped silently by %@.": "%@ 指向的目录已不存在。%@ 会静默跳过它们。",
         "Broken skill link “%@”": "技能链接“%@”已失效",
         "%@ → %@, which no longer exists. Skipped silently by %@.": "%@ → %@，目标已不存在。%@ 会静默跳过它。",
+        "%@ broken links to “%@”": "%1$@ 个失效的链接指向“%2$@”",
+        "%@ point to a folder that no longer exists. Skipped silently by %@.": "%1$@ 指向的目录已不存在。%2$@ 会静默跳过它们。",
         "%@: %@": "%@：%@",
         "“%@” contains %@ nested SKILL.md": "“%@”里有 %@ 个嵌套的 SKILL.md",
         "Codex and OpenCode load each nested SKILL.md as a separate skill: %@": "Codex 和 OpenCode 会把每个嵌套的 SKILL.md 当作单独的技能加载：%@",
 
+        // Scanner.swift: why an agent skips a skill (followed by ". Put a copy of the folder there instead of a link.")
+        "%@ doesn't load linked folders from %@": "%@ 不会加载 %@ 中链接进来的目录",
         // Planner.swift: plan summaries, notes and issues
         "“%@” comes from a plugin": "“%@”来自插件",
         "Plugin skills are managed by the agent's plugin system.": "插件技能由 Agent 自己的插件系统管理。",
@@ -95,6 +100,15 @@ extension Translations {
         "Keep Kitfold's files in %@ out of git": "让 git 忽略 %@ 中 Kitfold 的文件",
         ".git/info/exclude is local to this clone and never committed.": ".git/info/exclude 只对本地这个克隆生效，不会被提交。",
 
+        "%@ can't get profiles": "%@ 无法使用 Profile",
+        "Kitfold doesn't know an instruction file that only %@ reads, so “%@” doesn't reach it.":
+            "Kitfold 不知道有哪个指令文件只有 %1$@ 读取，所以“%2$@”到不了它那里。",
+        "%@ doesn't load linked skill folders": "%@ 不加载链接进来的技能目录",
+        "Kitfold gives a skill to an agent by linking it into %@, and %@ skips links there. Copy the skill's folder there yourself to give it “%@”.":
+            "Kitfold 给 Agent 分配技能的办法是把它链接进 %1$@，而 %2$@ 会跳过那里的链接。要让它用上“%3$@”，请自己把技能目录复制过去。",
+        "%@ may not apply %@": "%@ 可能不会应用 %@",
+        "%@ already exists and doesn't start with the frontmatter that makes it apply in every session (%@). Kitfold adds its block anyway; add the frontmatter, or remove the file and apply again so Kitfold creates it.":
+            "%1$@ 已经存在，开头没有让它在每次会话都生效的 frontmatter（%2$@）。Kitfold 照样写入它的块；请补上 frontmatter，或者删掉这个文件再应用一次，让 Kitfold 来创建。",
         // NativePlanner.swift: agents' own skill settings
         "Kitfold can't add skill settings to %@": "Kitfold 无法向 %@ 添加技能设置",
         "The file defines `skills.config` in a form that an appended `[[skills.config]]` table would break. Use `[[skills.config]]` tables there to let Kitfold manage it.":
@@ -153,10 +167,11 @@ extension Translations {
             "移动之后，%1$@ 可能会认为 %2$@ 已被换成链接，%3$@ 的更新将不再同步到它。",
         "Plugin skills can't be deleted; switch the plugin off in the agent instead": "插件技能无法删除，请在 Agent 里关闭这个插件",
         "%@ lives inside “%@”; delete that skill instead": "%@ 位于“%@”内部，请改为删除那个技能",
-        "%@ is only linked into an agent's folder from %@. Switch it off to remove the link; the folder itself is yours to delete.":
-            "%1$@ 只是从 %2$@ 链接进 Agent 的目录。关闭它即可移除链接；目录本身请你自己删除。",
         "Remove the link at %@": "移除 %@ 处的链接",
         "Take %@ out of profile “%@”": "把 %@ 从 Profile“%@”中移除",
+        "The folder stays where it is": "目录会留在原处",
+        "%@ isn't in Kitfold's library or one of your sources, so Kitfold only takes back the links to it. Delete the folder yourself if you no longer need it.":
+            "%@ 不在 Kitfold 的库或你的来源里，所以 Kitfold 只收回指向它的链接。如果不再需要这个目录，请自己删除。",
         "Move %@ to Kitfold's trash": "把 %@ 移到 Kitfold 的废纸篓",
         "The folder is kept in %@, and undo puts it back where it was.": "目录会保留在 %@，撤销会把它放回原处。",
         "%@ read this folder": "%@ 会读取这个目录",
@@ -169,6 +184,12 @@ extension Translations {
         "Another folder is named “%@” too": "还有一个目录也叫“%@”",
         "%@ stays, and agents may keep loading a skill by that name. Its assignments are cleared either way.":
             "%@ 会保留，Agent 可能仍会加载同名的技能。它的分配无论如何都会被清除。",
+        "It also brings in changes to this file that were waiting to be applied.": "这个文件里其他待应用的改动也会一起写入。",
+        "Take %@ off the skills CLI's list": "把 %@ 从 skills CLI 的清单中去掉",
+        "So `npx skills update` doesn't install it again. Undo puts the entry back.":
+            "这样 `npx skills update` 不会再把它装回来。撤销会恢复这一条。",
+        "Remove the broken link at %@": "移除 %@ 处失效的链接",
+        "It points to %@, which no longer exists.": "它指向的 %@ 已经不存在。",
 
         // LibraryStore.swift (the second paragraph of a new SKILL.md, and errors)
         "Skill name is empty": "技能名称为空",

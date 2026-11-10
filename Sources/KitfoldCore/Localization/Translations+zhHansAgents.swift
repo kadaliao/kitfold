@@ -87,5 +87,43 @@ extension Translations {
             "对免费用户和 Google One 用户，Gemini CLI 已于 2026-06-18 被 Antigravity CLI 取代。",
         "Hide a skill: `skills.disabled` in settings.json (merged across user and workspace).":
             "隐藏技能：settings.json 里的 `skills.disabled`（用户级和工作区级取并集）。",
+
+        // AgentCatalog.swift: notes every catalog, discovered and custom agent shares (AgentSpec.Notes).
+        "Its own skills folder.": "它自己的技能目录。",
+        "Its own project skills folder.": "它自己的项目技能目录。",
+        "The cross-agent folder: several agents read it.": "跨 Agent 的共享目录，好几个 Agent 都会读取。",
+        "Claude Code's folder, read for compatibility.": "Claude Code 的目录，为了兼容而读取。",
+        "Another agent's folder that this agent reads too.": "别的 Agent 的目录，这个 Agent 也会读取。",
+        "Another skills folder it reads; other tools may use it too.": "它还会读取的另一个技能目录，别的工具也可能用到。",
+        "Skills that come with the agent. Read-only to Kitfold.": "Agent 自带的技能，Kitfold 只读不改。",
+        "Folders as listed by the skills CLI (vercel-labs/skills); not yet checked against the agent's own docs.":
+            "目录取自 skills CLI（vercel-labs/skills）的清单，还没有对照这个 Agent 自己的文档核实。",
+        "Kitfold found this skills folder on your Mac and lists it as an agent's. Switch “Managed by Kitfold” on to give it skills; to name its project folder too, add it as your own agent in Settings › Agents.":
+            "Kitfold 在你的 Mac 上找到了这个技能目录，把它列为某个 Agent 的目录。打开“由 Kitfold 管理”就能给它分配技能；想同时指定它在项目里的目录，请在“设置 › Agent”里把它添加为你自己的 Agent。",
+        "Found on this Mac.": "在这台 Mac 上找到。",
+        "Added by you (customAgents in kitfold.json).": "由你添加（kitfold.json 里的 customAgents）。",
+        "Its own instruction file: only this agent reads it, so Kitfold writes its profiles here.":
+            "它自己的指令文件，只有这个 Agent 读取，所以 Kitfold 把 Profile 写在这里。",
+        "Roo Code was discontinued on 2026-05-15 (its repository is archived).": "Roo Code 已于 2026-05-15 停止开发（仓库已归档）。",
+        "fx doesn't load linked folders from ~/.fx/skills, so Kitfold can't link skills there; fx finds them in ~/.agents/skills and in other agents' folders.":
+            "fx 不加载 ~/.fx/skills 中链接进来的目录，所以 Kitfold 没法把技能链接到那里；fx 会从 ~/.agents/skills 和别的 Agent 的目录里找到它们。",
+        "Zed has no skills folder of its own: it reads only ~/.agents/skills, so a skill can't be given to Zed alone.":
+            "Zed 没有自己的技能目录，只读取 ~/.agents/skills，所以没法只把技能给 Zed。",
+        "amp.skills.disableClaudeCodeSkills and amp.skills.disableGlobalAgentsSkills in Amp's settings stop it reading Claude Code's folders and the shared ones.":
+            "Amp 设置里的 amp.skills.disableClaudeCodeSkills 和 amp.skills.disableGlobalAgentsSkills 可以让它不读 Claude Code 的目录和共享目录。",
+        "Gemini CLI's file. Antigravity reads it too, so a profile Kitfold writes there for Gemini CLI reaches it.":
+            "Gemini CLI 的文件。Antigravity 也会读取，所以 Kitfold 为 Gemini CLI 写在这里的 Profile 也会到它那里。",
+        "The app and agy read ~/.gemini/config/skills; only the Antigravity IDE still reads the old ~/.gemini/antigravity/skills.":
+            "App 和 agy 读取 ~/.gemini/config/skills；只有 Antigravity IDE 还会读旧的 ~/.gemini/antigravity/skills。",
+        "In the IDE, Settings › Agents › Third-Party Imports turns off Claude Code's and Codex's folders. The CLI always reads them.":
+            "IDE 里的“设置 › Agents › Third-Party Imports”可以关掉 Claude Code 和 Codex 的目录；CLI 总会读取它们。",
+        "Devin Desktop (Windsurf until June 2026) and Devin for Terminal load the same folders.":
+            "Devin Desktop（2026 年 6 月前叫 Windsurf）和 Devin for Terminal 加载的目录完全一样。",
+        "Claude Code's file. Grok reads it too, so a profile Kitfold writes there for Claude Code reaches Grok.":
+            "Claude Code 的文件。Grok 也会读取，所以 Kitfold 为 Claude Code 写在这里的 Profile 也会到 Grok 那里。",
+        "`[compat.claude] skills = false` in ~/.grok/config.toml stops Grok reading Claude Code's skill folders. It also reads Cursor's.":
+            "~/.grok/config.toml 里的 `[compat.claude] skills = false` 可以让 Grok 不读 Claude Code 的技能目录。它还会读 Cursor 的。",
+        "Continue skips linked skill folders, so Kitfold can't give it skills; copy a skill's folder into ~/.continue/skills instead.":
+            "Continue 会跳过链接进来的技能目录，所以 Kitfold 没法把技能给它；请把技能目录复制到 ~/.continue/skills。",
     ]
 }

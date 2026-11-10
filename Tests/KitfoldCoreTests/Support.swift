@@ -43,6 +43,12 @@ final class FakeHome {
         }
     }
 
+    /// A stand-in command in `~/.local/bin`, which Kitfold searches for agents' commands.
+    func installBinary(_ name: String) {
+        write(".local/bin/" + name, "#!/bin/sh\necho 1.0.0\n")
+        try! FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path(".local/bin/" + name))
+    }
+
     func workspace() throws -> Workspace { try Workspace(env: env) }
 }
 

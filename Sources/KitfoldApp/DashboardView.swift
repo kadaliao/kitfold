@@ -49,7 +49,7 @@ struct DashboardView: View {
 
     func agentCards(_ snap: Snapshot) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
-            ForEach(snap.agents) { a in
+            ForEach(model.agents) { a in
                 Button {
                     model.selection = .agent(a.id)
                 } label: {
@@ -70,6 +70,14 @@ struct DashboardView: View {
                     subtitle: important.isEmpty
                         ? L("No problems found.")
                         : important.count == 1 ? L("1 thing worth a look") : L("\(important.count) things worth a look"))
+                let broken = snap.issues.filter { $0.kind == .brokenLink }.reduce(0) { $0 + $1.paths.count }
+                if broken > 1 {
+                    Button(L("Remove all \(broken) broken links…")) { model.reviewRemoveBrokenLinks() }
+                        .controlSize(.small)
+                        .help(
+                            L("Skills deleted outside Kitfold leave links behind in the agents' folders. Review and remove them in one go.")
+                        )
+                }
                 Toggle(L("Show notes"), isOn: $showAllIssues).toggleStyle(.switch).controlSize(.small)
             }
             if shown.isEmpty {
@@ -182,7 +190,11 @@ struct AgentCard: View {
     func statusText(_ i: AgentInstallation) -> String {
         if let v = i.version { return "v\(v) · \(model.ab(i.configDir))" }
         if i.binaryPath != nil { return L("Installed · \(model.ab(i.configDir))") }
-        if i.configDirExists { return L("Config found, CLI not on PATH") }
+        if i.marker != nil { return model.ab(i.configDir) }
+        if i.isInstalled {
+            return agent.adapter.descriptor.binaryNames.isEmpty ? model.ab(i.configDir) : L("Config found, CLI not on PATH")
+        }
+        if i.isDetected { return L("Only its folder is here") }
         return L("Not detected")
     }
 }

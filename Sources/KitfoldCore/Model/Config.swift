@@ -81,6 +81,56 @@ extension SkillSourceConfig {
     }
 }
 
+/// An agent the user describes in kitfold.json, for one Kitfold doesn't know or finds in the wrong place:
+///
+///     "customAgents": [{ "id": "my-agent", "name": "My Agent", "skills": "~/.my-agent/skills",
+///                        "projectSkills": ".my-agent/skills", "instructions": "~/.my-agent/AGENTS.md" }]
+public struct CustomAgent: Hashable, Sendable, Codable, Identifiable {
+    public var id: String
+    public var name: String
+    /// Its global skills folder (tilde allowed). Kitfold links skills here for it.
+    public var skills: String
+    /// Its skills folder inside a project, relative to the project root.
+    public var projectSkills: String?
+    /// A global instruction file only this agent reads, where Kitfold may write profiles (tilde allowed).
+    public var instructions: String?
+    /// The same inside a project, relative to the project root.
+    public var projectInstructions: String?
+
+    public init(
+        id: String, name: String, skills: String, projectSkills: String? = nil, instructions: String? = nil,
+        projectInstructions: String? = nil
+    ) {
+        self.id = id; self.name = name; self.skills = skills; self.projectSkills = projectSkills
+        self.instructions = instructions; self.projectInstructions = projectInstructions
+    }
+
+    public var descriptor: AgentDescriptor {
+        let folder = FS.standardize(skills)
+        let home = (folder as NSString).deletingLastPathComponent
+        func absolute(_ p: String) -> (PathBase, String) {
+            p.hasPrefix("~/") ? (.home, String(p.dropFirst(2))) : (.absolute, p)
+        }
+        let (base, path) = absolute(folder)
+        var roots = [SkillRootSpec(base, path, scope: .global, role: .primary, note: AgentSpec.Notes.ownFolder)]
+        if let p = projectSkills, !p.isEmpty {
+            roots.append(SkillRootSpec(.project, p, scope: .project, role: .primary, note: AgentSpec.Notes.ownProjectFolder))
+        }
+        var files: [InstructionFileSpec] = []
+        if let f = instructions, !f.isEmpty {
+            let (b, p) = absolute(FS.standardize(f))
+            files.append(InstructionFileSpec(b, p, scope: .global, role: .primary))
+        }
+        if let f = projectInstructions, !f.isEmpty { files.append(InstructionFileSpec(.project, f, scope: .project, role: .primary)) }
+        return AgentDescriptor(
+            id: AgentID(id), name: name, vendor: "", binaryNames: [], binaryDirs: [], configDir: home, configDirEnv: nil,
+            skillRoots: roots, instructionFiles: files, skillDisable: .none, bundledProvider: nil, globalSkillsWin: false,
+            nestedSkillDepth: 0, policyCoversBundled: false, instructionByteLimit: nil, docsURL: "",
+            monogram: AgentSpec.monogram(for: name), tint: AgentSpec.tint(for: id), notes: [AgentSpec.Notes.custom], source: .custom,
+            markers: [folder])
+    }
+}
+
 public struct AgentSettings: Hashable, Sendable, Codable {
     /// nil = automatic (managed when detected).
     public var enabled: Bool?
@@ -114,11 +164,12 @@ public struct KitfoldConfig: Hashable, Sendable, Codable {
     public var projects: [ProjectConfig] = []
     public var rules: [AssignmentRule] = []
     public var agents: [String: AgentSettings] = [:]
+    public var customAgents: [CustomAgent] = []
     public var preferences = Preferences()
 
     public init() {}
 
-    enum CodingKeys: String, CodingKey { case version, sources, projects, rules, agents, preferences }
+    enum CodingKeys: String, CodingKey { case version, sources, projects, rules, agents, customAgents, preferences }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -127,7 +178,20 @@ public struct KitfoldConfig: Hashable, Sendable, Codable {
         projects = try c.decodeIfPresent([ProjectConfig].self, forKey: .projects) ?? []
         rules = try c.decodeIfPresent([AssignmentRule].self, forKey: .rules) ?? []
         agents = try c.decodeIfPresent([String: AgentSettings].self, forKey: .agents) ?? [:]
+        customAgents = try c.decodeIfPresent([CustomAgent].self, forKey: .customAgents) ?? []
         preferences = try c.decodeIfPresent(Preferences.self, forKey: .preferences) ?? Preferences()
+    }
+
+    /// `customAgents` is written only when there are some, so older files don't change shape.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(version, forKey: .version)
+        try c.encode(sources, forKey: .sources)
+        try c.encode(projects, forKey: .projects)
+        try c.encode(rules, forKey: .rules)
+        try c.encode(agents, forKey: .agents)
+        if !customAgents.isEmpty { try c.encode(customAgents, forKey: .customAgents) }
+        try c.encode(preferences, forKey: .preferences)
     }
 
     // MARK: rule queries

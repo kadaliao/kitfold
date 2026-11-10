@@ -3,14 +3,15 @@ import KitfoldCore
 
 // kitfold — command-line front end to the same core the app uses.
 //
-//   kitfold status                     agents, context size, issues
+//   kitfold status [--all]             agents on this Mac (--all: every agent Kitfold knows), context size, issues
 //   kitfold skills [--all] [--project <path>]   skill × agent matrix (what each agent actually loads)
-//   kitfold agents [--project <path>]  where each agent looks, which files it loads
+//   kitfold agents [--all] [--project <path>]  where each agent looks, which files it loads
 //   kitfold profiles                   profile ids and names
 //   kitfold plan                       changes needed to match kitfold.json
 //   kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
 //   kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
-//   kitfold delete <skill> [--yes]     move a skill's folder to Kitfold's trash
+//   kitfold delete <skill> [--yes]     take a skill from every agent and move its folder to Kitfold's trash
+//   kitfold clean [--yes]              remove broken skill links from the agents' folders
 //   kitfold apply [--yes]              apply the pending plan
 //   kitfold history [--project <path>] applied transactions
 //   kitfold undo <tx-id> [--yes]
@@ -208,13 +209,32 @@ func roleLabel(_ role: SkillRootSpec.Role) -> String {
     }
 }
 
+/// Every agent: the known ones, the user's own and the ones found on this Mac.
+let allAdapters = Scanner(env: env, adapters: ws.adapters).adapters(for: ws.config, env: env)
+
+/// Agents worth listing: the ones Kitfold manages and the ones on this Mac (all of them with --all).
+func listed(_ snap: Snapshot) -> [AgentState] {
+    showAll ? snap.agents : snap.agents.filter { $0.enabled || $0.installation.isDetected }
+}
+
 func selector(_ s: String) -> AgentSelector {
     if s == "*" || s == "all" { return .all }
-    guard ws.adapters.contains(where: { $0.id.rawValue == s }) else {
-        let known = Localization.list(ws.adapters.map(\.id.rawValue) + ["*"])
+    guard allAdapters.contains(where: { $0.id.rawValue == s }) else {
+        let known = Localization.list(["*"] + allAdapters.map(\.id.rawValue))
         fail(L("unknown agent \(s) (known: \(known))"))
     }
     return .agent(AgentID(s))
+}
+
+/// What one more line says about agents left out of a list.
+func printHidden(_ snap: Snapshot, shown: Int) {
+    let hidden = snap.agents.count - shown
+    guard hidden > 0 else { return }
+    print(
+        dim(
+            hidden == 1
+                ? L("1 more agent Kitfold knows isn't on this Mac (--all lists it).")
+                : L("\(hidden) more agents Kitfold knows aren't on this Mac (--all lists them).")))
 }
 
 let command = wantsHelp ? "help" : (args.first ?? "status")
@@ -222,7 +242,7 @@ if !args.isEmpty && !wantsHelp { args.removeFirst() }
 
 switch command {
 case "status":
-    expectArgs(0...0, usage: "status")
+    expectArgs(0...0, usage: "status [--all]")
     let snap = ws.scan()
     let librarySkills = snap.catalog.filter { $0.origin == .library }.count
     let profileCount = snap.profiles.count
@@ -232,11 +252,21 @@ case "status":
     ])
     print(bold("Kitfold") + dim("  \(ab(env.kitfoldHome))  ·  " + L("library: \(library)")))
     print()
-    for a in snap.agents {
+    let agents = listed(snap)
+    let nameWidth = (agents.map { displayWidth($0.adapter.name) }.max() ?? 10) + 1
+    for a in agents {
         let inst = a.installation
-        let state = inst.binaryPath != nil ? green(L("installed")) : (inst.configDirExists ? yellow(L("config only")) : dim(L("not found")))
+        let state =
+            inst.binaryPath != nil || inst.marker != nil
+            ? green(L("installed"))
+            : inst.isInstalled ? yellow(L("config only")) : inst.isDetected ? yellow(L("folder only")) : dim(L("not found"))
         let est = snap.contextEstimate(agent: a.id, scope: .global)
-        print("\(bold(pad(a.adapter.name, 12))) \(state) \(dim(inst.version ?? ""))")
+        let notes = [
+            a.enabled ? nil : dim(L("not managed")), a.adapter.descriptor.source == .discovered ? c(L("found on this Mac"), "36") : nil,
+        ]
+        print(
+            "\(bold(pad(a.adapter.name, nameWidth))) \(state) \(dim(inst.version ?? ""))"
+                + notes.compactMap { $0 }.map { " " + $0 }.joined())
         let config = ab(inst.configDir)
         print(
             dim(
@@ -245,6 +275,7 @@ case "status":
                         ? L("1 skill active  ·  ~\(est.approxTokens) tokens always loaded  ·  config \(config)")
                         : L("\(est.skillCount) skills active  ·  ~\(est.approxTokens) tokens always loaded  ·  config \(config)"))))
     }
+    printHidden(snap, shown: agents.count)
     let issues = snap.issues.filter { $0.severity >= .warning }
     let notes = snap.issues.count - issues.count
     let problems = issues.count == 1 ? L("1 warning or error") : L("\(issues.count) warnings or errors")
@@ -258,6 +289,8 @@ case "skills":
     let snap = scan(including(sc, in: ws.config))
     let agents = snap.managedAgents
     let width = min(40, (snap.skillNames.map(displayWidth).max() ?? 10) + 2)
+    // Columns are headed by each agent's two letters; say whose they are.
+    print(dim(Localization.list(agents.map { "\($0.adapter.descriptor.monogram) \($0.adapter.name)" })))
     print(
         String(repeating: " ", count: width)
             + agents.map { pad($0.adapter.descriptor.monogram, 4) }.joined())
@@ -294,11 +327,13 @@ case "skills":
     print(dim("\n" + legend.joined(separator: "  ")))
 
 case "agents":
-    expectArgs(0...0, usage: "agents [--project <path>]")
+    expectArgs(0...0, usage: "agents [--all] [--project <path>]")
     let sc = scope()
     let snap = scan(including(sc, in: ws.config), probeVersions: true)
-    for a in snap.agents {
-        print(bold(a.adapter.name) + dim("  " + (a.enabled ? L("managed") : L("not managed"))))
+    let agents = listed(snap)
+    for a in agents {
+        let found = a.installation.isDetected ? "" : "  " + L("not found on this Mac")
+        print(bold(a.adapter.name) + dim("  \(a.id)  " + (a.enabled ? L("managed") : L("not managed")) + found))
         print(dim("  " + L("skills folders (precedence order):")))
         for r in a.adapter.skillRoots(sc, env) {
             let n = a.state(sc).skills.filter { $0.root.path == r.path }.count
@@ -310,8 +345,10 @@ case "agents":
             let kf = f.blocks.isEmpty ? "" : c(" [kitfold: \(f.blocks.map(\.profile).joined(separator: ","))]", "35")
             print("    \(ab(f.file.path)) \(mark)\(kf)")
         }
+        for n in a.adapter.descriptor.notes { print(dim("  " + Localization.translate(n))) }
         print()
     }
+    printHidden(snap, shown: agents.count)
 
 case "profiles":
     expectArgs(0...0, usage: "profiles")
@@ -345,7 +382,7 @@ case "assign", "profile":
     // nil: all agents. They get sentences of their own: Chinese puts a space before an agent's name, not before 所有 Agent.
     let who: String? = {
         guard case .agent(let id) = sel else { return nil }
-        return ws.adapters.first { $0.id == id }?.name ?? id.rawValue
+        return allAdapters.first { $0.id == id }?.name ?? id.rawValue
     }()
     // The history shows names, as the app does; the id is only what's typed.
     let what = kind == .profile ? L("profile \(snap.profileName(ref.id))") : ref.id
@@ -397,6 +434,13 @@ case "delete":
         confirmAndApply(try ws.planSkillDelete(entry, snapshot: snap), summary: L("Delete \(entry.name)"))
     } catch { fail("\(error)") }
 
+case "clean":
+    expectArgs(0...0, usage: "clean [--yes]")
+    let snap = ws.scan(probeVersions: false)
+    let plan = ws.planRemoveBrokenLinks(snapshot: snap)
+    if plan.changes.isEmpty { print(green(L("No broken skill links."))); exit(0) }
+    confirmAndApply(plan, summary: L("Remove broken skill links"))
+
 case "history":
     expectArgs(0...0, usage: "history [--project <path>]")
     // A project's history: the applies that touched a file inside it.
@@ -422,11 +466,11 @@ case "undo":
 case "help", "-h", "--help":
     print(
         """
-        kitfold status | plan | apply [--yes] | profiles
-        kitfold skills [--all] [--project <path>] | agents [--project <path>]
+        kitfold status [--all] | plan | apply [--yes] | profiles
+        kitfold skills [--all] [--project <path>] | agents [--all] [--project <path>]
         kitfold assign <skill> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
         kitfold profile <id> <agent|*> [--off|--clear] [--project <path>] [--force] [--yes]
-        kitfold delete <skill> [--yes]
+        kitfold delete <skill> [--yes] | clean [--yes]
         kitfold history [--project <path>] | undo [<tx-id>] [--yes]
         """)
     print(L("flags: --home <dir> (sandbox $HOME), --no-color, --lang en|zh-Hans"))

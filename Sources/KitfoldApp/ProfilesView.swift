@@ -219,6 +219,10 @@ struct ProfileGrid: View {
     let profileID: String
 
     var body: some View {
+        ScrollView(.horizontal) { grid.padding(.bottom, 4) }
+    }
+
+    var grid: some View {
         Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
             GridRow {
                 Text("")
@@ -237,6 +241,7 @@ struct ProfileGrid: View {
                         ) {
                             model.toggleProfile(profileID, agent: a.id, scope: scope)
                         }
+                        .disabled(!canWrite(a, scope) && !st.on)
                         .help(targetHelp(a, scope))
                     }
                 }
@@ -244,8 +249,14 @@ struct ProfileGrid: View {
         }
     }
 
+    func canWrite(_ a: AgentState, _ scope: Scope) -> Bool {
+        model.env.flatMap { a.adapter.primaryInstructionFile(scope, $0) } != nil
+    }
+
     func targetHelp(_ a: AgentState, _ scope: Scope) -> String {
-        guard let env = model.env, let f = a.adapter.primaryInstructionFile(scope, env) else { return a.adapter.name }
+        guard let env = model.env, let f = a.adapter.primaryInstructionFile(scope, env) else {
+            return L("\(a.adapter.name): Kitfold doesn't know an instruction file only it reads")
+        }
         return L("\(a.adapter.name): written to \(model.ab(f))")
     }
 }

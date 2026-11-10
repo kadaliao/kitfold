@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Every agent, found automatically.** Kitfold now knows 76 agents instead of four, and lists the ones on this Mac: Cursor, GitHub Copilot, Devin (Devin Desktop, formerly Windsurf), Antigravity, Kiro, Trae, Amp, Droid, Goose, Crush, Grok Build, Qwen Code, Kimi Code, CodeBuddy, Lingma, Qoder, Continue, OpenClaw, Pi, Warp, Zed and many more.
+  - Each is a line in `AgentCatalog` (`Sources/KitfoldCore/Adapters/AgentCatalog+Specs.swift`): its own skills folders globally and per project, the other folders it reads (`~/.agents/skills`, Claude Code's, Codex's, Cursor's…), the file it reads that Kitfold can write profiles to, and how to tell it's installed. 36 were checked against their docs or source; the rest follow the skills CLI's agent table, and the app marks them unverified.
+  - Other agents' folders are modeled too: Cursor, Amp, Goose, Crush, Grok, Augment, Kilo, Devin and fx read Claude Code's `~/.claude/skills`; Warp reads ten agents' folders; Antigravity CLI reads Gemini CLI's. A link made for one agent that reaches another is flagged in the review.
+  - An agent counts as installed when its command or app is on this Mac (or its config folder, where that's a reliable sign). One whose folder was only left behind, or made by the skills CLI, is listed but not managed until you switch it on. Agents not on the Mac stay out of the sidebar, the matrix and `kitfold status`; Settings › Agents and `--all` list them.
+  - Agents that skip linked skill folders (Continue, fx's `~/.fx/skills`) show those links as skipped, and Kitfold says it can't give them skills by linking.
+  - Profiles reach more agents: Amp, Droid, Goose, Crush, Pi, Zed, Junie, Augment, Mistral Vibe, fx, Kilo Code, Kiro, Devin, Antigravity, Trae, Copilot, CodeBuddy, Continue, Grok, Qoder, Kimi Code, Qwen Code and Hermes each get a file of their own, and so do Cursor and Lingma in a project. Where the agent needs frontmatter to apply a rules file every time (Kiro's `inclusion: always`, Cursor's `alwaysApply: true`), Kitfold writes it.
+  - **Agents Kitfold doesn't know** are found too: a `skills` folder in `~/.<name>/` or `~/.config/<name>/` that holds skills and that no known agent or source claims is listed as an agent ("found on this Mac"), with what it loads. Such a folder may also be a collection or a repository, so Kitfold manages it only once you switch it on, and never guesses a project folder for it.
+  - **Your own agents:** Settings › Agents › **Add Agent…**, or `customAgents` in `kitfold.json` (name, skills folder, optional project folder and instruction files).
+  - A folder two agents both read (Trae and Trae CN in a project) belongs to the first; the other is shown reading it, so a link made for one isn't passed off as private.
+  - Agents without an instruction file of their own can't get profiles; the profile grids grey them out and the review says why.
+- **Remove broken skill links.** Skills deleted outside Kitfold leave links behind in every agent's folder. **Remove these links…** under a broken-link problem, **Remove all N broken links…** on the Dashboard, or `kitfold clean`, take them out, reviewed first and undoable. Broken links to the same skill in several agents' folders are now one problem.
+- CLI: `status --all` and `agents --all` list every agent Kitfold knows; `skills` names the agent behind each column; `assign`/`profile` accept found and custom agents.
+
+### Changed
+- **Deleting a skill cleans up after it everywhere.**
+  - Links to it are taken out of every agent's folder Kitfold knows, not only the four it used to know: the skills CLI's links in `~/.kiro/skills`, `~/.cursor/skills`, `~/.codeium/windsurf/skills` and the rest no longer turn into broken links.
+  - A skill the skills CLI installed is also taken off `~/.agents/.skill-lock.json`, as `npx skills remove` does, so `npx skills update` doesn't bring it back. Only that entry changes, and undo puts it back.
+  - A skill that's only linked in from elsewhere (a repository checkout) can now be deleted too: its links go, its folder stays where it is.
+  - **Delete…** is also in the right-click menu on an agent's page and in the matrix. For plugin and nested skills it's greyed out, with the reason as its help.
+- The skill page's **Who gets it** grid has one row per agent and one column per scope, so it stays readable with many agents. The matrix and the profile grids scroll sideways.
+
+### Fixed
+- Deleting a skill no longer carries along unrelated changes that were waiting to be applied (for example an "all agents" rule reaching an agent installed since). The review shows only what the delete does; where a file it writes also has other changes waiting (an agent's settings), the review says they come along.
+
 ## [0.3.1] - 2026-11-05
 
 ### Fixed

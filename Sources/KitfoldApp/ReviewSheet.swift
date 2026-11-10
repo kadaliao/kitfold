@@ -49,12 +49,12 @@ struct ReviewSheet: View {
                     }
                     if !plan.notWritten.isEmpty {
                         Section(L("Not written this time")) {
-                            ForEach(plan.notWritten) { IssueRow(issue: $0) }
+                            ForEach(plan.notWritten) { IssueRow(issue: $0, offersFix: false) }
                         }
                     }
                     if !plan.otherIssues.isEmpty {
                         Section(L("Needs attention — not changed automatically")) {
-                            ForEach(plan.otherIssues.sorted { $0.severity > $1.severity }) { IssueRow(issue: $0) }
+                            ForEach(plan.otherIssues.sorted { $0.severity > $1.severity }) { IssueRow(issue: $0, offersFix: false) }
                         }
                     }
                     if plan.changes.isEmpty && plan.issues.isEmpty {

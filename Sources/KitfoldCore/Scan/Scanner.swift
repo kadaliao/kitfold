@@ -4,10 +4,13 @@ import Foundation
 public struct Scanner: Sendable {
     public var env: KitfoldEnvironment
     public var adapters: [AgentAdapter]
+    /// Also look for skills folders of agents Kitfold doesn't know (`AgentDiscovery`).
+    public var discover: Bool
 
-    public init(env: KitfoldEnvironment, adapters: [AgentAdapter]) {
+    public init(env: KitfoldEnvironment, adapters: [AgentAdapter], discover: Bool = true) {
         self.env = env
         self.adapters = adapters
+        self.discover = discover
     }
 
     public func scan(
@@ -18,6 +21,7 @@ public struct Scanner: Sendable {
         let library = LibraryStore(env: env)
         var catalog = library.catalog(sources: config.sources)
         let scopes: [Scope] = [.global] + config.projects.map { .project($0.path) }
+        let adapters = adapters(for: config, env: env)
 
         // Probe agents concurrently: `--version` calls dominate scan time.
         let probes = UnsafeSendableBox([AgentInstallation?](repeating: nil, count: adapters.count))
@@ -39,6 +43,9 @@ public struct Scanner: Sendable {
                     + BundledSkills.observe(adapter: adapter, scope: scope, env: env)
                 for i in skills.indices {
                     if let s = skills[i].skill { skills[i].skipReason = adapter.descriptor.skipReason(s) }
+                    if skills[i].isSymlink && !skills[i].root.spec.followsLinks {
+                        skills[i].skipReason = L("\(adapter.name) doesn't load linked folders from \(env.abbreviate(skills[i].root.path))")
+                    }
                     if skills[i].root.spec.role != .bundled || adapter.descriptor.policyCoversBundled {
                         skills[i].native = policy.state(name: skills[i].name, skillFile: skills[i].skillFile)
                     }
@@ -52,7 +59,7 @@ public struct Scanner: Sendable {
             agents.append(
                 AgentState(
                     adapter: adapter, installation: inst,
-                    enabled: config.isAgentEnabled(adapter.id, detected: inst.isDetected), scopes: scopeStates))
+                    enabled: config.isAgentEnabled(adapter.id, detected: inst.isInstalled), scopes: scopeStates))
         }
 
         // Which agents load the same instruction file?
@@ -103,6 +110,46 @@ public struct Scanner: Sendable {
         snapshot.buildIndex()
         snapshot.issues = Diagnostics.issues(in: snapshot)
         return snapshot
+    }
+
+    /// The agents to scan: the known ones, the user's own (which replace a known one with the same id),
+    /// and any skills folder on the Mac that looks like an unknown agent's. Built-in agents come first,
+    /// then the rest by name.
+    public func adapters(for config: KitfoldConfig, env: KitfoldEnvironment) -> [AgentAdapter] {
+        var list = adapters
+        for custom in config.customAgents where !custom.id.isEmpty {
+            list.removeAll { $0.id.rawValue == custom.id }
+            // A folder another agent calls its own stays that agent's: the custom one reads it.
+            var global: [String: AgentID] = [:], project: [String: AgentID] = [:]
+            for a in list {
+                for r in a.skillRoots(.global, env) where r.spec.role == .primary { global[r.path] = global[r.path] ?? a.id }
+                for r in a.descriptor.skillRoots where r.role == .primary && r.base == .project {
+                    project[r.path] = project[r.path] ?? a.id
+                }
+            }
+            var d = custom.descriptor
+            let resolved = AgentAdapter(d).skillRoots(.global, env)
+            for i in d.skillRoots.indices where d.skillRoots[i].role == .primary {
+                let r = d.skillRoots[i]
+                let owner =
+                    r.scope == .project ? project[r.path] : resolved.first(where: { $0.spec == r }).flatMap { global[$0.path] }
+                if let owner {
+                    d.skillRoots[i].role = .foreign
+                    d.skillRoots[i].owner = owner
+                }
+            }
+            list.append(AgentAdapter(d))
+        }
+        if discover {
+            list += AgentDiscovery.find(env: env, known: list, sources: config.sources.map(\.path)).map(AgentAdapter.init)
+        }
+        let builtin = BuiltinAgents.all.map(\.id)
+        return list.enumerated().sorted { a, b in
+            let x = builtin.firstIndex(of: a.element.id) ?? Int.max, y = builtin.firstIndex(of: b.element.id) ?? Int.max
+            if x != y { return x < y }
+            let order = a.element.name.localizedCaseInsensitiveCompare(b.element.name)
+            return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
+        }.map(\.element)
     }
 
     /// Entries in one skills directory, in name order. With `nestedDepth > 0`, SKILL.md files

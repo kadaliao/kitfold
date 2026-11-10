@@ -38,6 +38,7 @@ extension Translations {
         "%@: written to %@": "%@：写入 %@",
         "Add skill": "添加技能",
 
+        "%@: Kitfold doesn't know an instruction file only it reads": "%@：Kitfold 不知道有哪个指令文件只有它读取",
         // Sheets.swift: instruction editor
         "Parts of this file are Kitfold profile blocks. Edit those in Profiles; changes made here are detected and won't be overwritten silently.":
             "这个文件里有 Kitfold 的 Profile 块，请到 Profile 页面编辑它们；在这里做的修改会被检测到，不会被悄悄覆盖。",
@@ -120,5 +121,28 @@ extension Translations {
             "Kitfold 库（~/.kitfold/library）始终包含在内。移除来源不会删除任何文件。",
         "Config folder": "配置目录",
         "Use": "使用",
+        // Sheets.swift: settings › agents
+        "On this Mac": "这台 Mac 上的",
+        "Kitfold lists an agent when its config folder or command is on this Mac, and looks for skills folders of agents it doesn't know.":
+            "Agent 的配置目录或命令在这台 Mac 上时，Kitfold 就会列出它；Kitfold 还会找出它不认识的 Agent 的技能目录。",
+        "1 more agent Kitfold knows": "另外 1 个 Kitfold 认识的 Agent",
+        "%@ more agents Kitfold knows": "另外 %@ 个 Kitfold 认识的 Agent",
+        "Not found on this Mac. Switch one on to manage it anyway, for example when its folder is somewhere else.":
+            "这台 Mac 上没有找到。打开开关就能照样管理它，比如它的目录在别处时。",
+        "Remove this agent from Kitfold (its folders stay)": "从 Kitfold 中移除这个 Agent（它的目录会保留）",
+        "Add Agent…": "添加 Agent…",
+        "Your own agents": "你自己的 Agent",
+        "For an agent Kitfold doesn't know or can't find: tell it where the agent keeps its skills.":
+            "Kitfold 不认识或找不到的 Agent：告诉它这个 Agent 把技能放在哪里。",
+        "found on this Mac": "在这台 Mac 上找到",
+        "added by you": "你添加的",
+        "Add an agent": "添加 Agent",
+        "Kitfold links skills into the agent's skills folder, and reads what's already there.":
+            "Kitfold 会把技能链接进这个 Agent 的技能目录，也会读取目录里已有的技能。",
+        "Skills folder": "技能目录",
+        "Choose…": "选择…",
+        "Skills folder in a project (optional)": "项目里的技能目录（可选）",
+        "Choose the folder where the agent looks for skills (each skill is a folder with SKILL.md).":
+            "选择这个 Agent 查找技能的目录（每个技能是一个带 SKILL.md 的目录）。",
     ]
 }

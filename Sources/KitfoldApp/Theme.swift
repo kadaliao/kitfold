@@ -218,7 +218,11 @@ extension Issue.Severity {
 }
 
 struct IssueRow: View {
+    @Environment(AppModel.self) private var model
     let issue: Issue
+    /// Offer the fix Kitfold has for this kind of problem (not inside a review, which is one already).
+    var offersFix = true
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: issue.severity.symbol).foregroundStyle(issue.severity.color)
@@ -226,6 +230,14 @@ struct IssueRow: View {
                 Text(issue.title).font(.callout)
                 if !issue.detail.isEmpty {
                     Text(issue.detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
+                if offersFix && issue.kind == .brokenLink {
+                    Button(issue.paths.count == 1 ? L("Remove the link…") : L("Remove these links…")) {
+                        model.reviewRemoveBrokenLinks(issue.paths)
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .help(L("Take the broken links out of the agents' folders. You review it first, and it can be undone."))
                 }
             }
         }

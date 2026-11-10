@@ -350,19 +350,17 @@ extension Workspace {
     @Test func deletingWhatBelongsToSomethingElseIsRefused() throws {
         let h = FakeHome()
         h.installAgents()
-        h.skill("dev/kit/beta")  // outside the library and every source
-        h.link(".claude/skills/beta", to: "dev/kit/beta")
         h.skill(".agents/skills/suite")
         h.skill(".agents/skills/suite/skills/inner")  // a nested SKILL.md
         h.skill(".codex/skills/.system/imagegen")  // Codex rewrites this folder itself
         let ws = try h.workspace()
         let snap = ws.snap()
-        for name in ["beta", "inner", "imagegen"] {
+        for name in ["inner", "imagegen"] {
             let entry = try #require(snap.skill(named: name))
             #expect(!entry.origin.isDeletable)
             #expect(throws: KitfoldError.self) { try ws.planSkillDelete(entry, snapshot: snap) }
         }
-        #expect(h.kind("dev/kit/beta") == .directory)
+        // A folder only linked in from elsewhere: see DeleteEverywhereTests.deletingALinkedFolderLeavesTheFolder.
         // A folder in an agent's own skills directory is Kitfold's to delete, though.
         h.skill(".codex/skills/notebook-tools")
         let after = ws.snap()

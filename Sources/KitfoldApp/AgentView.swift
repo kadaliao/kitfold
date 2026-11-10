@@ -16,7 +16,9 @@ struct AgentView: View {
                     header(agent, snap)
                     skills(agent, snap)
                     profiles(agent)
-                    instructions(agent)
+                    if !agent.state(.global).instructions.isEmpty || !agent.state(scope).instructions.isEmpty {
+                        instructions(agent)
+                    }
                     discovery(agent)
                     let issues = snap.issues(for: agentID).filter { $0.scope == nil || $0.scope == scope }
                     if !issues.isEmpty {
@@ -49,12 +51,28 @@ struct AgentView: View {
                     Text(a.adapter.name).font(.system(size: 22, weight: .semibold, design: .rounded))
                     Text(a.adapter.descriptor.vendor).foregroundStyle(.secondary)
                     if let v = inst.version { Pill(text: "v\(v)") }
+                    switch a.adapter.descriptor.source {
+                    case .discovered:
+                        Pill(text: L("found on this Mac"), color: .teal, systemImage: "sparkle.magnifyingglass")
+                            .help(a.adapter.descriptor.notes.map { Localization.translate($0) }.joined(separator: "\n"))
+                    case .custom: Pill(text: L("added by you"), color: .teal, systemImage: "person.crop.circle.badge.plus")
+                    case .builtin, .catalog: EmptyView()
+                    }
                 }
                 if let bin = inst.binaryPath {
                     PathLabel(path: bin)
                 } else {
-                    Text(inst.configDirExists ? L("CLI not found on PATH (config folder exists)") : L("Not detected on this Mac"))
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text(
+                        !inst.isDetected
+                            ? L("Not detected on this Mac")
+                            : !inst.isInstalled
+                                ? L(
+                                    "Only its folder is here: the app or command wasn't found, so Kitfold doesn't manage it unless you switch it on."
+                                )
+                                : a.adapter.descriptor.binaryNames.isEmpty || inst.marker != nil
+                                    ? L("Found on this Mac") : L("CLI not found on PATH (config folder exists)")
+                    )
+                    .font(.caption).foregroundStyle(.secondary)
                 }
                 PathLabel(path: inst.configDir)
             }
@@ -138,8 +156,10 @@ struct AgentView: View {
         let q = filter.lowercased()
         let filtered = reach.filter { q.isEmpty || $0.skill.name.lowercased().contains(q) }
         let groups = Dictionary(grouping: listings(filtered), by: { group($0.main) })
+        // Only a managed agent gets what its rules ask for.
         let pendingAdds = model.draft.rules.filter {
-            $0.resource.kind == .skill && $0.scope == scope && $0.state == .on && ($0.agent == .all || $0.agent == .agent(agentID))
+            a.enabled && $0.resource.kind == .skill && $0.scope == scope && $0.state == .on
+                && ($0.agent == .all || $0.agent == .agent(agentID))
         }.map(\.resource.id).filter { n in !reach.contains { $0.skill.name == n } }
         let subtitle =
             scope.isGlobal
@@ -199,6 +219,13 @@ struct AgentView: View {
                 Text(name).lineLimit(1)
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                if let e = entry(name: name, path: path) {
+                    Button(L("Reveal in Finder")) { model.reveal(e.path) }
+                    Divider()
+                    DeleteSkillButton(entry: e)
+                }
+            }
             if let note { Text(note).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
             if !alsoIn.isEmpty {
                 Text(L("also in \(Localization.list(alsoIn.map(model.ab)))"))
@@ -214,18 +241,25 @@ struct AgentView: View {
         .padding(.leading, 4)
     }
 
+    /// The folder this row stands for (resolved), else the library's copy of the name.
+    func entry(name: String, path: String?) -> SkillEntry? {
+        guard let snap = model.snapshot else { return nil }
+        if let path, let real = FS.realPath(path), let e = snap.catalog.first(where: { $0.path == real }) { return e }
+        return snap.skill(named: name)
+    }
+
     // MARK: profiles
 
     func profiles(_ a: AgentState) -> some View {
         Card {
             SectionTitle(title: L("Profiles"), subtitle: profileTarget(a))
-            if model.profiles.isEmpty {
+            if model.profiles.isEmpty && model.env.flatMap({ a.adapter.primaryInstructionFile(scope, $0) }) != nil {
                 HStack {
                     Text(L("No profiles yet.")).foregroundStyle(.secondary)
                     Button(L("Create one…")) { model.showNewProfile = true }.buttonStyle(.link)
                 }
             }
-            ForEach(model.profiles) { p in
+            ForEach(model.env.flatMap { a.adapter.primaryInstructionFile(scope, $0) } == nil ? [] : model.profiles) { p in
                 let st = model.profileState(p.id, agent: a.id, scope: scope)
                 Toggle(isOn: Binding(get: { st.on }, set: { _ in model.toggleProfile(p.id, agent: a.id, scope: scope) })) {
                     HStack {
@@ -244,7 +278,9 @@ struct AgentView: View {
     }
 
     func profileTarget(_ a: AgentState) -> String {
-        guard let env = model.env, let f = a.adapter.primaryInstructionFile(scope, env) else { return "" }
+        guard let env = model.env, let f = a.adapter.primaryInstructionFile(scope, env) else {
+            return L("Kitfold doesn't know an instruction file that only \(a.adapter.name) reads, so profiles can't be given to it.")
+        }
         return L("Kitfold writes assigned profiles to \(model.ab(f)).")
     }
 
@@ -350,7 +386,9 @@ struct AgentView: View {
                     ForEach(a.adapter.descriptor.notes, id: \.self) { n in
                         Label(Localization.translate(n), systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
                     }
-                    Link(L("Agent documentation"), destination: URL(string: a.adapter.descriptor.docsURL)!).font(.caption)
+                    if let url = URL(string: a.adapter.descriptor.docsURL), !a.adapter.descriptor.docsURL.isEmpty {
+                        Link(L("Agent documentation"), destination: url).font(.caption)
+                    }
                 }
                 .padding(.top, 6)
             } label: {

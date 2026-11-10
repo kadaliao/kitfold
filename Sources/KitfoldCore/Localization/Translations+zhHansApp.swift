@@ -91,6 +91,10 @@ extension Translations {
         "Overwrite edit in %@": "覆盖 %@ 中的修改",
         "Global": "全局",
 
+        "Remove 1 broken link": "移除 1 个失效的链接",
+        "Remove %@ broken links": "移除 %@ 个失效的链接",
+        "This agent still has assignments. Clear them on its page and apply first, so Kitfold can take back its links.":
+            "这个 Agent 还有分配。请先在它的页面里清除并应用，让 Kitfold 收回它的链接。",
         // DashboardView.swift
         "Scanned %@": "扫描于 %@",
         "1 agent": "1 个 Agent",
@@ -120,6 +124,10 @@ extension Translations {
         "Skill names + descriptions are listed to the model in every session, plus the instruction files. Estimate: 4 bytes per token.":
             "每次会话都会把技能名称和描述，以及指令文件，一起提供给模型。按每个 token 4 字节估算。",
 
+        "Only its folder is here": "这里只有它的目录",
+        "Remove all %@ broken links…": "移除全部 %@ 个失效的链接…",
+        "Skills deleted outside Kitfold leave links behind in the agents' folders. Review and remove them in one go.":
+            "在 Kitfold 之外删除的技能会在各 Agent 的目录里留下链接。预览后可以一次移除。",
         // ReviewSheet.swift
         "Review changes": "预览变更",
         "Changes": "变更",
@@ -166,6 +174,10 @@ extension Translations {
         "Plugin": "插件",
         "Nested": "嵌套",
 
+        "Remove the link…": "移除这条链接…",
+        "Remove these links…": "移除这些链接…",
+        "Take the broken links out of the agents' folders. You review it first, and it can be undone.":
+            "把失效的链接从各 Agent 的目录中移除。会先预览，也可以撤销。",
         // AgentLogos.swift
         "%@ logo": "%@ 标志",
     ]

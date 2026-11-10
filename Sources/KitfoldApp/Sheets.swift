@@ -386,25 +386,33 @@ struct ProjectProfiles: View {
         if model.profiles.isEmpty {
             Text(L("No profiles yet.")).foregroundStyle(.secondary)
         }
-        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-            GridRow {
-                Text("")
-                ForEach(model.managedAgents) { a in AgentBadge(adapter: a.adapter, size: 18).gridColumnAlignment(.center) }
-            }
-            ForEach(model.profiles) { p in
+        ScrollView(.horizontal) {
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
                 GridRow {
-                    Text(p.name)
-                    ForEach(model.managedAgents) { a in
-                        let st = model.profileState(p.id, agent: a.id, scope: scope)
-                        ReachCell(
-                            state: CellState(
-                                reach: st.on && !st.pending ? .kitfoldLink : .off,
-                                rule: st.on ? .on : (st.pending ? .off : nil), pending: st.pending),
-                            tint: a.adapter.tint
-                        ) { model.toggleProfile(p.id, agent: a.id, scope: scope) }
+                    Text("")
+                    ForEach(model.managedAgents) { a in AgentBadge(adapter: a.adapter, size: 18).gridColumnAlignment(.center) }
+                }
+                ForEach(model.profiles) { p in
+                    GridRow {
+                        Text(p.name)
+                        ForEach(model.managedAgents) { a in
+                            let st = model.profileState(p.id, agent: a.id, scope: scope)
+                            let canWrite = model.env.flatMap { a.adapter.primaryInstructionFile(scope, $0) } != nil
+                            ReachCell(
+                                state: CellState(
+                                    reach: st.on && !st.pending ? .kitfoldLink : .off,
+                                    rule: st.on ? .on : (st.pending ? .off : nil), pending: st.pending),
+                                tint: a.adapter.tint
+                            ) { model.toggleProfile(p.id, agent: a.id, scope: scope) }
+                            .disabled(!canWrite && !st.on)
+                            .help(
+                                canWrite
+                                    ? a.adapter.name : L("\(a.adapter.name): Kitfold doesn't know an instruction file only it reads"))
+                        }
                     }
                 }
             }
+            .padding(.bottom, 4)
         }
     }
 }
@@ -514,25 +522,7 @@ struct SettingsView: View {
         .formStyle(.grouped)
     }
 
-    var agents: some View {
-        Form {
-            ForEach(model.agents) { a in
-                Section {
-                    Toggle(
-                        L("Managed by Kitfold"),
-                        isOn: Binding(
-                            get: { a.enabled },
-                            set: { on in model.saveSettings { $0.agents[a.id.rawValue, default: AgentSettings()].enabled = on } }))
-                    ConfigDirField(agent: a)
-                } header: {
-                    HStack {
-                        AgentBadge(adapter: a.adapter, size: 16); Text(a.adapter.name)
-                    }
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
+    var agents: some View { AgentSettingsTab() }
 
     var sources: some View {
         Form {
@@ -558,6 +548,176 @@ struct SettingsView: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Settings › Agents: the agents on this Mac, the others Kitfold knows, and the user's own.
+struct AgentSettingsTab: View {
+    @Environment(AppModel.self) private var model
+    @State private var showOthers = false
+    @State private var query = ""
+    @State private var showAdd = false
+
+    var others: [AgentState] {
+        let shown = Set(model.agents.map(\.id))
+        return model.allAgents.filter { !shown.contains($0.id) }
+            .filter { query.isEmpty || $0.adapter.name.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(model.agents) { a in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            AgentBadge(adapter: a.adapter, size: 18)
+                            Text(a.adapter.name)
+                            sourcePill(a)
+                            Spacer()
+                            managedToggle(a)
+                        }
+                        ConfigDirField(agent: a).controlSize(.small)
+                    }
+                    .padding(.vertical, 2)
+                }
+            } header: {
+                Text(L("On this Mac"))
+            } footer: {
+                Text(
+                    L(
+                        "Kitfold lists an agent when its config folder or command is on this Mac, and looks for skills folders of agents it doesn't know."
+                    )
+                )
+                .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                DisclosureGroup(isExpanded: $showOthers) {
+                    TextField(L("Filter"), text: $query).textFieldStyle(.roundedBorder)
+                    ForEach(others) { a in
+                        HStack(spacing: 8) {
+                            AgentBadge(adapter: a.adapter, size: 16, dimmed: true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(a.adapter.name)
+                                if let env = model.env, let dir = a.adapter.primarySkillDir(.global, env) {
+                                    Text(model.ab(dir)).font(.caption.monospaced()).foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            managedToggle(a)
+                        }
+                    }
+                } label: {
+                    let n = model.allAgents.count - model.agents.count
+                    Text(n == 1 ? L("1 more agent Kitfold knows") : L("\(n) more agents Kitfold knows"))
+                }
+            } footer: {
+                Text(L("Not found on this Mac. Switch one on to manage it anyway, for example when its folder is somewhere else."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                ForEach(model.draft.customAgents) { c in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(c.name)
+                            Text(c.skills).font(.caption.monospaced()).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            model.removeCustomAgent(c.id)
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .help(L("Remove this agent from Kitfold (its folders stay)"))
+                    }
+                }
+                Button(L("Add Agent…")) { showAdd = true }
+            } header: {
+                Text(L("Your own agents"))
+            } footer: {
+                Text(L("For an agent Kitfold doesn't know or can't find: tell it where the agent keeps its skills."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .sheet(isPresented: $showAdd) { AddAgentSheet() }
+    }
+
+    func managedToggle(_ a: AgentState) -> some View {
+        Toggle(
+            L("Managed by Kitfold"),
+            isOn: Binding(
+                get: { a.enabled },
+                set: { on in model.saveSettings { $0.agents[a.id.rawValue, default: AgentSettings()].enabled = on } })
+        )
+        .labelsHidden()
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .help(L("Managed by Kitfold"))
+    }
+
+    @ViewBuilder func sourcePill(_ a: AgentState) -> some View {
+        switch a.adapter.descriptor.source {
+        case .discovered: Pill(text: L("found on this Mac"), color: .teal)
+        case .custom: Pill(text: L("added by you"), color: .teal)
+        case .builtin, .catalog: EmptyView()
+        }
+    }
+}
+
+/// Describe an agent Kitfold doesn't know: a name and where it keeps skills.
+struct AddAgentSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var folder = ""
+    @State private var projectFolder = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Add an agent")).font(.headline)
+            Text(L("Kitfold links skills into the agent's skills folder, and reads what's already there."))
+                .font(.callout).foregroundStyle(.secondary)
+            TextField(L("Name"), text: $name, prompt: Text(verbatim: "My Agent")).textFieldStyle(.roundedBorder)
+            HStack {
+                TextField(L("Skills folder"), text: $folder, prompt: Text(verbatim: "~/.my-agent/skills")).textFieldStyle(.roundedBorder)
+                Button(L("Choose…")) { choose() }
+            }
+            TextField(L("Skills folder in a project (optional)"), text: $projectFolder, prompt: Text(verbatim: ".my-agent/skills"))
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Spacer()
+                Button(L("Cancel")) { dismiss() }
+                Button(L("Add")) {
+                    model.addCustomAgent(
+                        name: name.trimmingCharacters(in: .whitespaces), skills: folder.trimmingCharacters(in: .whitespaces),
+                        projectSkills: projectFolder.trimmingCharacters(in: .whitespaces))
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || folder.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+    }
+
+    func choose() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.showsHiddenFiles = true
+        panel.message = L("Choose the folder where the agent looks for skills (each skill is a folder with SKILL.md).")
+        if panel.runModal() == .OK, let url = panel.url {
+            folder = model.ab(url.path)
+            if name.isEmpty {
+                // ~/.my-agent/skills → My Agent
+                let parent = url.deletingLastPathComponent().lastPathComponent.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                name = parent.split(whereSeparator: { $0 == "-" || $0 == "_" }).map { $0.prefix(1).uppercased() + $0.dropFirst() }
+                    .joined(separator: " ")
+            }
+        }
     }
 }
 
