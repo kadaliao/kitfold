@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-10
+
+### Added
+- **Updates.** Kitfold checks GitHub for a new release once a day (at launch, or when you come back to it), and shows **Kitfold X is available** in the toolbar. **Install and Reopen** downloads the release's disk image and installs it in place of the running copy, then reopens it.
+  - Nothing is replaced unless the download matches the release's SHA-256, is signed by the same Developer ID team as the copy it replaces, is notarized by Apple, and is the version it claims to be. On any failure the old app stays as it was.
+  - **Kitfold › Check for Updates…** checks right away. **Skip This Version** stops reminding about that release.
+  - Settings › General › **Check for updates automatically** turns the daily check off. It asks GitHub's API for the latest release and sends nothing about you or your setup.
+  - A copy run from the disk image, from macOS's temporary location (App Translocation), from a folder you can't write, or a development build can't replace itself; the sheet says why and links to the download page.
+- CLI: `kitfold version`, and `kitfold update [--yes]`, which checks for a new release and installs it in place of the Kitfold.app the command belongs to.
+
 ## [0.4.0] - 2026-11-10
 
 ### Added
@@ -167,7 +177,8 @@ First version.
 - **`kitfold` CLI:** `status`, `skills`, `agents`, `plan`, `assign`, `profile`, `apply`, `history`, `undo`, plus a `--home` sandbox.
 - **Tooling:** a release bundle script, a demo home, release screenshots, and a snapshot mode for checking the UI.
 
-[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kadaliao/kitfold/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kadaliao/kitfold/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kadaliao/kitfold/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/kadaliao/kitfold/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kadaliao/kitfold/compare/v0.2.0...v0.3.0
