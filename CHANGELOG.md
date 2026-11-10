@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Homebrew.** `brew install --cask kadaliao/tap/kitfold` installs Kitfold and links the `kitfold` command into your `PATH`.
+
 ## [0.5.1] - 2026-11-10
 
 ### Fixed

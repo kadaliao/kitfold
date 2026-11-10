@@ -142,6 +142,8 @@ It asks for an app-specific password and keeps everything in the keychain. Never
 
    The app and `kitfold update` update from the latest GitHub release: they look for the tag `v<version>` and the assets `Kitfold-<version>.dmg` and `SHA256SUMS` under exactly those names, and install the disk image only if it's signed by the same Developer ID team and notarized. So keep the names, and don't publish an unnotarized image as the latest release (it would be refused, and every user would see the update fail). The release notes are what the update sheet shows.
 
+7. **Homebrew.** Update `Casks/kitfold.rb` in [kadaliao/homebrew-tap](https://github.com/kadaliao/homebrew-tap): `version`, and `sha256` from the release's `SHA256SUMS`. Push, then check it with `brew audit --cask --strict --online kadaliao/tap/kitfold`. Skip this for a prerelease.
+
 ## Where things are
 
 | You want to… | Look at |

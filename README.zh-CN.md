@@ -81,6 +81,14 @@ Kitfold 回答这些问题，并且让你点一下就能安全地改变答案。
 
 ## 开始使用
 
+**Homebrew：**
+
+```bash
+brew install --cask kadaliao/tap/kitfold
+```
+
+会装好 Kitfold.app，并把 `kitfold` 命令放进 `PATH`。Kitfold 自己会更新，所以 `brew upgrade` 默认跳过它，要用 brew 升级就加 `--greedy`。
+
 **下载：** 从 [Releases](https://github.com/kadaliao/kitfold/releases/latest) 下载 `Kitfold-<版本>.dmg`，打开后把 Kitfold 拖进“应用程序”。支持 macOS 15 及以上，Apple 芯片和 Intel 都能用，已用 Developer ID 签名并经过 Apple 公证。命令行工具就在 App 里，想在任何目录下直接敲 `kitfold`，把它链接进 `PATH`：
 
 ```bash

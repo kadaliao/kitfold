@@ -81,6 +81,14 @@ Each agent is a declarative descriptor (the four above) or a one-line entry in t
 
 ## Getting started
 
+**Homebrew:**
+
+```bash
+brew install --cask kadaliao/tap/kitfold
+```
+
+This installs Kitfold.app and puts the `kitfold` command in your `PATH`. Kitfold updates itself, so `brew upgrade` skips it unless you add `--greedy`.
+
 **Download:** get `Kitfold-<version>.dmg` from [Releases](https://github.com/kadaliao/kitfold/releases/latest), open it, and drag Kitfold into Applications. It runs on macOS 15 or later, on Apple silicon and Intel, and is signed with a Developer ID and notarized. The command-line tool is inside the app; to type `kitfold` anywhere, link it into your `PATH`:
 
 ```bash
